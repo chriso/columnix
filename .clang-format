@@ -1,0 +1,7 @@
+BasedOnStyle: Google
+IndentWidth: 4
+BreakBeforeBraces: Linux
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false

@@ -25,4 +25,7 @@ check: $(TESTS)
 clean:
 	rm -f $(LIB) $(OBJ) $(TESTS) $(TEST_OBJ)
 
-.PHONY: check clean
+format:
+	clang-format -i */*.{c,h}
+
+.PHONY: check clean format
