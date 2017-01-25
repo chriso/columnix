@@ -15,6 +15,7 @@ struct zcs_column {
 };
 
 struct zcs_column_cursor {
+    const struct zcs_column *column;
     const void *start;
     const void *end;
     const void *position;
@@ -109,6 +110,7 @@ struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *column)
     struct zcs_column_cursor *cursor = malloc(sizeof(*cursor));
     if (!cursor)
         return NULL;
+    cursor->column = column;
     cursor->start = column->buffer;
     cursor->end = zcs_column_tail(column);
     zcs_column_cursor_rewind(cursor);
@@ -147,11 +149,13 @@ static const void *zcs_column_cursor_next(struct zcs_column_cursor *cursor,
 
 int32_t zcs_column_cursor_next_i32(struct zcs_column_cursor *cursor)
 {
+    assert(cursor->column->type == ZCS_COLUMN_I32);
     return *(const int32_t *)zcs_column_cursor_next(cursor, sizeof(int32_t));
 }
 
 int64_t zcs_column_cursor_next_i64(struct zcs_column_cursor *cursor)
 {
+    assert(cursor->column->type == ZCS_COLUMN_I64);
     return *(const int64_t *)zcs_column_cursor_next(cursor, sizeof(int64_t));
 }
 
@@ -174,12 +178,14 @@ static size_t zcs_column_cursor_skip(struct zcs_column_cursor *cursor,
 size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *cursor,
                                   size_t count)
 {
+    assert(cursor->column->type == ZCS_COLUMN_I32);
     return zcs_column_cursor_skip(cursor, sizeof(int32_t), count);
 }
 
 size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *cursor,
                                   size_t count)
 {
+    assert(cursor->column->type == ZCS_COLUMN_I64);
     return zcs_column_cursor_skip(cursor, sizeof(int64_t), count);
 }
 
@@ -195,6 +201,7 @@ static const void *zcs_column_cursor_next_batch(
 const int32_t *zcs_column_cursor_next_batch_i32(
     struct zcs_column_cursor *cursor, size_t count, size_t *available)
 {
+    assert(cursor->column->type == ZCS_COLUMN_I32);
     return (const int32_t *)zcs_column_cursor_next_batch(
         cursor, sizeof(int32_t), count, available);
 }
@@ -202,6 +209,7 @@ const int32_t *zcs_column_cursor_next_batch_i32(
 const int64_t *zcs_column_cursor_next_batch_i64(
     struct zcs_column_cursor *cursor, size_t count, size_t *available)
 {
+    assert(cursor->column->type == ZCS_COLUMN_I64);
     return (const int64_t *)zcs_column_cursor_next_batch(
         cursor, sizeof(int64_t), count, available);
 }
