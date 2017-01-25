@@ -1,4 +1,4 @@
-CFLAGS = -std=c11 -Wall -pedantic -Iinclude
+CFLAGS = -std=c11 -Wall -pedantic -Iinclude -Itest
 
 SRC = $(wildcard lib/*.c)
 OBJ = $(SRC:.c=.o)
@@ -8,7 +8,7 @@ TEST_OBJ = $(TEST_SRC:.c=.o)
 
 LIB = libzcs.dylib
 
-TESTS = tests
+TESTS = test/runner
 
 $(LIB): $(OBJ)
 	$(CC) $(LDFLAGS) -shared -o $@ $^
