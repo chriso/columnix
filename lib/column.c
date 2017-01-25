@@ -52,6 +52,16 @@ const void *zcs_column_export(const struct zcs_column *column, size_t *size)
     return column->buffer;
 }
 
+enum zcs_column_type zcs_column_type(const struct zcs_column *column)
+{
+    return column->type;
+}
+
+enum zcs_encode_type zcs_column_encode(const struct zcs_column *column)
+{
+    return column->encode;
+}
+
 const struct zcs_column_index *zcs_column_index(const struct zcs_column *column)
 {
     return &column->index;

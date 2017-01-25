@@ -13,6 +13,8 @@ static void *setup_i32(const MunitParameter params[], void *data)
     assert_not_null(col);
     for (int32_t i = 0; i < COUNT; i++)
         assert_true(zcs_column_put_i32(col, i));
+    assert_int(zcs_column_type(col), ==, ZCS_COLUMN_I32);
+    assert_int(zcs_column_encode(col), ==, ZCS_ENCODE_NONE);
     return col;
 }
 
@@ -149,8 +151,7 @@ MunitTest column_tests[] = {
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-export", test_i32_export, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
-    {"/i32-index", test_i32_index, NULL, NULL,
-     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/i32-index", test_i32_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-cursor", test_i32_cursor, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-cursor-batching", test_i32_cursor_batching, setup_i32, teardown,

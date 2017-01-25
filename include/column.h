@@ -24,6 +24,8 @@ struct zcs_column_index {
 struct zcs_column *zcs_column_new(enum zcs_column_type, enum zcs_encode_type);
 void zcs_column_free(struct zcs_column *);
 const void *zcs_column_export(const struct zcs_column *, size_t *);
+enum zcs_column_type zcs_column_type(const struct zcs_column *);
+enum zcs_encode_type zcs_column_encode(const struct zcs_column *);
 
 const struct zcs_column_index *zcs_column_index(const struct zcs_column *);
 
