@@ -23,93 +23,94 @@ struct zcs_column_cursor {
 struct zcs_column *zcs_column_new(enum zcs_column_type type,
                                   enum zcs_encode_type encode)
 {
-    struct zcs_column *col = calloc(1, sizeof(*col));
-    if (!col)
+    struct zcs_column *column = calloc(1, sizeof(*column));
+    if (!column)
         return NULL;
-    col->buffer = malloc(zcs_column_initial_size);
-    if (!col->buffer) {
-        free(col);
-        return NULL;
-    }
-    col->size = zcs_column_initial_size;
-    col->type = type;
-    col->encode = encode;
-    return col;
+    column->buffer = malloc(zcs_column_initial_size);
+    if (!column->buffer)
+        goto error;
+    column->size = zcs_column_initial_size;
+    column->type = type;
+    column->encode = encode;
+    return column;
+error:
+    free(column);
+    return NULL;
 }
 
-void zcs_column_free(struct zcs_column *col)
+void zcs_column_free(struct zcs_column *column)
 {
-    free(col->buffer);
-    free(col);
+    free(column->buffer);
+    free(column);
 }
 
-const void *zcs_column_export(const struct zcs_column *col, size_t *size)
+const void *zcs_column_export(const struct zcs_column *column, size_t *size)
 {
-    *size = col->offset;
-    return col->buffer;
+    *size = column->offset;
+    return column->buffer;
 }
 
-ZCS_NO_INLINE static bool zcs_column_resize(struct zcs_column *col,
+ZCS_NO_INLINE static bool zcs_column_resize(struct zcs_column *column,
                                             size_t alloc_size)
 {
-    size_t size = col->size;
-    size_t required_size = col->offset + alloc_size;
+    size_t size = column->size;
+    size_t required_size = column->offset + alloc_size;
     while (size < required_size) {
         assert(size * 2 > size);
         size *= 2;
     }
-    void *buffer = realloc(col->buffer, size);
+    void *buffer = realloc(column->buffer, size);
     if (!buffer)
         return false;
-    col->buffer = buffer;
-    col->size = size;
+    column->buffer = buffer;
+    column->size = size;
     return true;
 }
 
-static void *zcs_column_tail(const struct zcs_column *col)
+static void *zcs_column_tail(const struct zcs_column *column)
 {
-    return (void *)((uintptr_t)col->buffer + col->offset);
+    return (void *)((uintptr_t)column->buffer + column->offset);
 }
 
-static void *zcs_column_alloc(struct zcs_column *col, size_t size)
+static void *zcs_column_alloc(struct zcs_column *column, size_t size)
 {
-    if (ZCS_UNLIKELY(col->offset + size > col->size))
-        if (!zcs_column_resize(col, size))
+    if (ZCS_UNLIKELY(column->offset + size > column->size))
+        if (!zcs_column_resize(column, size))
             return NULL;
-    void *ptr = zcs_column_tail(col);
-    col->offset += size;
+    void *ptr = zcs_column_tail(column);
+    column->offset += size;
     return ptr;
 }
 
-bool zcs_column_put_i32(struct zcs_column *col, int32_t value)
+bool zcs_column_put_i32(struct zcs_column *column, int32_t value)
 {
-    if (ZCS_UNLIKELY(col->type != ZCS_COLUMN_I32))
+    if (ZCS_UNLIKELY(column->type != ZCS_COLUMN_I32))
         return false;
-    int32_t *slot = zcs_column_alloc(col, sizeof(int32_t));
+    int32_t *slot = zcs_column_alloc(column, sizeof(int32_t));
     if (ZCS_UNLIKELY(!slot))
         return false;
     *slot = value;
     return true;
 }
 
-bool zcs_column_put_i64(struct zcs_column *col, int64_t value)
+bool zcs_column_put_i64(struct zcs_column *column, int64_t value)
 {
-    if (ZCS_UNLIKELY(col->type != ZCS_COLUMN_I64))
+    if (ZCS_UNLIKELY(column->type != ZCS_COLUMN_I64))
         return false;
-    int64_t *slot = zcs_column_alloc(col, sizeof(int64_t));
+    int64_t *slot = zcs_column_alloc(column, sizeof(int64_t));
     if (ZCS_UNLIKELY(!slot))
         return false;
     *slot = value;
     return true;
 }
 
-struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *col)
+struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *column)
 {
     struct zcs_column_cursor *cursor = malloc(sizeof(*cursor));
     if (!cursor)
         return NULL;
-    cursor->start = col->buffer;
-    cursor->end = zcs_column_tail(col);
+    cursor->start = column->buffer;
+    cursor->end = zcs_column_tail(column);
     zcs_column_cursor_rewind(cursor);
     return cursor;
 }
@@ -154,11 +155,16 @@ int64_t zcs_column_cursor_next_i64(struct zcs_column_cursor *cursor)
     return *(const int64_t *)zcs_column_cursor_next(cursor, sizeof(int64_t));
 }
 
+static size_t zcs_column_cursor_remaining(struct zcs_column_cursor *cursor,
+                                          size_t size)
+{
+    return ((uintptr_t)cursor->end - (uintptr_t)cursor->position) / size;
+}
+
 static size_t zcs_column_cursor_skip(struct zcs_column_cursor *cursor,
                                      size_t size, size_t count)
 {
-    size_t remaining =
-        ((uintptr_t)cursor->end - (uintptr_t)cursor->position) / size;
+    size_t remaining = zcs_column_cursor_remaining(cursor, size);
     if (remaining < count)
         count = remaining;
     zcs_column_cursor_advance(cursor, size * count);
@@ -175,4 +181,27 @@ size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *cursor,
                                   size_t count)
 {
     return zcs_column_cursor_skip(cursor, sizeof(int64_t), count);
+}
+
+static const void *zcs_column_cursor_next_batch(
+    struct zcs_column_cursor *cursor, size_t size, size_t count,
+    size_t *available)
+{
+    const void *values = cursor->position;
+    *available = zcs_column_cursor_skip(cursor, size, count);
+    return values;
+}
+
+const int32_t *zcs_column_cursor_next_batch_i32(
+    struct zcs_column_cursor *cursor, size_t count, size_t *available)
+{
+    return (const int32_t *)zcs_column_cursor_next_batch(
+        cursor, sizeof(int32_t), count, available);
+}
+
+const int64_t *zcs_column_cursor_next_batch_i64(
+    struct zcs_column_cursor *cursor, size_t count, size_t *available)
+{
+    return (const int64_t *)zcs_column_cursor_next_batch(
+        cursor, sizeof(int64_t), count, available);
 }

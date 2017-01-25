@@ -3,7 +3,7 @@
 
 #include "column.h"
 
-#define COUNT 1024
+#define COUNT 4
 
 static void *setup_i32(const MunitParameter params[], void *data)
 {
@@ -53,6 +53,33 @@ static MunitResult test_i32_cursor(const MunitParameter params[], void *fixture)
     return MUNIT_OK;
 }
 
+static MunitResult test_i32_cursor_batching(const MunitParameter params[],
+                                            void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t batch_size[] = {1, 8, 13, 64, 234, COUNT / 2, COUNT, COUNT + 1};
+    for (size_t i = 0; i < sizeof(batch_size) / sizeof(*batch_size); i++) {
+        size_t position = 0, count;
+        while (zcs_column_cursor_valid(cursor)) {
+            const int32_t *values =
+                zcs_column_cursor_next_batch_i32(cursor, batch_size[i], &count);
+            for (int32_t j = 0; j < count; j++)
+                assert_int32(values[j], ==, j + position);
+            position += count;
+            if (!zcs_column_cursor_valid(cursor))
+                break;
+        }
+        assert_size(position, ==, COUNT);
+        zcs_column_cursor_rewind(cursor);
+    }
+
+    zcs_column_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
 static MunitResult test_i32_cursor_skipping(const MunitParameter params[],
                                             void *fixture)
 {
@@ -60,11 +87,11 @@ static MunitResult test_i32_cursor_skipping(const MunitParameter params[],
     struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
     assert_not_null(cursor);
 
-    size_t skip_by[] = {1, 8, 13, 64, 100, 234, 10000};
-    for (size_t i = 0; i < sizeof(skip_by) / sizeof(*skip_by); i++) {
+    size_t skip_size[] = {1, 8, 13, 64, 234, COUNT / 2, COUNT, COUNT + 1};
+    for (size_t i = 0; i < sizeof(skip_size) / sizeof(*skip_size); i++) {
         size_t position = 0;
         while (zcs_column_cursor_valid(cursor)) {
-            position += zcs_column_cursor_skip_i32(cursor, skip_by[i]);
+            position += zcs_column_cursor_skip_i32(cursor, skip_size[i]);
             if (!zcs_column_cursor_valid(cursor))
                 break;
             assert_int32(zcs_column_cursor_next_i32(cursor), ==, position);
@@ -84,6 +111,8 @@ MunitTest column_tests[] = {
     {"/i32-export", test_i32_export, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-cursor", test_i32_cursor, setup_i32, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/i32-cursor-batching", test_i32_cursor_batching, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-cursor-skipping", test_i32_cursor_skipping, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},

@@ -23,6 +23,12 @@ void zcs_column_cursor_rewind(struct zcs_column_cursor *);
 bool zcs_column_cursor_valid(const struct zcs_column_cursor *);
 
 int32_t zcs_column_cursor_next_i32(struct zcs_column_cursor *);
-size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *, size_t);
 int64_t zcs_column_cursor_next_i64(struct zcs_column_cursor *);
+
+size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *, size_t);
 size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *, size_t);
+
+const int32_t *zcs_column_cursor_next_batch_i32(struct zcs_column_cursor *,
+                                                size_t, size_t *);
+const int64_t *zcs_column_cursor_next_batch_i64(struct zcs_column_cursor *,
+                                                size_t, size_t *);

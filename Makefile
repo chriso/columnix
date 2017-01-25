@@ -20,7 +20,7 @@ $(TESTS): $(LIB) $(TEST_OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 check: $(TESTS)
-	@./$(TESTS)
+	@./$(TESTS) $(grep)
 
 clean:
 	rm -f $(LIB) $(OBJ) $(TESTS) $(TEST_OBJ)
