@@ -12,6 +12,7 @@ struct zcs_column {
     size_t size;
     enum zcs_column_type type;
     enum zcs_encode_type encode;
+    struct zcs_column_index index;
 };
 
 struct zcs_column_cursor {
@@ -49,6 +50,11 @@ const void *zcs_column_export(const struct zcs_column *column, size_t *size)
 {
     *size = column->offset;
     return column->buffer;
+}
+
+const struct zcs_column_index *zcs_column_index(const struct zcs_column *column)
+{
+    return &column->index;
 }
 
 ZCS_NO_INLINE static bool zcs_column_resize(struct zcs_column *column,
@@ -91,6 +97,15 @@ bool zcs_column_put_i32(struct zcs_column *column, int32_t value)
     if (ZCS_UNLIKELY(!slot))
         return false;
     *slot = value;
+    if (ZCS_UNLIKELY(!column->index.count)) {
+        column->index.min.i32 = column->index.max.i32 = value;
+    } else {
+        if (value > column->index.max.i32)
+            column->index.max.i32 = value;
+        if (value < column->index.min.i32)
+            column->index.min.i32 = value;
+    }
+    column->index.count++;
     return true;
 }
 
@@ -102,6 +117,15 @@ bool zcs_column_put_i64(struct zcs_column *column, int64_t value)
     if (ZCS_UNLIKELY(!slot))
         return false;
     *slot = value;
+    if (ZCS_UNLIKELY(!column->index.count)) {
+        column->index.min.i64 = column->index.max.i64 = value;
+    } else {
+        if (value > column->index.max.i64)
+            column->index.max.i64 = value;
+        if (value < column->index.min.i64)
+            column->index.min.i64 = value;
+    }
+    column->index.count++;
     return true;
 }
 

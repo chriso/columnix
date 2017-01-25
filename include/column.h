@@ -10,9 +10,22 @@ struct zcs_column;
 
 struct zcs_column_cursor;
 
+typedef union {
+    int32_t i32;
+    int64_t i64;
+} zcs_column_index_value_t;
+
+struct zcs_column_index {
+    uint64_t count;
+    zcs_column_index_value_t min;
+    zcs_column_index_value_t max;
+};
+
 struct zcs_column *zcs_column_new(enum zcs_column_type, enum zcs_encode_type);
 void zcs_column_free(struct zcs_column *);
 const void *zcs_column_export(const struct zcs_column *, size_t *);
+
+const struct zcs_column_index *zcs_column_index(const struct zcs_column *);
 
 bool zcs_column_put_i32(struct zcs_column *, int32_t);
 bool zcs_column_put_i64(struct zcs_column *, int64_t);

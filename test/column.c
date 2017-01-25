@@ -1,3 +1,5 @@
+#include <limits.h>
+
 #define MUNIT_ENABLE_ASSERT_ALIASES
 #include "munit.h"
 
@@ -35,6 +37,43 @@ static MunitResult test_i32_export(const MunitParameter params[], void *fixture)
     assert_size(size, ==, sizeof(int32_t) * COUNT);
     for (int32_t i = 0; i < COUNT; i++)
         assert_int32(i, ==, buf[i]);
+    return MUNIT_OK;
+}
+
+static MunitResult test_i32_index(const MunitParameter params[], void *fixture)
+{
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODE_NONE);
+    assert_not_null(col);
+
+    const struct zcs_column_index *index = zcs_column_index(col);
+    assert_uint64(index->count, ==, 0);
+
+    assert_true(zcs_column_put_i32(col, 10));
+    assert_uint64(index->count, ==, 1);
+    assert_uint64(index->min.i32, ==, 10);
+    assert_uint64(index->max.i32, ==, 10);
+
+    assert_true(zcs_column_put_i32(col, 20));
+    assert_uint64(index->count, ==, 2);
+    assert_uint64(index->min.i32, ==, 10);
+    assert_uint64(index->max.i32, ==, 20);
+
+    assert_true(zcs_column_put_i32(col, 15));
+    assert_uint64(index->count, ==, 3);
+    assert_uint64(index->min.i32, ==, 10);
+    assert_uint64(index->max.i32, ==, 20);
+
+    assert_true(zcs_column_put_i32(col, INT_MAX));
+    assert_uint64(index->count, ==, 4);
+    assert_uint64(index->min.i32, ==, 10);
+    assert_uint64(index->max.i32, ==, INT_MAX);
+
+    assert_true(zcs_column_put_i32(col, 0));
+    assert_uint64(index->count, ==, 5);
+    assert_uint64(index->min.i32, ==, 0);
+    assert_uint64(index->max.i32, ==, INT_MAX);
+
+    zcs_column_free(col);
     return MUNIT_OK;
 }
 
@@ -109,6 +148,8 @@ MunitTest column_tests[] = {
     {"/i32-put-mismatch", test_i32_put_mismatch, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-export", test_i32_export, setup_i32, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/i32-index", test_i32_index, NULL, NULL,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-cursor", test_i32_cursor, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
