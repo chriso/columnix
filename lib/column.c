@@ -15,9 +15,9 @@ struct zcs_column {
 };
 
 struct zcs_column_cursor {
-    const void *buffer;
-    const void *position;
+    const void *start;
     const void *end;
+    const void *position;
 };
 
 struct zcs_column *zcs_column_new(enum zcs_column_type type,
@@ -108,15 +108,20 @@ struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *col)
     struct zcs_column_cursor *cursor = malloc(sizeof(*cursor));
     if (!cursor)
         return NULL;
-    cursor->buffer = col->buffer;
-    cursor->position = cursor->buffer;
+    cursor->start = col->buffer;
     cursor->end = zcs_column_tail(col);
+    zcs_column_cursor_rewind(cursor);
     return cursor;
 }
 
 void zcs_column_cursor_free(struct zcs_column_cursor *cursor)
 {
     free(cursor);
+}
+
+void zcs_column_cursor_rewind(struct zcs_column_cursor *cursor)
+{
+    cursor->position = cursor->start;
 }
 
 bool zcs_column_cursor_valid(const struct zcs_column_cursor *cursor)
@@ -131,16 +136,43 @@ static void zcs_column_cursor_advance(struct zcs_column_cursor *cursor,
     assert(cursor->position <= cursor->end);
 }
 
-int32_t zcs_column_cursor_next_i32(struct zcs_column_cursor *cursor)
+static const void *zcs_column_cursor_next(struct zcs_column_cursor *cursor,
+                                          size_t size)
 {
-    int32_t value = *(int32_t *)cursor->position;
-    zcs_column_cursor_advance(cursor, sizeof(int32_t));
+    const void *value = cursor->position;
+    zcs_column_cursor_advance(cursor, size);
     return value;
 }
 
-int32_t zcs_column_cursor_next_i64(struct zcs_column_cursor *cursor)
+int32_t zcs_column_cursor_next_i32(struct zcs_column_cursor *cursor)
 {
-    int32_t value = *(int64_t *)cursor->position;
-    zcs_column_cursor_advance(cursor, sizeof(int64_t));
-    return value;
+    return *(const int32_t *)zcs_column_cursor_next(cursor, sizeof(int32_t));
+}
+
+int64_t zcs_column_cursor_next_i64(struct zcs_column_cursor *cursor)
+{
+    return *(const int64_t *)zcs_column_cursor_next(cursor, sizeof(int64_t));
+}
+
+static size_t zcs_column_cursor_skip(struct zcs_column_cursor *cursor,
+                                     size_t size, size_t count)
+{
+    size_t remaining =
+        ((uintptr_t)cursor->end - (uintptr_t)cursor->position) / size;
+    if (remaining < count)
+        count = remaining;
+    zcs_column_cursor_advance(cursor, size * count);
+    return count;
+}
+
+size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *cursor,
+                                  size_t count)
+{
+    return zcs_column_cursor_skip(cursor, sizeof(int32_t), count);
+}
+
+size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *cursor,
+                                  size_t count)
+{
+    return zcs_column_cursor_skip(cursor, sizeof(int64_t), count);
 }
