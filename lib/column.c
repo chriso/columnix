@@ -14,6 +14,12 @@ struct zcs_column {
     enum zcs_encode_type encode;
 };
 
+struct zcs_column_cursor {
+    const void *buffer;
+    const void *position;
+    const void *end;
+};
+
 struct zcs_column *zcs_column_new(enum zcs_column_type type,
                                   enum zcs_encode_type encode)
 {
@@ -60,12 +66,17 @@ ZCS_NO_INLINE static bool zcs_column_resize(struct zcs_column *col,
     return true;
 }
 
+static void *zcs_column_tail(const struct zcs_column *col)
+{
+    return (void *)((uintptr_t)col->buffer + col->offset);
+}
+
 static void *zcs_column_alloc(struct zcs_column *col, size_t size)
 {
     if (ZCS_UNLIKELY(col->offset + size > col->size))
         if (!zcs_column_resize(col, size))
             return NULL;
-    void *ptr = (void *)((uintptr_t)col->buffer + col->offset);
+    void *ptr = zcs_column_tail(col);
     col->offset += size;
     return ptr;
 }
@@ -90,4 +101,46 @@ bool zcs_column_put_i64(struct zcs_column *col, int64_t value)
         return false;
     *slot = value;
     return true;
+}
+
+struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *col)
+{
+    struct zcs_column_cursor *cursor = malloc(sizeof(*cursor));
+    if (!cursor)
+        return NULL;
+    cursor->buffer = col->buffer;
+    cursor->position = cursor->buffer;
+    cursor->end = zcs_column_tail(col);
+    return cursor;
+}
+
+void zcs_column_cursor_free(struct zcs_column_cursor *cursor)
+{
+    free(cursor);
+}
+
+bool zcs_column_cursor_valid(const struct zcs_column_cursor *cursor)
+{
+    return cursor->position < cursor->end;
+}
+
+static void zcs_column_cursor_advance(struct zcs_column_cursor *cursor,
+                                      size_t amount)
+{
+    cursor->position = (void *)((uintptr_t)cursor->position + amount);
+    assert(cursor->position <= cursor->end);
+}
+
+int32_t zcs_column_cursor_next_i32(struct zcs_column_cursor *cursor)
+{
+    int32_t value = *(int32_t *)cursor->position;
+    zcs_column_cursor_advance(cursor, sizeof(int32_t));
+    return value;
+}
+
+int32_t zcs_column_cursor_next_i64(struct zcs_column_cursor *cursor)
+{
+    int32_t value = *(int64_t *)cursor->position;
+    zcs_column_cursor_advance(cursor, sizeof(int64_t));
+    return value;
 }

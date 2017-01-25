@@ -20,6 +20,15 @@ static MunitResult test_i32(const MunitParameter params[], void* data)
     for (size_t i = 0; i < count; i++)
         assert_int32((int32_t)i, ==, buf[i]);
 
+    struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t position = 0;
+    for (; zcs_column_cursor_valid(cursor); position++)
+        assert_int32(zcs_column_cursor_next_i32(cursor), ==, position);
+    assert_size(position, ==, count);
+
+    zcs_column_cursor_free(cursor);
     zcs_column_free(col);
     return MUNIT_OK;
 }
