@@ -6,7 +6,7 @@ OBJ = $(SRC:.c=.o)
 TEST_SRC = $(wildcard test/*.c)
 TEST_OBJ = $(TEST_SRC:.c=.o)
 
-LIB = libzcs.dylib
+LIB = lib/libzcs.dylib
 
 TESTS = test/runner
 

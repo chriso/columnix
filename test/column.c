@@ -1,6 +1,13 @@
+#define MUNIT_ENABLE_ASSERT_ALIASES
+#include "munit.h"
+
 #include "column.h"
 
-int main()
+static MunitResult test_alloc(const MunitParameter params[], void* data)
 {
-    return 0;
+    return MUNIT_OK;
 }
+
+MunitTest column_tests[] = {
+    {"/alloc", test_alloc, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
