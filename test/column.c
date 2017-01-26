@@ -8,6 +8,17 @@
 
 #define COUNT 1111
 
+static void *setup_bit(const MunitParameter params[], void *data)
+{
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
+    assert_not_null(col);
+    for (int32_t i = 0; i < COUNT; i++)
+        assert_true(zcs_column_put_bit(col, i % 5 == 0));
+    assert_int(zcs_column_type(col), ==, ZCS_COLUMN_BIT);
+    assert_int(zcs_column_encode(col), ==, ZCS_ENCODE_NONE);
+    return col;
+}
+
 static void *setup_i32(const MunitParameter params[], void *data)
 {
     struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODE_NONE);
@@ -95,6 +106,116 @@ static MunitResult test_import_compressed(const MunitParameter params[],
     return MUNIT_OK;
 }
 
+static MunitResult test_bit_put_mismatch(const MunitParameter params[],
+                                         void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    assert_false(zcs_column_put_i64(col, 1));
+    return MUNIT_OK;
+}
+
+static MunitResult test_bit_index(const MunitParameter params[], void *fixture)
+{
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
+    assert_not_null(col);
+
+    const struct zcs_column_index *index = zcs_column_index(col);
+    assert_uint64(index->count, ==, 0);
+
+    assert_true(zcs_column_put_bit(col, false));
+    assert_uint64(index->count, ==, 1);
+    assert_uint64(index->min.bit, ==, false);
+    assert_uint64(index->max.bit, ==, false);
+
+    assert_true(zcs_column_put_bit(col, false));
+    assert_uint64(index->count, ==, 2);
+    assert_uint64(index->min.bit, ==, false);
+    assert_uint64(index->max.bit, ==, false);
+
+    assert_true(zcs_column_put_bit(col, true));
+    assert_uint64(index->count, ==, 3);
+    assert_uint64(index->min.bit, ==, false);
+    assert_uint64(index->max.bit, ==, true);
+
+    zcs_column_free(col);
+    col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
+    assert_not_null(col);
+
+    index = zcs_column_index(col);
+    assert_uint64(index->count, ==, 0);
+
+    assert_true(zcs_column_put_bit(col, true));
+    assert_uint64(index->count, ==, 1);
+    assert_uint64(index->min.bit, ==, true);
+    assert_uint64(index->max.bit, ==, true);
+
+    assert_true(zcs_column_put_bit(col, true));
+    assert_uint64(index->count, ==, 2);
+    assert_uint64(index->min.bit, ==, true);
+    assert_uint64(index->max.bit, ==, true);
+
+    assert_true(zcs_column_put_bit(col, false));
+    assert_uint64(index->count, ==, 3);
+    assert_uint64(index->min.bit, ==, false);
+    assert_uint64(index->max.bit, ==, true);
+
+    zcs_column_free(col);
+    return MUNIT_OK;
+}
+
+static MunitResult test_bit_cursor(const MunitParameter params[], void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t position = 0;
+    for (; zcs_column_cursor_valid(cursor); position++) {
+        if (position % 5 == 0)
+            assert_true(zcs_column_cursor_next_bit(cursor));
+        else
+            assert_false(zcs_column_cursor_next_bit(cursor));
+    }
+    assert_size(position, ==, COUNT);
+
+    zcs_column_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
+static MunitResult test_bit_cursor_batching(const MunitParameter params[],
+                                            void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t skip_size[] = {64, 256, COUNT - (COUNT % 64),
+                          COUNT - (COUNT % 64) + 64};
+    for (size_t i = 0; i < sizeof(skip_size) / sizeof(*skip_size); i++) {
+        size_t position = 0, count;
+        while (zcs_column_cursor_valid(cursor)) {
+            position += zcs_column_cursor_skip_bit(cursor, skip_size[i]);
+            if (!zcs_column_cursor_valid(cursor))
+                break;
+            const uint64_t *bitset =
+                zcs_column_cursor_next_batch_bit(cursor, 64, &count);
+            for (size_t i = 0; i < count; i++) {
+                bool bit = *bitset & ((uint64_t)1 << i);
+                if ((i + position) % 5 == 0)
+                    assert_true(bit);
+                else
+                    assert_false(bit);
+            }
+            position += count;
+        }
+        assert_size(position, ==, COUNT);
+        zcs_column_cursor_rewind(cursor);
+    }
+
+    zcs_column_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
 static MunitResult test_i32_put_mismatch(const MunitParameter params[],
                                          void *fixture)
 {
@@ -162,7 +283,7 @@ static MunitResult test_i32_cursor_batching(const MunitParameter params[],
     struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
     assert_not_null(cursor);
 
-    size_t batch_size[] = {1, 8, 13, 64, 234, COUNT / 2, COUNT, COUNT + 1};
+    size_t batch_size[] = {1, 8, 13, 64, 234, COUNT / 2 + 1, COUNT, COUNT + 1};
     for (size_t i = 0; i < sizeof(batch_size) / sizeof(*batch_size); i++) {
         size_t position = 0, count;
         while (zcs_column_cursor_valid(cursor)) {
@@ -212,6 +333,13 @@ MunitTest column_tests[] = {
     {"/import-immutable", test_import_immutable, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/import-compressed", test_import_compressed, setup_i32, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/bit-put-mismatch", test_bit_put_mismatch, setup_bit, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/bit-index", test_bit_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {"/bit-cursor", test_bit_cursor, setup_bit, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/bit-cursor-batching", test_bit_cursor_batching, setup_bit, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-put-mismatch", test_i32_put_mismatch, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},

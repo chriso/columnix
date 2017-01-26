@@ -12,6 +12,7 @@ struct zcs_column;
 struct zcs_column_cursor;
 
 typedef union {
+    bool bit;
     int32_t i32;
     int64_t i64;
 } zcs_column_index_value_t;
@@ -38,6 +39,7 @@ enum zcs_encode_type zcs_column_encode(const struct zcs_column *);
 
 const struct zcs_column_index *zcs_column_index(const struct zcs_column *);
 
+bool zcs_column_put_bit(struct zcs_column *, bool);
 bool zcs_column_put_i32(struct zcs_column *, int32_t);
 bool zcs_column_put_i64(struct zcs_column *, int64_t);
 
@@ -46,12 +48,16 @@ void zcs_column_cursor_free(struct zcs_column_cursor *);
 void zcs_column_cursor_rewind(struct zcs_column_cursor *);
 bool zcs_column_cursor_valid(const struct zcs_column_cursor *);
 
+bool zcs_column_cursor_next_bit(struct zcs_column_cursor *);
 int32_t zcs_column_cursor_next_i32(struct zcs_column_cursor *);
 int64_t zcs_column_cursor_next_i64(struct zcs_column_cursor *);
 
+size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *, size_t);
 size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *, size_t);
 size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *, size_t);
 
+const uint64_t *zcs_column_cursor_next_batch_bit(struct zcs_column_cursor *,
+                                                 size_t, size_t *);
 const int32_t *zcs_column_cursor_next_batch_i32(struct zcs_column_cursor *,
                                                 size_t, size_t *);
 const int64_t *zcs_column_cursor_next_batch_i64(struct zcs_column_cursor *,
