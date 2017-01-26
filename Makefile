@@ -6,13 +6,18 @@ else
   CFLAGS += -g
 endif
 
+ifeq ($(shell uname -s), Darwin)
+  LIB = lib/libzcs.dylib
+else
+  CFLAGS += -fPIC
+  LIB = lib/libzcs.so
+endif
+
 SRC = $(wildcard lib/*.c)
 OBJ = $(SRC:.c=.o)
 
 TEST_SRC = $(wildcard test/*.c)
 TEST_OBJ = $(TEST_SRC:.c=.o)
-
-LIB = lib/libzcs.dylib
 
 TESTS = test/runner
 
@@ -22,7 +27,7 @@ $(LIB): $(OBJ)
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(TESTS): $(LIB) $(TEST_OBJ)
+$(TESTS): $(TEST_OBJ) $(LIB)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 check: $(TESTS)
