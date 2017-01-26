@@ -1,4 +1,4 @@
-CFLAGS = -std=c11 -Wall -pedantic -Iinclude -Itest
+CFLAGS = -std=c99 -Wall -pedantic -Iinclude -Itest
 
 ifeq ($(release), 1)
   CFLAGS += -O3 -march=native

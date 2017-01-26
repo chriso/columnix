@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ZCS_COLUMN_
+#define ZCS_COLUMN_
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -55,3 +56,5 @@ const int32_t *zcs_column_cursor_next_batch_i32(struct zcs_column_cursor *,
                                                 size_t, size_t *);
 const int64_t *zcs_column_cursor_next_batch_i64(struct zcs_column_cursor *,
                                                 size_t, size_t *);
+
+#endif
