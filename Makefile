@@ -6,6 +6,14 @@ else
   CFLAGS += -g
 endif
 
+ifeq ($(avx2), 1)
+  CFLAGS += -DZCS_AVX2 -mavx2
+endif
+
+ifeq ($(pcmpistrm), 1)
+  CFLAGS += -DZCS_PCMPISTRM -msse4.2
+endif
+
 ifeq ($(shell uname -s), Darwin)
   LIB = lib/libzcs.dylib
 else
