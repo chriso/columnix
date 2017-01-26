@@ -102,7 +102,10 @@ static MunitResult test_dbl(const MunitParameter params[], void *fixture)
 
 static MunitResult test_str(const MunitParameter params[], void *fixture)
 {
-#define ZCS_STR(str) {str, sizeof(str) - 1}
+#define ZCS_STR(str)         \
+    {                        \
+        str, sizeof(str) - 1 \
+    }
 #define ZCS_CMP(str) &(struct zcs_string)ZCS_STR(str)
 
     struct zcs_string strings[] = {ZCS_STR("za"), ZCS_STR("ab"), ZCS_STR("ba"),
@@ -118,33 +121,46 @@ static MunitResult test_str(const MunitParameter params[], void *fixture)
     assert_uint(zcs_match_str_lt(size, strings, ZCS_CMP("x"), false), ==, 0xE);
 
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP(""), false,
-                                       ZCS_STR_LOCATION_START), ==, 0xF);
+                                       ZCS_STR_LOCATION_START),
+                ==, 0xF);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("a"), false,
-                                       ZCS_STR_LOCATION_START), ==, 0xA);
+                                       ZCS_STR_LOCATION_START),
+                ==, 0xA);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("A"), false,
-                                       ZCS_STR_LOCATION_START), ==, 0xA);
+                                       ZCS_STR_LOCATION_START),
+                ==, 0xA);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("a"), true,
-                                       ZCS_STR_LOCATION_START), ==, 0x2);
+                                       ZCS_STR_LOCATION_START),
+                ==, 0x2);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("x"), false,
-                                       ZCS_STR_LOCATION_START), ==, 0);
+                                       ZCS_STR_LOCATION_START),
+                ==, 0);
 
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("z"), false,
-                                       ZCS_STR_LOCATION_END), ==, 0);
+                                       ZCS_STR_LOCATION_END),
+                ==, 0);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("a"), true,
-                                       ZCS_STR_LOCATION_END), ==, 0x5);
+                                       ZCS_STR_LOCATION_END),
+                ==, 0x5);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("a"), false,
-                                       ZCS_STR_LOCATION_END), ==, 0x5);
+                                       ZCS_STR_LOCATION_END),
+                ==, 0x5);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("b"), false,
-                                       ZCS_STR_LOCATION_END), ==, 0xA);
+                                       ZCS_STR_LOCATION_END),
+                ==, 0xA);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("b"), true,
-                                       ZCS_STR_LOCATION_END), ==, 0x2);
+                                       ZCS_STR_LOCATION_END),
+                ==, 0x2);
 
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("x"), false,
-                                       ZCS_STR_LOCATION_ANY), ==, 0);
+                                       ZCS_STR_LOCATION_ANY),
+                ==, 0);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("a"), true,
-                                       ZCS_STR_LOCATION_ANY), ==, 0x7);
+                                       ZCS_STR_LOCATION_ANY),
+                ==, 0x7);
     assert_uint(zcs_match_str_contains(size, strings, ZCS_CMP("a"), false,
-                                       ZCS_STR_LOCATION_ANY), ==, 0xF);
+                                       ZCS_STR_LOCATION_ANY),
+                ==, 0xF);
 
     return MUNIT_OK;
 }

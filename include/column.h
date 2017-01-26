@@ -30,17 +30,23 @@ struct zcs_string {
 };
 
 struct zcs_column *zcs_column_new(enum zcs_column_type, enum zcs_encode_type);
+
 struct zcs_column *zcs_column_new_immutable(enum zcs_column_type,
                                             enum zcs_encode_type, const void *,
                                             size_t,
                                             const struct zcs_column_index *);
+
 struct zcs_column *zcs_column_new_compressed(enum zcs_column_type,
                                              enum zcs_encode_type, void **,
                                              size_t,
                                              const struct zcs_column_index *);
+
 void zcs_column_free(struct zcs_column *);
+
 const void *zcs_column_export(const struct zcs_column *, size_t *);
+
 enum zcs_column_type zcs_column_type(const struct zcs_column *);
+
 enum zcs_encode_type zcs_column_encode(const struct zcs_column *);
 
 const struct zcs_column_index *zcs_column_index(const struct zcs_column *);
@@ -51,8 +57,11 @@ bool zcs_column_put_i64(struct zcs_column *, int64_t);
 bool zcs_column_put_str(struct zcs_column *, const char *);
 
 struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *);
+
 void zcs_column_cursor_free(struct zcs_column_cursor *);
+
 void zcs_column_cursor_rewind(struct zcs_column_cursor *);
+
 bool zcs_column_cursor_valid(const struct zcs_column_cursor *);
 
 bool zcs_column_cursor_next_bit(struct zcs_column_cursor *);
