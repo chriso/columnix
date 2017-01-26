@@ -39,4 +39,7 @@ clean:
 format:
 	clang-format -i */*.{c,h}
 
-.PHONY: check clean format
+valgrind: $(TESTS)
+	valgrind --leak-check=full $(TESTS) --no-fork
+
+.PHONY: check clean format valgrind
