@@ -27,22 +27,31 @@ struct zcs_column_cursor {
     const void *position;
 };
 
-struct zcs_column *zcs_column_new(enum zcs_column_type type,
-                                  enum zcs_encode_type encode)
+static struct zcs_column *zcs_column_new_size(enum zcs_column_type type,
+                                              enum zcs_encode_type encode,
+                                              size_t size)
 {
+    if (!size)
+        return NULL;
     struct zcs_column *column = calloc(1, sizeof(*column));
     if (!column)
         return NULL;
-    column->buffer.mutable = malloc(zcs_column_initial_size);
+    column->buffer.mutable = malloc(size);
     if (!column->buffer.mutable)
         goto error;
-    column->size = zcs_column_initial_size;
+    column->size = size;
     column->type = type;
     column->encode = encode;
     return column;
 error:
     free(column);
     return NULL;
+}
+
+struct zcs_column *zcs_column_new(enum zcs_column_type type,
+                                  enum zcs_encode_type encode)
+{
+    return zcs_column_new_size(type, encode, zcs_column_initial_size);
 }
 
 struct zcs_column *zcs_column_new_immutable(
@@ -59,6 +68,19 @@ struct zcs_column *zcs_column_new_immutable(
     column->immutable = true;
     column->buffer.immutable = ptr;
     memcpy(&column->index, index, sizeof(*index));
+    return column;
+}
+
+struct zcs_column *zcs_column_new_compressed(
+    enum zcs_column_type type, enum zcs_encode_type encode, void **ptr,
+    size_t size, const struct zcs_column_index *index)
+{
+    struct zcs_column *column = zcs_column_new_size(type, encode, size);
+    if (!column)
+        return NULL;
+    column->offset = size;
+    memcpy(&column->index, index, sizeof(*index));
+    *ptr = column->buffer.mutable;
     return column;
 }
 

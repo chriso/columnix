@@ -1,11 +1,12 @@
 #include <limits.h>
+#include <string.h>
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
 #include "munit.h"
 
 #include "column.h"
 
-#define COUNT 4
+#define COUNT 1111
 
 static void *setup_i32(const MunitParameter params[], void *data)
 {
@@ -35,7 +36,26 @@ static MunitResult test_export(const MunitParameter params[], void *fixture)
     return MUNIT_OK;
 }
 
-static MunitResult test_import(const MunitParameter params[], void *fixture)
+static void assert_i32_col_equal(const struct zcs_column *a,
+                                 const struct zcs_column *b)
+{
+    assert_not_null(a);
+    assert_not_null(b);
+    size_t a_size, b_size;
+    const void *a_ptr = zcs_column_export(a, &a_size);
+    const void *b_ptr = zcs_column_export(b, &b_size);
+    assert_not_null(a_ptr);
+    assert_not_null(b_ptr);
+    assert_size(a_size, ==, b_size);
+    assert_memory_equal(a_size, a_ptr, b_ptr);
+    const struct zcs_column_index *a_index = zcs_column_index(a);
+    const struct zcs_column_index *b_index = zcs_column_index(b);
+    assert_ptr_not_equal(a_index, b_index);
+    assert_memory_equal(sizeof(*a_index), a_index, b_index);
+}
+
+static MunitResult test_import_immutable(const MunitParameter params[],
+                                         void *fixture)
 {
     struct zcs_column *col = (struct zcs_column *)fixture;
     size_t size;
@@ -44,21 +64,32 @@ static MunitResult test_import(const MunitParameter params[], void *fixture)
 
     struct zcs_column *copy = zcs_column_new_immutable(
         ZCS_COLUMN_I32, ZCS_ENCODE_NONE, ptr, size, zcs_column_index(col));
+
+    assert_i32_col_equal(col, copy);
+
+    assert_false(zcs_column_put_i32(copy, 0));  // immutable
+
+    zcs_column_free(copy);
+    return MUNIT_OK;
+}
+
+static MunitResult test_import_compressed(const MunitParameter params[],
+                                          void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    size_t size;
+    const void *ptr = zcs_column_export(col, &size);
+    assert_not_null(ptr);
+
+    void *dest;
+    struct zcs_column *copy = zcs_column_new_compressed(
+        ZCS_COLUMN_I32, ZCS_ENCODE_NONE, &dest, size, zcs_column_index(col));
     assert_not_null(copy);
+    memcpy(dest, ptr, size);
 
-    size_t copy_size;
-    const void *copy_ptr = zcs_column_export(copy, &copy_size);
-    assert_not_null(copy_ptr);
-    assert_size(size, ==, copy_size);
-    assert_memory_equal(size, ptr, copy_ptr);
+    assert_i32_col_equal(col, copy);
 
-    struct zcs_column_cursor *cursor = zcs_column_cursor_new(copy);
-    assert_not_null(cursor);
-    size_t position = 0;
-    for (; zcs_column_cursor_valid(cursor); position++)
-        assert_int32(zcs_column_cursor_next_i32(cursor), ==, position);
-    assert_size(position, ==, COUNT);
-    zcs_column_cursor_free(cursor);
+    assert_true(zcs_column_put_i32(copy, 0));  // mutable
 
     zcs_column_free(copy);
     return MUNIT_OK;
@@ -178,7 +209,10 @@ static MunitResult test_i32_cursor_skipping(const MunitParameter params[],
 
 MunitTest column_tests[] = {
     {"/export", test_export, setup_i32, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-    {"/import", test_import, setup_i32, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+    {"/import-immutable", test_import_immutable, setup_i32, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/import-compressed", test_import_compressed, setup_i32, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-put-mismatch", test_i32_put_mismatch, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-index", test_i32_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
