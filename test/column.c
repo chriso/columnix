@@ -23,22 +23,52 @@ static void teardown(void *fixture)
     zcs_column_free((struct zcs_column *)fixture);
 }
 
+static MunitResult test_export(const MunitParameter params[], void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    size_t size;
+    const int32_t *buf = zcs_column_export(col, &size);
+    assert_not_null(buf);
+    assert_size(size, ==, sizeof(int32_t) * COUNT);
+    for (int32_t i = 0; i < COUNT; i++)
+        assert_int32(i, ==, buf[i]);
+    return MUNIT_OK;
+}
+
+static MunitResult test_import(const MunitParameter params[], void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    size_t size;
+    const void *ptr = zcs_column_export(col, &size);
+    assert_not_null(ptr);
+
+    struct zcs_column *copy = zcs_column_new_immutable(
+        ZCS_COLUMN_I32, ZCS_ENCODE_NONE, ptr, size, zcs_column_index(col));
+    assert_not_null(copy);
+
+    size_t copy_size;
+    const void *copy_ptr = zcs_column_export(copy, &copy_size);
+    assert_not_null(copy_ptr);
+    assert_size(size, ==, copy_size);
+    assert_memory_equal(size, ptr, copy_ptr);
+
+    struct zcs_column_cursor *cursor = zcs_column_cursor_new(copy);
+    assert_not_null(cursor);
+    size_t position = 0;
+    for (; zcs_column_cursor_valid(cursor); position++)
+        assert_int32(zcs_column_cursor_next_i32(cursor), ==, position);
+    assert_size(position, ==, COUNT);
+    zcs_column_cursor_free(cursor);
+
+    zcs_column_free(copy);
+    return MUNIT_OK;
+}
+
 static MunitResult test_i32_put_mismatch(const MunitParameter params[],
                                          void *fixture)
 {
     struct zcs_column *col = (struct zcs_column *)fixture;
     assert_false(zcs_column_put_i64(col, 1));
-    return MUNIT_OK;
-}
-
-static MunitResult test_i32_export(const MunitParameter params[], void *fixture)
-{
-    struct zcs_column *col = (struct zcs_column *)fixture;
-    size_t size;
-    const int32_t *buf = zcs_column_export(col, &size);
-    assert_size(size, ==, sizeof(int32_t) * COUNT);
-    for (int32_t i = 0; i < COUNT; i++)
-        assert_int32(i, ==, buf[i]);
     return MUNIT_OK;
 }
 
@@ -147,9 +177,9 @@ static MunitResult test_i32_cursor_skipping(const MunitParameter params[],
 }
 
 MunitTest column_tests[] = {
+    {"/export", test_export, setup_i32, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+    {"/import", test_import, setup_i32, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-put-mismatch", test_i32_put_mismatch, setup_i32, teardown,
-     MUNIT_TEST_OPTION_NONE, NULL},
-    {"/i32-export", test_i32_export, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-index", test_i32_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-cursor", test_i32_cursor, setup_i32, teardown,

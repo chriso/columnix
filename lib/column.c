@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "column.h"
 #include "common.h"
@@ -7,12 +8,16 @@
 static const size_t zcs_column_initial_size = 64;
 
 struct zcs_column {
-    void *buffer;
+    union {
+        void *mutable;
+        const void *immutable;
+    } buffer;
     size_t offset;
     size_t size;
     enum zcs_column_type type;
     enum zcs_encode_type encode;
     struct zcs_column_index index;
+    bool immutable;
 };
 
 struct zcs_column_cursor {
@@ -28,8 +33,8 @@ struct zcs_column *zcs_column_new(enum zcs_column_type type,
     struct zcs_column *column = calloc(1, sizeof(*column));
     if (!column)
         return NULL;
-    column->buffer = malloc(zcs_column_initial_size);
-    if (!column->buffer)
+    column->buffer.mutable = malloc(zcs_column_initial_size);
+    if (!column->buffer.mutable)
         goto error;
     column->size = zcs_column_initial_size;
     column->type = type;
@@ -40,16 +45,47 @@ error:
     return NULL;
 }
 
+struct zcs_column *zcs_column_new_immutable(
+    enum zcs_column_type type, enum zcs_encode_type encode, const void *ptr,
+    size_t size, const struct zcs_column_index *index)
+{
+    struct zcs_column *column = calloc(1, sizeof(*column));
+    if (!column)
+        return NULL;
+    column->offset = size;
+    column->size = size;
+    column->type = type;
+    column->encode = encode;
+    column->immutable = true;
+    column->buffer.immutable = ptr;
+    memcpy(&column->index, index, sizeof(*index));
+    return column;
+}
+
 void zcs_column_free(struct zcs_column *column)
 {
-    free(column->buffer);
+    if (!column->immutable)
+        free(column->buffer.mutable);
     free(column);
+}
+
+static const void *zcs_column_head(const struct zcs_column *column)
+{
+    if (column->immutable)
+        return column->buffer.immutable;
+    else
+        return column->buffer.mutable;
+}
+
+static const void *zcs_column_tail(const struct zcs_column *column)
+{
+    return (const void *)((uintptr_t)zcs_column_head(column) + column->offset);
 }
 
 const void *zcs_column_export(const struct zcs_column *column, size_t *size)
 {
     *size = column->offset;
-    return column->buffer;
+    return zcs_column_head(column);
 }
 
 enum zcs_column_type zcs_column_type(const struct zcs_column *column)
@@ -76,25 +112,22 @@ ZCS_NO_INLINE static bool zcs_column_resize(struct zcs_column *column,
         assert(size * 2 > size);
         size *= 2;
     }
-    void *buffer = realloc(column->buffer, size);
+    void *buffer = realloc(column->buffer.mutable, size);
     if (!buffer)
         return false;
-    column->buffer = buffer;
+    column->buffer.mutable = buffer;
     column->size = size;
     return true;
 }
 
-static void *zcs_column_tail(const struct zcs_column *column)
-{
-    return (void *)((uintptr_t)column->buffer + column->offset);
-}
-
 static void *zcs_column_alloc(struct zcs_column *column, size_t size)
 {
+    if (ZCS_UNLIKELY(column->immutable))
+        return false;
     if (ZCS_UNLIKELY(column->offset + size > column->size))
         if (!zcs_column_resize(column, size))
             return NULL;
-    void *ptr = zcs_column_tail(column);
+    void *ptr = (void *)zcs_column_tail(column);
     column->offset += size;
     return ptr;
 }
@@ -145,7 +178,7 @@ struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *column)
     if (!cursor)
         return NULL;
     cursor->column = column;
-    cursor->start = column->buffer;
+    cursor->start = zcs_column_head(column);
     cursor->end = zcs_column_tail(column);
     zcs_column_cursor_rewind(cursor);
     return cursor;
