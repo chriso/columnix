@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 
 #define MUNIT_ENABLE_ASSERT_ALIASES
@@ -37,6 +38,20 @@ static void *setup_i64(const MunitParameter params[], void *data)
     for (int32_t i = 0; i < COUNT; i++)
         assert_true(zcs_column_put_i64(col, i));
     assert_int(zcs_column_type(col), ==, ZCS_COLUMN_I64);
+    assert_int(zcs_column_encode(col), ==, ZCS_ENCODE_NONE);
+    return col;
+}
+
+static void *setup_str(const MunitParameter params[], void *data)
+{
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODE_NONE);
+    assert_not_null(col);
+    char buffer[64];
+    for (size_t i = 0; i < COUNT; i++) {
+        sprintf(buffer, "zcs %zu", i);
+        assert_true(zcs_column_put_str(col, buffer));
+    }
+    assert_int(zcs_column_type(col), ==, ZCS_COLUMN_STR);
     assert_int(zcs_column_encode(col), ==, ZCS_ENCODE_NONE);
     return col;
 }
@@ -303,8 +318,6 @@ static MunitResult test_i32_cursor_batching(const MunitParameter params[],
             for (int32_t j = 0; j < count; j++)
                 assert_int32(values[j], ==, j + position);
             position += count;
-            if (!zcs_column_cursor_valid(cursor))
-                break;
         }
         assert_size(position, ==, COUNT);
         zcs_column_cursor_rewind(cursor);
@@ -420,8 +433,6 @@ static MunitResult test_i64_cursor_batching(const MunitParameter params[],
             for (int64_t j = 0; j < count; j++)
                 assert_int64(values[j], ==, j + position);
             position += count;
-            if (!zcs_column_cursor_valid(cursor))
-                break;
         }
         assert_size(position, ==, COUNT);
         zcs_column_cursor_rewind(cursor);
@@ -446,6 +457,131 @@ static MunitResult test_i64_cursor_skipping(const MunitParameter params[],
             if (!zcs_column_cursor_valid(cursor))
                 break;
             assert_int64(zcs_column_cursor_next_i64(cursor), ==, position);
+            position++;
+        }
+        assert_size(position, ==, COUNT);
+        zcs_column_cursor_rewind(cursor);
+    }
+
+    zcs_column_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
+static MunitResult test_str_put_mismatch(const MunitParameter params[],
+                                         void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    assert_false(zcs_column_put_i32(col, 1));
+    return MUNIT_OK;
+}
+
+static MunitResult test_str_index(const MunitParameter params[], void *fixture)
+{
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODE_NONE);
+    assert_not_null(col);
+
+    const struct zcs_column_index *index = zcs_column_index(col);
+    assert_uint64(index->count, ==, 0);
+
+    assert_true(zcs_column_put_str(col, "foo"));
+    assert_uint64(index->count, ==, 1);
+    assert_uint64(index->min.len, ==, 3);
+    assert_uint64(index->max.len, ==, 3);
+
+    assert_true(zcs_column_put_str(col, "foobar"));
+    assert_uint64(index->count, ==, 2);
+    assert_uint64(index->min.len, ==, 3);
+    assert_uint64(index->max.len, ==, 6);
+
+    assert_true(zcs_column_put_str(col, "yeah"));
+    assert_uint64(index->count, ==, 3);
+    assert_uint64(index->min.len, ==, 3);
+    assert_uint64(index->max.len, ==, 6);
+
+    assert_true(zcs_column_put_str(col, "foobarbaz"));
+    assert_uint64(index->count, ==, 4);
+    assert_uint64(index->min.len, ==, 3);
+    assert_uint64(index->max.len, ==, 9);
+
+    assert_true(zcs_column_put_str(col, ""));
+    assert_uint64(index->count, ==, 5);
+    assert_uint64(index->min.len, ==, 0);
+    assert_uint64(index->max.len, ==, 9);
+
+    zcs_column_free(col);
+    return MUNIT_OK;
+}
+
+static MunitResult test_str_cursor(const MunitParameter params[], void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t position = 0;
+    char buffer[64];
+    for (; zcs_column_cursor_valid(cursor); position++) {
+        struct zcs_string string = zcs_column_cursor_next_str(cursor);
+        sprintf(buffer, "zcs %zu", position);
+        assert_int(string.len, ==, strlen(buffer));
+        assert_string_equal(buffer, string.ptr);
+    }
+    assert_size(position, ==, COUNT);
+
+    zcs_column_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
+static MunitResult test_str_cursor_batching(const MunitParameter params[],
+                                            void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t batch_size[] = {1, 8, 13, 64, 111};
+    struct zcs_string buffer[111];
+    char string[64];
+
+    for (size_t i = 0; i < sizeof(batch_size) / sizeof(*batch_size); i++) {
+        size_t position = 0;
+        while (zcs_column_cursor_valid(cursor)) {
+            size_t count =
+                zcs_column_cursor_next_batch_str(cursor, batch_size[i], buffer);
+            for (size_t j = 0; j < count; j++) {
+                sprintf(string, "zcs %zu", j + position);
+                assert_int(buffer[j].len, ==, strlen(string));
+                assert_string_equal(string, buffer[j].ptr);
+            }
+            position += count;
+        }
+        assert_size(position, ==, COUNT);
+        zcs_column_cursor_rewind(cursor);
+    }
+
+    zcs_column_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
+static MunitResult test_str_cursor_skipping(const MunitParameter params[],
+                                            void *fixture)
+{
+    struct zcs_column *col = (struct zcs_column *)fixture;
+    struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t skip_size[] = {1, 8, 13, 64, 234, COUNT / 2, COUNT, COUNT + 1};
+    char buffer[64];
+    for (size_t i = 0; i < sizeof(skip_size) / sizeof(*skip_size); i++) {
+        size_t position = 0;
+        while (zcs_column_cursor_valid(cursor)) {
+            position += zcs_column_cursor_skip_str(cursor, skip_size[i]);
+            if (!zcs_column_cursor_valid(cursor))
+                break;
+            struct zcs_string string = zcs_column_cursor_next_str(cursor);
+            sprintf(buffer, "zcs %zu", position);
+            assert_int(string.len, ==, strlen(buffer));
+            assert_string_equal(buffer, string.ptr);
             position++;
         }
         assert_size(position, ==, COUNT);
@@ -486,5 +622,14 @@ MunitTest column_tests[] = {
     {"/i64-cursor-batching", test_i64_cursor_batching, setup_i64, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i64-cursor-skipping", test_i64_cursor_skipping, setup_i64, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/str-put-mismatch", test_str_put_mismatch, setup_str, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/str-index", test_str_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {"/str-cursor", test_str_cursor, setup_str, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/str-cursor-batching", test_str_cursor_batching, setup_str, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/str-cursor-skipping", test_str_cursor_skipping, setup_str, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
