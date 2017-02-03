@@ -74,6 +74,11 @@ size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *, size_t);
 size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *, size_t);
 size_t zcs_column_cursor_skip_str(struct zcs_column_cursor *, size_t);
 
+bool zcs_column_cursor_skip_to_bit(struct zcs_column_cursor *, size_t);
+bool zcs_column_cursor_skip_to_i32(struct zcs_column_cursor *, size_t);
+bool zcs_column_cursor_skip_to_i64(struct zcs_column_cursor *, size_t);
+bool zcs_column_cursor_skip_to_str(struct zcs_column_cursor *, size_t);
+
 const uint64_t *zcs_column_cursor_next_batch_bit(struct zcs_column_cursor *,
                                                  size_t, size_t *);
 const int32_t *zcs_column_cursor_next_batch_i32(struct zcs_column_cursor *,
