@@ -7,6 +7,8 @@
 
 #include "type.h"
 
+#define ZCS_BATCH_SIZE 64
+
 struct zcs_column;
 
 struct zcs_column_cursor;
@@ -85,7 +87,7 @@ const int32_t *zcs_column_cursor_next_batch_i32(struct zcs_column_cursor *,
                                                 size_t, size_t *);
 const int64_t *zcs_column_cursor_next_batch_i64(struct zcs_column_cursor *,
                                                 size_t, size_t *);
-size_t zcs_column_cursor_next_batch_str(struct zcs_column_cursor *, size_t,
-                                        struct zcs_string[]);
+const struct zcs_string *zcs_column_cursor_next_batch_str(
+    struct zcs_column_cursor *, size_t, size_t *);
 
 #endif

@@ -539,19 +539,19 @@ static MunitResult test_str_cursor_batching(const MunitParameter params[],
     struct zcs_column_cursor *cursor = zcs_column_cursor_new(col);
     assert_not_null(cursor);
 
-    size_t batch_size[] = {1, 8, 13, 64, 111};
-    struct zcs_string buffer[111];
+    size_t batch_size[] = {1, 8, 13, 64};
     char string[64];
+    size_t count;
 
     for (size_t i = 0; i < sizeof(batch_size) / sizeof(*batch_size); i++) {
         size_t position = 0;
         while (zcs_column_cursor_valid(cursor)) {
-            size_t count =
-                zcs_column_cursor_next_batch_str(cursor, batch_size[i], buffer);
+            const struct zcs_string *strings =
+                zcs_column_cursor_next_batch_str(cursor, batch_size[i], &count);
             for (size_t j = 0; j < count; j++) {
                 sprintf(string, "zcs %zu", j + position);
-                assert_int(buffer[j].len, ==, strlen(string));
-                assert_string_equal(string, buffer[j].ptr);
+                assert_int(strings[j].len, ==, strlen(string));
+                assert_string_equal(string, strings[j].ptr);
             }
             position += count;
         }

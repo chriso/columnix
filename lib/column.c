@@ -20,6 +20,13 @@ struct zcs_column {
     bool immutable;
 };
 
+typedef union {
+    bool bit;
+    int32_t i32;
+    int64_t i64;
+    struct zcs_string str;
+} zcs_value_t;
+
 struct zcs_column_cursor {
     const struct zcs_column *column;
     const void *start;
@@ -27,6 +34,7 @@ struct zcs_column_cursor {
     const void *position;
     size_t offset;
     size_t bitset_offset;
+    zcs_value_t buffer[ZCS_BATCH_SIZE];
 };
 
 static struct zcs_column *zcs_column_new_size(
@@ -480,17 +488,18 @@ const int64_t *zcs_column_cursor_next_batch_i64(
                                         available);
 }
 
-size_t zcs_column_cursor_next_batch_str(struct zcs_column_cursor *cursor,
-                                        size_t count,
-                                        struct zcs_string buffer[])
+const struct zcs_string *zcs_column_cursor_next_batch_str(
+    struct zcs_column_cursor *cursor, size_t count, size_t *available)
 {
     assert(cursor->column->type == ZCS_COLUMN_STR);
-    size_t available = 0;
-    for (; available < count && zcs_column_cursor_valid(cursor); available++) {
-        buffer[available].ptr = cursor->position;
-        buffer[available].len = strlen(cursor->position);
-        zcs_column_cursor_advance(cursor, buffer[available].len + 1);
+    size_t i = 0;
+    struct zcs_string *strings = (struct zcs_string *)cursor->buffer;
+    for (; i < count && zcs_column_cursor_valid(cursor); i++) {
+        strings[i].ptr = cursor->position;
+        strings[i].len = strlen(cursor->position);
+        zcs_column_cursor_advance(cursor, strings[i].len + 1);
     }
-    cursor->offset += available;
-    return available;
+    cursor->offset += i;
+    *available = i;
+    return (const struct zcs_string *)cursor->buffer;
 }
