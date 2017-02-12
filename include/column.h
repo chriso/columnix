@@ -66,28 +66,18 @@ void zcs_column_cursor_rewind(struct zcs_column_cursor *);
 
 bool zcs_column_cursor_valid(const struct zcs_column_cursor *);
 
-bool zcs_column_cursor_next_bit(struct zcs_column_cursor *);
-int32_t zcs_column_cursor_next_i32(struct zcs_column_cursor *);
-int64_t zcs_column_cursor_next_i64(struct zcs_column_cursor *);
-struct zcs_string zcs_column_cursor_next_str(struct zcs_column_cursor *);
-
-size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *, size_t);
-size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *, size_t);
-size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *, size_t);
-size_t zcs_column_cursor_skip_str(struct zcs_column_cursor *, size_t);
-
-bool zcs_column_cursor_skip_to_bit(struct zcs_column_cursor *, size_t);
-bool zcs_column_cursor_skip_to_i32(struct zcs_column_cursor *, size_t);
-bool zcs_column_cursor_skip_to_i64(struct zcs_column_cursor *, size_t);
-bool zcs_column_cursor_skip_to_str(struct zcs_column_cursor *, size_t);
-
 const uint64_t *zcs_column_cursor_next_batch_bit(struct zcs_column_cursor *,
-                                                 size_t, size_t *);
+                                                 size_t *);
 const int32_t *zcs_column_cursor_next_batch_i32(struct zcs_column_cursor *,
-                                                size_t, size_t *);
+                                                size_t *);
 const int64_t *zcs_column_cursor_next_batch_i64(struct zcs_column_cursor *,
-                                                size_t, size_t *);
+                                                size_t *);
 const struct zcs_string *zcs_column_cursor_next_batch_str(
-    struct zcs_column_cursor *, size_t, size_t *);
+    struct zcs_column_cursor *, size_t *);
+
+bool zcs_column_cursor_jump_bit(struct zcs_column_cursor *, size_t);
+bool zcs_column_cursor_jump_i32(struct zcs_column_cursor *, size_t);
+bool zcs_column_cursor_jump_i64(struct zcs_column_cursor *, size_t);
+bool zcs_column_cursor_jump_str(struct zcs_column_cursor *, size_t);
 
 #endif
