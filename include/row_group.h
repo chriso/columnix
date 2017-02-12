@@ -14,6 +14,8 @@ bool zcs_row_group_add_column(struct zcs_row_group *,
 
 size_t zcs_row_group_column_count(const struct zcs_row_group *);
 
+size_t zcs_row_group_row_count(const struct zcs_row_group *);
+
 enum zcs_column_type zcs_row_group_column_type(const struct zcs_row_group *,
                                                size_t);
 

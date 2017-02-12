@@ -41,6 +41,13 @@ void zcs_row_group_free(struct zcs_row_group *row_group)
 bool zcs_row_group_add_column(struct zcs_row_group *row_group,
                               const struct zcs_column *column)
 {
+    const struct zcs_column_index *index = zcs_column_index(column);
+    if (row_group->count) {
+        const struct zcs_column_index *last_index =
+            zcs_row_group_column_index(row_group, row_group->count - 1);
+        if (index->count != last_index->count)
+            return false;
+    }
     if (row_group->count == row_group->size) {
         struct zcs_row_group_column *columns =
             realloc(row_group->columns, row_group->size * 2 * sizeof(*columns));
@@ -54,13 +61,22 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
     wrapper->column = column;
     wrapper->type = zcs_column_type(column);
     wrapper->encode = zcs_column_encode(column);
-    wrapper->index = zcs_column_index(column);
+    wrapper->index = index;
     return true;
 }
 
 size_t zcs_row_group_column_count(const struct zcs_row_group *row_group)
 {
     return row_group->count;
+}
+
+size_t zcs_row_group_row_count(const struct zcs_row_group *row_group)
+{
+    if (!row_group->count)
+        return 0;
+    const struct zcs_column_index *index =
+        zcs_row_group_column_index(row_group, 0);
+    return index->count;
 }
 
 enum zcs_column_type zcs_row_group_column_type(
