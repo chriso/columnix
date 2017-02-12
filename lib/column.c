@@ -319,7 +319,7 @@ static size_t zcs_column_cursor_skip(struct zcs_column_cursor *cursor,
 }
 
 static size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *cursor,
-                                  size_t count)
+                                         size_t count)
 {
     assert(cursor->column->type == ZCS_COLUMN_BIT);
     assert(cursor->bitset_offset % 64 == 0);
@@ -337,7 +337,7 @@ static size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *cursor,
 }
 
 static size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *cursor,
-                                  size_t count)
+                                         size_t count)
 {
     assert(cursor->column->type == ZCS_COLUMN_I32);
     size_t skipped = zcs_column_cursor_skip(cursor, sizeof(int32_t), count);
@@ -346,7 +346,7 @@ static size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *cursor,
 }
 
 static size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *cursor,
-                                  size_t count)
+                                         size_t count)
 {
     assert(cursor->column->type == ZCS_COLUMN_I64);
     size_t skipped = zcs_column_cursor_skip(cursor, sizeof(int64_t), count);
@@ -355,7 +355,7 @@ static size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *cursor,
 }
 
 static size_t zcs_column_cursor_skip_str(struct zcs_column_cursor *cursor,
-                                  size_t count)
+                                         size_t count)
 {
     assert(cursor->column->type == ZCS_COLUMN_STR);
     size_t skipped = 0;
