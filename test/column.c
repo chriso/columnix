@@ -193,7 +193,7 @@ static MunitResult test_bit_cursor(const MunitParameter params[], void *fixture)
 
     ZCS_FOREACH(starting_positions, position)
     {
-        assert_true(zcs_column_cursor_jump_bit(cursor, position));
+        assert_size(zcs_column_cursor_skip_bit(cursor, position), ==, position);
         while (zcs_column_cursor_valid(cursor)) {
             const uint64_t *bitset =
                 zcs_column_cursor_next_batch_bit(cursor, &count);
@@ -270,7 +270,7 @@ static MunitResult test_i32_cursor(const MunitParameter params[], void *fixture)
 
     ZCS_FOREACH(starting_positions, position)
     {
-        assert_true(zcs_column_cursor_jump_i32(cursor, position));
+        assert_size(zcs_column_cursor_skip_i32(cursor, position), ==, position);
         while (zcs_column_cursor_valid(cursor)) {
             const int32_t *values =
                 zcs_column_cursor_next_batch_i32(cursor, &count);
@@ -347,7 +347,7 @@ static MunitResult test_i64_cursor(const MunitParameter params[], void *fixture)
 
     ZCS_FOREACH(starting_positions, position)
     {
-        assert_true(zcs_column_cursor_jump_i64(cursor, position));
+        assert_size(zcs_column_cursor_skip_i64(cursor, position), ==, position);
         while (zcs_column_cursor_valid(cursor)) {
             const int64_t *values =
                 zcs_column_cursor_next_batch_i64(cursor, &count);
@@ -420,7 +420,7 @@ static MunitResult test_str_cursor(const MunitParameter params[], void *fixture)
 
     ZCS_FOREACH(starting_positions, position)
     {
-        assert_true(zcs_column_cursor_jump_str(cursor, position));
+        assert_size(zcs_column_cursor_skip_str(cursor, position), ==, position);
         while (zcs_column_cursor_valid(cursor)) {
             const struct zcs_string *strings =
                 zcs_column_cursor_next_batch_str(cursor, &count);

@@ -32,8 +32,6 @@ struct zcs_column_cursor {
     const void *start;
     const void *end;
     const void *position;
-    size_t offset;
-    size_t bitset_offset;
     zcs_value_t buffer[ZCS_BATCH_SIZE];
 };
 
@@ -280,24 +278,10 @@ void zcs_column_cursor_free(struct zcs_column_cursor *cursor)
 void zcs_column_cursor_rewind(struct zcs_column_cursor *cursor)
 {
     cursor->position = cursor->start;
-    cursor->bitset_offset = 0;
-    cursor->offset = 0;
-}
-
-static size_t zcs_column_cursor_remaining(
-    const struct zcs_column_cursor *cursor, size_t size)
-{
-    return ((uintptr_t)cursor->end - (uintptr_t)cursor->position) / size;
 }
 
 bool zcs_column_cursor_valid(const struct zcs_column_cursor *cursor)
 {
-    if (cursor->column->type == ZCS_COLUMN_BIT) {
-        size_t trailing_bits = cursor->column->index.count % 64;
-        if (trailing_bits != 0 &&
-            zcs_column_cursor_remaining(cursor, sizeof(uint64_t)) == 1)
-            return cursor->bitset_offset < trailing_bits;
-    }
     return cursor->position < cursor->end;
 }
 
@@ -311,18 +295,18 @@ static void zcs_column_cursor_advance(struct zcs_column_cursor *cursor,
 static size_t zcs_column_cursor_skip(struct zcs_column_cursor *cursor,
                                      size_t size, size_t count)
 {
-    size_t remaining = zcs_column_cursor_remaining(cursor, size);
+    size_t remaining =
+        ((uintptr_t)cursor->end - (uintptr_t)cursor->position) / size;
     if (remaining < count)
         count = remaining;
     zcs_column_cursor_advance(cursor, size * count);
     return count;
 }
 
-static size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *cursor,
-                                         size_t count)
+size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *cursor,
+                                  size_t count)
 {
     assert(cursor->column->type == ZCS_COLUMN_BIT);
-    assert(cursor->bitset_offset % 64 == 0);
     assert(count % 64 == 0);
     size_t skipped =
         zcs_column_cursor_skip(cursor, sizeof(uint64_t), count / 64);
@@ -332,30 +316,25 @@ static size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *cursor,
         if (trailing_bits)
             skipped -= 64 - trailing_bits;
     }
-    cursor->offset += skipped;
     return skipped;
 }
 
-static size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *cursor,
-                                         size_t count)
+size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *cursor,
+                                  size_t count)
 {
     assert(cursor->column->type == ZCS_COLUMN_I32);
-    size_t skipped = zcs_column_cursor_skip(cursor, sizeof(int32_t), count);
-    cursor->offset += skipped;
-    return skipped;
+    return zcs_column_cursor_skip(cursor, sizeof(int32_t), count);
 }
 
-static size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *cursor,
-                                         size_t count)
+size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *cursor,
+                                  size_t count)
 {
     assert(cursor->column->type == ZCS_COLUMN_I64);
-    size_t skipped = zcs_column_cursor_skip(cursor, sizeof(int64_t), count);
-    cursor->offset += skipped;
-    return skipped;
+    return zcs_column_cursor_skip(cursor, sizeof(int64_t), count);
 }
 
-static size_t zcs_column_cursor_skip_str(struct zcs_column_cursor *cursor,
-                                         size_t count)
+size_t zcs_column_cursor_skip_str(struct zcs_column_cursor *cursor,
+                                  size_t count)
 {
     assert(cursor->column->type == ZCS_COLUMN_STR);
     size_t skipped = 0;
@@ -363,52 +342,7 @@ static size_t zcs_column_cursor_skip_str(struct zcs_column_cursor *cursor,
         const char *str = cursor->position;
         zcs_column_cursor_advance(cursor, strlen(str) + 1);
     }
-    cursor->offset += skipped;
     return skipped;
-}
-
-bool zcs_column_cursor_jump_bit(struct zcs_column_cursor *cursor,
-                                size_t position)
-{
-    if (cursor->offset > position)
-        return false;
-    if (cursor->offset == position)
-        return true;
-    size_t remaining = position - cursor->offset;
-    return zcs_column_cursor_skip_bit(cursor, remaining) == remaining;
-}
-
-bool zcs_column_cursor_jump_i32(struct zcs_column_cursor *cursor,
-                                size_t position)
-{
-    if (cursor->offset > position)
-        return false;
-    if (cursor->offset == position)
-        return true;
-    size_t remaining = position - cursor->offset;
-    return zcs_column_cursor_skip_i32(cursor, remaining) == remaining;
-}
-
-bool zcs_column_cursor_jump_i64(struct zcs_column_cursor *cursor,
-                                size_t position)
-{
-    if (cursor->offset > position)
-        return false;
-    if (cursor->offset == position)
-        return true;
-    size_t remaining = position - cursor->offset;
-    return zcs_column_cursor_skip_i64(cursor, remaining) == remaining;
-}
-
-bool zcs_column_cursor_jump_str(struct zcs_column_cursor *cursor,
-                                size_t position)
-{
-    if (cursor->offset > position)
-        return false;
-    if (cursor->offset == position)
-        return true;
-    size_t remaining = position - cursor->offset;
-    return zcs_column_cursor_skip_str(cursor, remaining) == remaining;
 }
 
 static const void *zcs_column_cursor_next_batch(
@@ -456,7 +390,6 @@ const struct zcs_string *zcs_column_cursor_next_batch_str(
         strings[i].len = strlen(cursor->position);
         zcs_column_cursor_advance(cursor, strings[i].len + 1);
     }
-    cursor->offset += i;
     *available = i;
     return (const struct zcs_string *)cursor->buffer;
 }

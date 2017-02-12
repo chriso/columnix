@@ -75,9 +75,9 @@ const int64_t *zcs_column_cursor_next_batch_i64(struct zcs_column_cursor *,
 const struct zcs_string *zcs_column_cursor_next_batch_str(
     struct zcs_column_cursor *, size_t *);
 
-bool zcs_column_cursor_jump_bit(struct zcs_column_cursor *, size_t);
-bool zcs_column_cursor_jump_i32(struct zcs_column_cursor *, size_t);
-bool zcs_column_cursor_jump_i64(struct zcs_column_cursor *, size_t);
-bool zcs_column_cursor_jump_str(struct zcs_column_cursor *, size_t);
+size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *, size_t);
+size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *, size_t);
+size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *, size_t);
+size_t zcs_column_cursor_skip_str(struct zcs_column_cursor *, size_t);
 
 #endif
