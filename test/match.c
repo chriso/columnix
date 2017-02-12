@@ -12,6 +12,11 @@ static int32_t random_i32()
     return munit_rand_int_range(-RAND_MOD, RAND_MOD);
 }
 
+static float random_flt()
+{
+    return (float)random_i32() / 100.0;
+}
+
 static MunitResult test_i32(const MunitParameter params[], void *fixture)
 {
     int32_t values[64];
@@ -59,11 +64,11 @@ static MunitResult test_i64(const MunitParameter params[], void *fixture)
 static MunitResult test_flt(const MunitParameter params[], void *fixture)
 {
     float values[64];
-    float cmp = random_i32() / 100.0;
+    float cmp = random_flt();
     for (size_t i = 0; i < ITERATIONS; i++) {
         uint64_t eq = 0, lt = 0, gt = 0;
         for (size_t j = 0; j < 64; j++) {
-            values[j] = random_i32() / 100.0;
+            values[j] = random_flt();
             if (values[j] == cmp)
                 eq |= (uint64_t)1 << j;
             if (values[j] < cmp)
@@ -81,11 +86,11 @@ static MunitResult test_flt(const MunitParameter params[], void *fixture)
 static MunitResult test_dbl(const MunitParameter params[], void *fixture)
 {
     double values[64];
-    double cmp = random_i32() / 100.0;
+    double cmp = random_flt();
     for (size_t i = 0; i < ITERATIONS; i++) {
         uint64_t eq = 0, lt = 0, gt = 0;
         for (size_t j = 0; j < 64; j++) {
-            values[j] = random_i32() / 100.0;
+            values[j] = random_flt();
             if (values[j] == cmp)
                 eq |= (uint64_t)1 << j;
             if (values[j] < cmp)
