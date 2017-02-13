@@ -4,7 +4,7 @@
 
 #include "helpers.h"
 
-#define COLUMN_COUNT 6
+#define COLUMN_COUNT 8
 #define ROW_COUNT 10
 
 static const uint64_t all_rows = (1 << ROW_COUNT) - 1;
@@ -40,6 +40,8 @@ static void *setup(const MunitParameter params[], void *data)
 
     fixture->columns[4] = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODE_NONE);
     fixture->columns[5] = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODE_NONE);
+    fixture->columns[6] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
+    fixture->columns[7] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
         assert_not_null(fixture->columns[i]);
@@ -54,6 +56,9 @@ static void *setup(const MunitParameter params[], void *data)
 
         assert_true(zcs_column_put_i32(fixture->columns[4], 5));
         assert_true(zcs_column_put_i64(fixture->columns[5], 5));
+
+        assert_true(zcs_column_put_bit(fixture->columns[6], false));
+        assert_true(zcs_column_put_bit(fixture->columns[7], true));
     }
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
@@ -111,6 +116,38 @@ static MunitResult test_rows(const struct zcs_predicate_fixture *fixture,
     return MUNIT_OK;
 }
 
+static MunitResult test_bit_match_index(const MunitParameter params[],
+                                        void *fixture)
+{
+    struct zcs_predicate_index_test_case test_cases[] = {
+        {zcs_predicate_new_true(), ZCS_PREDICATE_MATCH_ALL_ROWS},
+        {zcs_predicate_new_bit_eq(3, true), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_bit_eq(3, false), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_bit_eq(6, false), ZCS_PREDICATE_MATCH_ALL_ROWS},
+        {zcs_predicate_new_bit_eq(6, true), ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_bit_eq(7, false), ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_bit_eq(7, true), ZCS_PREDICATE_MATCH_ALL_ROWS}
+    };
+
+    return test_indexes(fixture, test_cases);
+}
+
+static MunitResult test_bit_match_rows(const MunitParameter params[],
+                                       void *fixture)
+{
+    struct zcs_predicate_row_test_case test_cases[] = {
+        {zcs_predicate_new_true(), all_rows},
+        {zcs_predicate_new_bit_eq(3, false), 0x249}, // 0b01001001001
+        {zcs_predicate_new_bit_eq(3, true), 0x5B6},  // 0b10110110110
+        {zcs_predicate_new_bit_eq(6, false), all_rows},
+        {zcs_predicate_new_bit_eq(6, true), 0},
+        {zcs_predicate_new_bit_eq(7, false), 0},
+        {zcs_predicate_new_bit_eq(7, true), all_rows}
+    };
+
+    return test_rows(fixture, test_cases);
+}
+
 static MunitResult test_i32_match_index(const MunitParameter params[],
                                         void *fixture)
 {
@@ -145,13 +182,13 @@ static MunitResult test_i32_match_rows(const MunitParameter params[],
         {zcs_predicate_new_i32_eq(0, 1), 0x2},
         {zcs_predicate_new_i32_eq(0, 2), 0x4},
         {zcs_predicate_new_i32_eq(0, 3), 0x8},
-        // (col != 3) => hex(0b1111110111)
+        // (col != 3) => 0b1111110111
         {zcs_predicate_negate(zcs_predicate_new_i32_eq(0, 3)), 0x3F7},
-        // (col > 2 && col < 8) => hex(0b0011111000)
+        // (col > 2 && col < 8) => 0b0011111000
         {zcs_predicate_new_and(2, zcs_predicate_new_i32_gt(0, 2),
                                zcs_predicate_new_i32_lt(0, 8)),
          0xF8},
-        // (col < 2 || col > 8) => hex(0b1000000011)
+        // (col < 2 || col > 8) => 0b1000000011
         {zcs_predicate_new_or(2, zcs_predicate_new_i32_lt(0, 2),
                               zcs_predicate_new_i32_gt(0, 8)),
          0x203},
@@ -165,16 +202,16 @@ static MunitResult test_i64_match_index(const MunitParameter params[],
 {
     struct zcs_predicate_index_test_case test_cases[] = {
         {zcs_predicate_new_true(), ZCS_PREDICATE_MATCH_ALL_ROWS},
-        {zcs_predicate_new_i64_lt(0, 10), ZCS_PREDICATE_MATCH_ALL_ROWS},
-        {zcs_predicate_new_i64_lt(0, 0), ZCS_PREDICATE_MATCH_NO_ROWS},
-        {zcs_predicate_new_i64_lt(0, 5), ZCS_PREDICATE_MATCH_UNKNOWN},
-        {zcs_predicate_new_i64_gt(0, -1), ZCS_PREDICATE_MATCH_ALL_ROWS},
-        {zcs_predicate_new_i64_gt(0, 9), ZCS_PREDICATE_MATCH_NO_ROWS},
-        {zcs_predicate_new_i64_gt(0, 5), ZCS_PREDICATE_MATCH_UNKNOWN},
-        {zcs_predicate_new_i64_eq(0, -1), ZCS_PREDICATE_MATCH_NO_ROWS},
-        {zcs_predicate_new_i64_eq(0, 10), ZCS_PREDICATE_MATCH_NO_ROWS},
-        {zcs_predicate_new_i64_eq(0, 9), ZCS_PREDICATE_MATCH_UNKNOWN},
-        {zcs_predicate_new_i64_eq(4, 5), ZCS_PREDICATE_MATCH_ALL_ROWS},
+        {zcs_predicate_new_i64_lt(1, 10), ZCS_PREDICATE_MATCH_ALL_ROWS},
+        {zcs_predicate_new_i64_lt(1, 0), ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_i64_lt(1, 5), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_i64_gt(1, -1), ZCS_PREDICATE_MATCH_ALL_ROWS},
+        {zcs_predicate_new_i64_gt(1, 9), ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_i64_gt(1, 5), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_i64_eq(1, -1), ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_i64_eq(1, 10), ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_i64_eq(1, 9), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_i64_eq(5, 5), ZCS_PREDICATE_MATCH_ALL_ROWS},
     };
 
     return test_indexes(fixture, test_cases);
@@ -185,24 +222,24 @@ static MunitResult test_i64_match_rows(const MunitParameter params[],
 {
     struct zcs_predicate_row_test_case test_cases[] = {
         {zcs_predicate_new_true(), all_rows},
-        {zcs_predicate_new_i64_lt(0, 10), all_rows},
-        {zcs_predicate_new_i64_lt(0, 0), 0},
-        {zcs_predicate_new_i64_lt(0, 4), 0xF},
-        {zcs_predicate_new_i64_gt(0, -1), all_rows},
-        {zcs_predicate_new_i64_gt(0, 9), 0},
-        {zcs_predicate_new_i64_eq(0, 0), 0x1},
-        {zcs_predicate_new_i64_eq(0, 1), 0x2},
-        {zcs_predicate_new_i64_eq(0, 2), 0x4},
-        {zcs_predicate_new_i64_eq(0, 3), 0x8},
-        // (col != 3) => hex(0b1111110111)
-        {zcs_predicate_negate(zcs_predicate_new_i64_eq(0, 3)), 0x3F7},
-        // (col > 2 && col < 8) => hex(0b0011111000)
-        {zcs_predicate_new_and(2, zcs_predicate_new_i64_gt(0, 2),
-                               zcs_predicate_new_i64_lt(0, 8)),
+        {zcs_predicate_new_i64_lt(1, 10), all_rows},
+        {zcs_predicate_new_i64_lt(1, 0), 0},
+        {zcs_predicate_new_i64_lt(1, 4), 0xF},
+        {zcs_predicate_new_i64_gt(1, -1), all_rows},
+        {zcs_predicate_new_i64_gt(1, 9), 0},
+        {zcs_predicate_new_i64_eq(1, 0), 0x1},
+        {zcs_predicate_new_i64_eq(1, 1), 0x2},
+        {zcs_predicate_new_i64_eq(1, 2), 0x4},
+        {zcs_predicate_new_i64_eq(1, 3), 0x8},
+        // (col != 3) => 0b1111110111
+        {zcs_predicate_negate(zcs_predicate_new_i64_eq(1, 3)), 0x3F7},
+        // (col > 2 && col < 8) => 0b0011111000
+        {zcs_predicate_new_and(2, zcs_predicate_new_i64_gt(1, 2),
+                               zcs_predicate_new_i64_lt(1, 8)),
          0xF8},
-        // (col < 2 || col > 8) => hex(0b1000000011)
-        {zcs_predicate_new_or(2, zcs_predicate_new_i64_lt(0, 2),
-                              zcs_predicate_new_i64_gt(0, 8)),
+        // (col < 2 || col > 8) => 0b1000000011
+        {zcs_predicate_new_or(2, zcs_predicate_new_i64_lt(1, 2),
+                              zcs_predicate_new_i64_gt(1, 8)),
          0x203},
     };
 
@@ -210,6 +247,10 @@ static MunitResult test_i64_match_rows(const MunitParameter params[],
 }
 
 MunitTest predicate_tests[] = {
+    {"/bit-match-index", test_bit_match_index, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/bit-match-rows", test_bit_match_rows, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-match-index", test_i32_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-match-rows", test_i32_match_rows, setup, teardown,
