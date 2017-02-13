@@ -5,25 +5,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "type.h"
+#include "types.h"
 
 #define ZCS_BATCH_SIZE 64
 
 struct zcs_column;
 
 struct zcs_column_cursor;
-
-struct zcs_string {
-    const char *ptr;
-    size_t len;
-};
-
-typedef union {
-    bool bit;
-    int32_t i32;
-    int64_t i64;
-    struct zcs_string str;
-} zcs_value_t;
 
 typedef union {
     bool bit;
