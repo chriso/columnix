@@ -416,6 +416,42 @@ static MunitResult test_str_match_rows(const MunitParameter params[],
     return test_rows(fixture, test_cases, sizeof(test_cases));
 }
 
+static MunitResult test_optimize(const MunitParameter params[], void *ptr)
+{
+    struct zcs_predicate_fixture *fixture = ptr;
+
+    struct zcs_predicate *p_true = zcs_predicate_new_true();
+    assert_not_null(p_true);
+    struct zcs_predicate *p_i32 = zcs_predicate_new_i32_eq(0, 10);
+    assert_not_null(p_i32);
+    struct zcs_predicate *p_i64 = zcs_predicate_new_i64_eq(1, 100);
+    assert_not_null(p_i64);
+    struct zcs_predicate *p_bit = zcs_predicate_new_bit_eq(2, false);
+    assert_not_null(p_bit);
+    struct zcs_predicate *p_str = zcs_predicate_new_str_eq(3, "foo", true);
+    assert_not_null(p_str);
+
+    struct zcs_predicate *p_and = zcs_predicate_new_and(2, p_i32, p_bit);
+    assert_not_null(p_and);
+
+    struct zcs_predicate *p_or =
+        zcs_predicate_new_or(4, p_i64, p_str, p_true, p_and);
+    assert_not_null(p_or);
+
+    zcs_predicate_optimize(p_or, fixture->row_group);
+
+    // FIXME: check operands are now sorted by cost asc
+
+    // noops:
+    zcs_predicate_optimize(p_true, fixture->row_group);
+    zcs_predicate_optimize(p_i32, fixture->row_group);
+    zcs_predicate_optimize(p_i64, fixture->row_group);
+
+    zcs_predicate_free(p_or);
+
+    return MUNIT_OK;
+}
+
 MunitTest predicate_tests[] = {
     {"/valid", test_valid, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {"/bit-match-index", test_bit_match_index, setup, teardown,
@@ -434,4 +470,5 @@ MunitTest predicate_tests[] = {
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/str-match-rows", test_str_match_rows, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
+    {"/optimize", test_optimize, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};

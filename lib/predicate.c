@@ -675,19 +675,18 @@ static int zcs_predicate_cmp(const void *a, const void *b, void *ctx)
            zcs_predicate_cost(*(struct zcs_predicate **)b, row_group);
 }
 
-bool zcs_predicate_optimize(struct zcs_predicate *predicate,
+void zcs_predicate_optimize(struct zcs_predicate *predicate,
                             const struct zcs_row_group *row_group)
 {
-    if (zcs_predicate_is_operator(predicate)) {
+    if (!zcs_predicate_is_operator(predicate))
+        return;
 #ifdef __APPLE__
-        qsort_r(predicate->operands, predicate->operand_count,
-                sizeof(struct zcs_predicate *), (void *)row_group,
-                zcs_predicate_cmp);
+    qsort_r(predicate->operands, predicate->operand_count,
+            sizeof(struct zcs_predicate *), (void *)row_group,
+            zcs_predicate_cmp);
 #else
-        qsort_r(predicate->operands, predicate->operand_count,
-                sizeof(struct zcs_predicate *), zcs_predicate_cmp,
-                (void *)row_group);
+    qsort_r(predicate->operands, predicate->operand_count,
+            sizeof(struct zcs_predicate *), zcs_predicate_cmp,
+            (void *)row_group);
 #endif
-    }
-    return true;
 }

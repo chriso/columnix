@@ -34,7 +34,7 @@ struct zcs_predicate *zcs_predicate_new_or(size_t, ...);
 bool zcs_predicate_valid(const struct zcs_predicate *,
                          const struct zcs_row_group *);
 
-bool zcs_predicate_optimize(struct zcs_predicate *,
+void zcs_predicate_optimize(struct zcs_predicate *,
                             const struct zcs_row_group *);
 
 enum zcs_predicate_match {
