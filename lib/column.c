@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "column.h"
-#include "common.h"
 
 static const size_t zcs_column_initial_size = 64;
 
@@ -132,8 +131,8 @@ const struct zcs_column_index *zcs_column_index(const struct zcs_column *column)
     return &column->index;
 }
 
-ZCS_NO_INLINE static bool zcs_column_resize(struct zcs_column *column,
-                                            size_t alloc_size)
+__attribute__((noinline))
+static bool zcs_column_resize(struct zcs_column *column, size_t alloc_size)
 {
     size_t size = column->size;
     size_t required_size = column->offset + alloc_size;
@@ -151,9 +150,9 @@ ZCS_NO_INLINE static bool zcs_column_resize(struct zcs_column *column,
 
 static void *zcs_column_alloc(struct zcs_column *column, size_t size)
 {
-    if (ZCS_UNLIKELY(column->immutable))
+    if (column->immutable)
         return false;
-    if (ZCS_UNLIKELY(column->offset + size > column->size))
+    if (column->offset + size > column->size)
         if (!zcs_column_resize(column, size))
             return NULL;
     void *ptr = (void *)zcs_column_tail(column);
@@ -163,12 +162,12 @@ static void *zcs_column_alloc(struct zcs_column *column, size_t size)
 
 bool zcs_column_put_bit(struct zcs_column *column, bool value)
 {
-    if (ZCS_UNLIKELY(column->type != ZCS_COLUMN_BIT))
+    if (column->type != ZCS_COLUMN_BIT)
         return false;
-    if (ZCS_UNLIKELY(column->immutable))
+    if (column->immutable)
         return false;
     uint64_t *bitset;
-    if (ZCS_UNLIKELY(column->index.count % 64 == 0)) {
+    if (column->index.count % 64 == 0) {
         bitset = zcs_column_alloc(column, sizeof(uint64_t));
         if (!bitset)
             return false;
@@ -180,7 +179,7 @@ bool zcs_column_put_bit(struct zcs_column *column, bool value)
     }
     if (value)
         *bitset |= (uint64_t)1 << column->index.count;
-    if (ZCS_UNLIKELY(!column->index.count)) {
+    if (!column->index.count) {
         column->index.min.bit = column->index.max.bit = value;
     } else {
         column->index.min.bit = value && column->index.min.bit;
@@ -192,13 +191,13 @@ bool zcs_column_put_bit(struct zcs_column *column, bool value)
 
 bool zcs_column_put_i32(struct zcs_column *column, int32_t value)
 {
-    if (ZCS_UNLIKELY(column->type != ZCS_COLUMN_I32))
+    if (column->type != ZCS_COLUMN_I32)
         return false;
     int32_t *slot = zcs_column_alloc(column, sizeof(int32_t));
-    if (ZCS_UNLIKELY(!slot))
+    if (!slot)
         return false;
     *slot = value;
-    if (ZCS_UNLIKELY(!column->index.count)) {
+    if (!column->index.count) {
         column->index.min.i32 = column->index.max.i32 = value;
     } else {
         if (value > column->index.max.i32)
@@ -212,13 +211,13 @@ bool zcs_column_put_i32(struct zcs_column *column, int32_t value)
 
 bool zcs_column_put_i64(struct zcs_column *column, int64_t value)
 {
-    if (ZCS_UNLIKELY(column->type != ZCS_COLUMN_I64))
+    if (column->type != ZCS_COLUMN_I64)
         return false;
     int64_t *slot = zcs_column_alloc(column, sizeof(int64_t));
-    if (ZCS_UNLIKELY(!slot))
+    if (!slot)
         return false;
     *slot = value;
-    if (ZCS_UNLIKELY(!column->index.count)) {
+    if (!column->index.count) {
         column->index.min.i64 = column->index.max.i64 = value;
     } else {
         if (value > column->index.max.i64)
@@ -232,14 +231,14 @@ bool zcs_column_put_i64(struct zcs_column *column, int64_t value)
 
 bool zcs_column_put_str(struct zcs_column *column, const char *value)
 {
-    if (ZCS_UNLIKELY(column->type != ZCS_COLUMN_STR))
+    if (column->type != ZCS_COLUMN_STR)
         return false;
     size_t length = strlen(value);
     void *slot = zcs_column_alloc(column, length + 1);
-    if (ZCS_UNLIKELY(!slot))
+    if (!slot)
         return false;
     memcpy(slot, value, length + 1);
-    if (ZCS_UNLIKELY(!column->index.count)) {
+    if (!column->index.count) {
         column->index.min.len = column->index.max.len = length;
     } else {
         if (length < column->index.min.len)
