@@ -20,6 +20,7 @@ endif
 
 ifeq ($(uasan), 1)
   CFLAGS += -fsanitize=undefined -fsanitize=address
+  LDFLAGS += -fsanitize=undefined -fsanitize=address
 endif
 
 ifeq ($(shell uname -s), Darwin)
@@ -44,7 +45,7 @@ $(LIB): $(OBJ)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(TESTS): $(TEST_OBJ) $(LIB)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^
 
 check: $(TESTS)
 	@./$(TESTS) $(grep)
