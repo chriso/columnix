@@ -383,6 +383,7 @@ static enum zcs_predicate_match zcs_predicate_match_index_lt(
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
             else if (index->max.i32 < predicate->value.i32)
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
+            break;
         case ZCS_COLUMN_I64:
             if (index->min.i64 >= predicate->value.i64)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
@@ -442,6 +443,7 @@ static enum zcs_predicate_match zcs_predicate_match_index_gt(
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
             else if (index->max.i32 <= predicate->value.i32)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
+            break;
         case ZCS_COLUMN_I64:
             if (index->min.i64 > predicate->value.i64)
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
