@@ -4,9 +4,7 @@
 
 #include "column.h"
 
-#define MUNIT_ENABLE_ASSERT_ALIASES
 #include "helpers.h"
-#include "munit.h"
 
 #define COUNT 1111
 

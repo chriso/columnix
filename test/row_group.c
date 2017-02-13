@@ -2,8 +2,7 @@
 
 #include "row_group.h"
 
-#define MUNIT_ENABLE_ASSERT_ALIASES
-#include "munit.h"
+#include "helpers.h"
 
 #define COLUMN_COUNT 4
 #define ROW_COUNT 1111

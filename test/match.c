@@ -1,10 +1,8 @@
-#define MUNIT_ENABLE_ASSERT_ALIASES
-#include "munit.h"
-
 #include "match.h"
 
-#define RAND_MOD 512
+#include "helpers.h"
 
+#define RAND_MOD 512
 #define ITERATIONS 10000
 
 static int32_t random_i32()
