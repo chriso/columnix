@@ -34,6 +34,8 @@ struct zcs_row_group_cursor *zcs_row_group_cursor_new(struct zcs_row_group *);
 
 void zcs_row_group_cursor_free(struct zcs_row_group_cursor *);
 
+void zcs_row_group_cursor_rewind(struct zcs_row_group_cursor *);
+
 bool zcs_row_group_cursor_valid(const struct zcs_row_group_cursor *);
 
 void zcs_row_group_cursor_advance(struct zcs_row_group_cursor *);

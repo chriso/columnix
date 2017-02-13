@@ -147,13 +147,21 @@ error:
 
 void zcs_row_group_cursor_free(struct zcs_row_group_cursor *cursor)
 {
-    if (cursor->column_count) {
-        for (size_t i = 0; i < cursor->column_count; i++)
-            if (cursor->columns[i].cursor)
-                zcs_column_cursor_free(cursor->columns[i].cursor);
+    zcs_row_group_cursor_rewind(cursor);
+    if (cursor->column_count)
         free(cursor->columns);
-    }
     free(cursor);
+}
+
+void zcs_row_group_cursor_rewind(struct zcs_row_group_cursor *cursor)
+{
+    for (size_t i = 0; i < cursor->column_count; i++) {
+        if (cursor->columns[i].cursor)
+            zcs_column_cursor_free(cursor->columns[i].cursor);
+        cursor->columns[i].cursor = NULL;
+        cursor->columns[i].position = 0;
+    }
+    cursor->position = 0;
 }
 
 bool zcs_row_group_cursor_valid(const struct zcs_row_group_cursor *cursor)

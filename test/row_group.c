@@ -100,53 +100,59 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
     assert_not_null(cursor);
 
     char buffer[64];
-    size_t position = 0, batch = 0, count;
-    for (; zcs_row_group_cursor_valid(cursor);
-         zcs_row_group_cursor_advance(cursor), batch++) {
-        for (size_t repeat = 0; repeat < 2; repeat++) {
-            const int32_t *i32_batch =
-                zcs_row_group_cursor_next_i32(cursor, 0, &count);
-            assert_not_null(i32_batch);
-            for (size_t i = 0; i < count; i++)
-                assert_int32(i32_batch[i], ==, position + i);
-        }
 
-        if (batch % 3 == 1) {
-            const int64_t *i64_batch =
-                zcs_row_group_cursor_next_i64(cursor, 1, &count);
-            assert_not_null(i64_batch);
-            for (size_t i = 0; i < count; i++)
-                assert_int64(i64_batch[i], ==, (position + i) * 10);
-        }
+    for (size_t cursor_repeat = 0; cursor_repeat < 2; cursor_repeat++) {
 
-        if (batch % 5 == 3) {
-            const uint64_t *bitset =
-                zcs_row_group_cursor_next_bit(cursor, 2, &count);
-            assert_not_null(bitset);
-            for (size_t i = 0; i < count; i++) {
-                bool bit = *bitset & ((uint64_t)1 << i);
-                if ((i + position) % 3 == 0)
-                    assert_true(bit);
-                else
-                    assert_false(bit);
+        size_t position = 0, batch = 0, count;
+        for (; zcs_row_group_cursor_valid(cursor);
+             zcs_row_group_cursor_advance(cursor), batch++) {
+            for (size_t batch_repeat = 0; batch_repeat < 2; batch_repeat++) {
+                const int32_t *i32_batch =
+                    zcs_row_group_cursor_next_i32(cursor, 0, &count);
+                assert_not_null(i32_batch);
+                for (size_t i = 0; i < count; i++)
+                    assert_int32(i32_batch[i], ==, position + i);
             }
-        }
 
-        if (batch % 7 == 5) {
-            const struct zcs_string *str_batch =
-                zcs_row_group_cursor_next_str(cursor, 3, &count);
-            assert_not_null(str_batch);
-            for (size_t i = 0; i < count; i++) {
-                sprintf(buffer, "zcs %zu", position + i);
-                assert_int(str_batch[i].len, ==, strlen(buffer));
-                assert_string_equal(buffer, str_batch[i].ptr);
+            if (batch % 3 == 1) {
+                const int64_t *i64_batch =
+                    zcs_row_group_cursor_next_i64(cursor, 1, &count);
+                assert_not_null(i64_batch);
+                for (size_t i = 0; i < count; i++)
+                    assert_int64(i64_batch[i], ==, (position + i) * 10);
             }
+
+            if (batch % 5 == 3) {
+                const uint64_t *bitset =
+                    zcs_row_group_cursor_next_bit(cursor, 2, &count);
+                assert_not_null(bitset);
+                for (size_t i = 0; i < count; i++) {
+                    bool bit = *bitset & ((uint64_t)1 << i);
+                    if ((i + position) % 3 == 0)
+                        assert_true(bit);
+                    else
+                        assert_false(bit);
+                }
+            }
+
+            if (batch % 7 == 5) {
+                const struct zcs_string *str_batch =
+                    zcs_row_group_cursor_next_str(cursor, 3, &count);
+                assert_not_null(str_batch);
+                for (size_t i = 0; i < count; i++) {
+                    sprintf(buffer, "zcs %zu", position + i);
+                    assert_int(str_batch[i].len, ==, strlen(buffer));
+                    assert_string_equal(buffer, str_batch[i].ptr);
+                }
+            }
+
+            position += count;
         }
 
-        position += count;
+        assert_size(position, ==, ROW_COUNT);
+
+        zcs_row_group_cursor_rewind(cursor);
     }
-
-    assert_size(position, ==, ROW_COUNT);
 
     zcs_row_group_cursor_free(cursor);
     return MUNIT_OK;
