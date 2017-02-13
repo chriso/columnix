@@ -160,8 +160,8 @@ struct zcs_predicate *zcs_predicate_new_str_contains(
     size_t column, const char *value, bool case_sensitive,
     enum zcs_str_location location)
 {
-    struct zcs_predicate *predicate =
-        zcs_predicate_new_str(column, value, ZCS_PREDICATE_GT, case_sensitive);
+    struct zcs_predicate *predicate = zcs_predicate_new_str(
+        column, value, ZCS_PREDICATE_CONTAINS, case_sensitive);
     if (!predicate)
         return NULL;
     predicate->location = location;

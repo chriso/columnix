@@ -83,8 +83,7 @@ static void teardown(void *ptr)
 
 static MunitResult test_indexes(
     const struct zcs_predicate_fixture *fixture,
-    struct zcs_predicate_index_test_case *test_cases,
-    size_t size)
+    struct zcs_predicate_index_test_case *test_cases, size_t size)
 {
     for (size_t i = 0; i < size / sizeof(*test_cases); i++) {
         struct zcs_predicate_index_test_case *test_case = &test_cases[i];
@@ -126,8 +125,7 @@ static MunitResult test_bit_match_index(const MunitParameter params[],
         {zcs_predicate_new_bit_eq(6, false), ZCS_PREDICATE_MATCH_ALL_ROWS},
         {zcs_predicate_new_bit_eq(6, true), ZCS_PREDICATE_MATCH_NO_ROWS},
         {zcs_predicate_new_bit_eq(7, false), ZCS_PREDICATE_MATCH_NO_ROWS},
-        {zcs_predicate_new_bit_eq(7, true), ZCS_PREDICATE_MATCH_ALL_ROWS}
-    };
+        {zcs_predicate_new_bit_eq(7, true), ZCS_PREDICATE_MATCH_ALL_ROWS}};
 
     return test_indexes(fixture, test_cases, sizeof(test_cases));
 }
@@ -137,13 +135,12 @@ static MunitResult test_bit_match_rows(const MunitParameter params[],
 {
     struct zcs_predicate_row_test_case test_cases[] = {
         {zcs_predicate_new_true(), all_rows},
-        {zcs_predicate_new_bit_eq(2, true), 0x249},  // 0b1001001001
-        {zcs_predicate_new_bit_eq(2, false), 0x1B6}, // 0b0110110110
+        {zcs_predicate_new_bit_eq(2, true), 0x249},   // 0b1001001001
+        {zcs_predicate_new_bit_eq(2, false), 0x1B6},  // 0b0110110110
         {zcs_predicate_new_bit_eq(6, false), all_rows},
         {zcs_predicate_new_bit_eq(6, true), 0},
         {zcs_predicate_new_bit_eq(7, false), 0},
-        {zcs_predicate_new_bit_eq(7, true), all_rows}
-    };
+        {zcs_predicate_new_bit_eq(7, true), all_rows}};
 
     return test_rows(fixture, test_cases, sizeof(test_cases));
 }
@@ -246,6 +243,128 @@ static MunitResult test_i64_match_rows(const MunitParameter params[],
     return test_rows(fixture, test_cases, sizeof(test_cases));
 }
 
+static MunitResult test_str_match_index(const MunitParameter params[],
+                                        void *fixture)
+{
+    struct zcs_predicate_index_test_case test_cases[] = {
+        {zcs_predicate_new_true(), ZCS_PREDICATE_MATCH_ALL_ROWS},
+        {zcs_predicate_new_str_eq(3, "foo", true), ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_str_eq(3, "zcs 0", true),
+         ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_eq(3, "zcs 10", true),
+         ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_str_lt(3, "foo", true), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_lt(3, "zcs 0", true),
+         ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_lt(3, "zcs 10", true),
+         ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_gt(3, "foo", true), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_gt(3, "zcs 0", true),
+         ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_gt(3, "zcs 10", true),
+         ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_contains(3, "foo", true, ZCS_STR_LOCATION_ANY),
+         ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_contains(3, "zcs 0", true, ZCS_STR_LOCATION_ANY),
+         ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_str_contains(3, "zcs 10", true,
+                                        ZCS_STR_LOCATION_ANY),
+         ZCS_PREDICATE_MATCH_NO_ROWS}};
+
+    return test_indexes(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_str_match_rows(const MunitParameter params[],
+                                       void *fixture)
+{
+    struct zcs_predicate_row_test_case test_cases[] = {
+        {zcs_predicate_new_true(), all_rows},
+
+        {zcs_predicate_new_str_eq(3, "zcs", false), 0},
+        {zcs_predicate_new_str_eq(3, "zcs 0", false), 0x1},
+        {zcs_predicate_new_str_eq(3, "ZCS 1", false), 0x2},
+        {zcs_predicate_new_str_eq(3, "ZCS 1", true), 0},
+
+        {zcs_predicate_new_str_lt(3, "zcs", false), 0},
+        {zcs_predicate_new_str_gt(3, "zcs", false), all_rows},
+        {zcs_predicate_new_str_lt(3, "foo", false), 0},
+        {zcs_predicate_new_str_gt(3, "foo", false), all_rows},
+        {zcs_predicate_new_str_lt(3, "zzz", false), all_rows},
+        {zcs_predicate_new_str_gt(3, "zzz", false), 0},
+
+        // contains @ start
+        {zcs_predicate_new_str_contains(3, "zcs", true, ZCS_STR_LOCATION_START),
+         all_rows},
+        {zcs_predicate_new_str_contains(3, "zcs", false,
+                                        ZCS_STR_LOCATION_START),
+         all_rows},
+        {zcs_predicate_new_str_contains(3, "ZCS", false,
+                                        ZCS_STR_LOCATION_START),
+         all_rows},
+        {zcs_predicate_new_str_contains(3, "ZCS", true, ZCS_STR_LOCATION_START),
+         0},
+        {zcs_predicate_new_str_contains(3, "foo", false,
+                                        ZCS_STR_LOCATION_START),
+         0},
+        {zcs_predicate_new_str_contains(3, "zcs 0", false,
+                                        ZCS_STR_LOCATION_START),
+         0x1},
+        {zcs_predicate_new_str_contains(3, "zcs 0", true,
+                                        ZCS_STR_LOCATION_START),
+         0x1},
+        {zcs_predicate_new_str_contains(3, "zcs 1", false,
+                                        ZCS_STR_LOCATION_START),
+         0x2},
+        {zcs_predicate_new_str_contains(3, "zcs 2", false,
+                                        ZCS_STR_LOCATION_START),
+         0x4},
+
+        // contains @ any
+        {zcs_predicate_new_str_contains(3, "zcs", true, ZCS_STR_LOCATION_ANY),
+         all_rows},
+        {zcs_predicate_new_str_contains(3, "zcs", false, ZCS_STR_LOCATION_ANY),
+         all_rows},
+        {zcs_predicate_new_str_contains(3, "ZCS", false, ZCS_STR_LOCATION_ANY),
+         all_rows},
+        {zcs_predicate_new_str_contains(3, "ZCS", true, ZCS_STR_LOCATION_ANY),
+         0},
+        {zcs_predicate_new_str_contains(3, "foo", false, ZCS_STR_LOCATION_ANY),
+         0},
+        {zcs_predicate_new_str_contains(3, "zcs 0", false,
+                                        ZCS_STR_LOCATION_ANY),
+         0x1},
+        {zcs_predicate_new_str_contains(3, "zcs 1", false,
+                                        ZCS_STR_LOCATION_ANY),
+         0x2},
+        {zcs_predicate_new_str_contains(3, "zcs 2", false,
+                                        ZCS_STR_LOCATION_ANY),
+         0x4},
+
+        // contains @ end
+        {zcs_predicate_new_str_contains(3, "zcs", true, ZCS_STR_LOCATION_END),
+         0},
+        {zcs_predicate_new_str_contains(3, "zcs", false, ZCS_STR_LOCATION_END),
+         0},
+        {zcs_predicate_new_str_contains(3, "ZCS", false, ZCS_STR_LOCATION_END),
+         0},
+        {zcs_predicate_new_str_contains(3, "ZCS", true, ZCS_STR_LOCATION_END),
+         0},
+        {zcs_predicate_new_str_contains(3, "foo", false, ZCS_STR_LOCATION_END),
+         0},
+        {zcs_predicate_new_str_contains(3, "0", false, ZCS_STR_LOCATION_END),
+         0x1},
+        {zcs_predicate_new_str_contains(3, "ZCS 0", false,
+                                        ZCS_STR_LOCATION_END),
+         0x1},
+        {zcs_predicate_new_str_contains(3, "1", false, ZCS_STR_LOCATION_END),
+         0x2},
+        {zcs_predicate_new_str_contains(3, "2", false, ZCS_STR_LOCATION_END),
+         0x4},
+    };
+
+    return test_rows(fixture, test_cases, sizeof(test_cases));
+}
+
 MunitTest predicate_tests[] = {
     {"/bit-match-index", test_bit_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
@@ -258,5 +377,9 @@ MunitTest predicate_tests[] = {
     {"/i64-match-index", test_i64_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i64-match-rows", test_i64_match_rows, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/str-match-index", test_str_match_index, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/str-match-rows", test_str_match_rows, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
