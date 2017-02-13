@@ -115,6 +115,57 @@ static MunitResult test_rows(const struct zcs_predicate_fixture *fixture,
     return MUNIT_OK;
 }
 
+static MunitResult test_valid(const MunitParameter params[], void *ptr)
+{
+    struct zcs_predicate_fixture *fixture = ptr;
+
+    struct {
+        struct zcs_predicate *predicate;
+        bool valid;
+    } test_cases[] = {
+        {zcs_predicate_new_true(), true},
+        {zcs_predicate_new_i32_eq(0, 100), true},
+        {zcs_predicate_new_i32_eq(1, 100), false},   // type mismatch
+        {zcs_predicate_new_i32_eq(20, 100), false},  // column doesn't exist
+        {zcs_predicate_new_and(2, zcs_predicate_new_true(),
+                               zcs_predicate_new_true()),
+         true},
+        {zcs_predicate_new_and(2, zcs_predicate_new_true(),
+                               zcs_predicate_new_i32_eq(0, 100)),
+         true},
+        {zcs_predicate_new_and(2, zcs_predicate_new_true(),
+                               zcs_predicate_new_i32_eq(1, 100)),
+         false},  // type mismatch
+        {zcs_predicate_new_and(2, zcs_predicate_new_true(),
+                               zcs_predicate_new_i32_eq(20, 100)),
+         false},  // column doesn't exist
+        {zcs_predicate_new_or(2, zcs_predicate_new_true(),
+                              zcs_predicate_new_true()),
+         true},
+        {zcs_predicate_new_or(2, zcs_predicate_new_true(),
+                              zcs_predicate_new_i32_eq(0, 100)),
+         true},
+        {zcs_predicate_new_or(2, zcs_predicate_new_true(),
+                              zcs_predicate_new_i32_eq(1, 100)),
+         false},  // type mismatch
+        {zcs_predicate_new_or(2, zcs_predicate_new_true(),
+                              zcs_predicate_new_i32_eq(20, 100)),
+         false}  // column doesn't exist
+    };
+
+    for (size_t i = 0; i < sizeof(test_cases) / sizeof(*test_cases); i++) {
+        bool valid =
+            zcs_predicate_valid(test_cases[i].predicate, fixture->row_group);
+        if (test_cases[i].valid)
+            assert_true(valid);
+        else
+            assert_false(valid);
+        zcs_predicate_free(test_cases[i].predicate);
+    }
+
+    return MUNIT_OK;
+}
+
 static MunitResult test_bit_match_index(const MunitParameter params[],
                                         void *fixture)
 {
@@ -366,6 +417,7 @@ static MunitResult test_str_match_rows(const MunitParameter params[],
 }
 
 MunitTest predicate_tests[] = {
+    {"/valid", test_valid, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {"/bit-match-index", test_bit_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/bit-match-rows", test_bit_match_rows, setup, teardown,

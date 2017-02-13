@@ -131,8 +131,8 @@ const struct zcs_column_index *zcs_column_index(const struct zcs_column *column)
     return &column->index;
 }
 
-__attribute__((noinline))
-static bool zcs_column_resize(struct zcs_column *column, size_t alloc_size)
+__attribute__((noinline)) static bool zcs_column_resize(
+    struct zcs_column *column, size_t alloc_size)
 {
     size_t size = column->size;
     size_t required_size = column->offset + alloc_size;

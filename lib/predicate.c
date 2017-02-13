@@ -19,6 +19,7 @@ enum zcs_predicate_type {
 
 struct zcs_predicate {
     enum zcs_predicate_type type;
+    enum zcs_column_type column_type;
     size_t column;
     zcs_value_t value;
     size_t operand_count;
@@ -61,6 +62,7 @@ struct zcs_predicate *zcs_predicate_new_bit_eq(size_t column, bool value)
         return NULL;
     predicate->column = column;
     predicate->type = ZCS_PREDICATE_EQ;
+    predicate->column_type = ZCS_COLUMN_BIT;
     predicate->value.bit = value;
     return predicate;
 }
@@ -73,6 +75,7 @@ static struct zcs_predicate *zcs_predicate_new_i32(size_t column, int32_t value,
         return NULL;
     predicate->column = column;
     predicate->type = type;
+    predicate->column_type = ZCS_COLUMN_I32;
     predicate->value.i32 = value;
     return predicate;
 }
@@ -100,6 +103,7 @@ static struct zcs_predicate *zcs_predicate_new_i64(size_t column, int64_t value,
         return NULL;
     predicate->column = column;
     predicate->type = type;
+    predicate->column_type = ZCS_COLUMN_I64;
     predicate->value.i64 = value;
     return predicate;
 }
@@ -129,6 +133,7 @@ static struct zcs_predicate *zcs_predicate_new_str(size_t column,
         return NULL;
     predicate->column = column;
     predicate->type = type;
+    predicate->column_type = ZCS_COLUMN_STR;
     predicate->value.str.ptr = value;
     predicate->value.str.len = strlen(value);
     predicate->case_sensitive = case_sensitive;
@@ -220,13 +225,24 @@ struct zcs_predicate *zcs_predicate_negate(struct zcs_predicate *predicate)
     return predicate;
 }
 
+static bool zcs_predicate_is_operator(const struct zcs_predicate *predicate)
+{
+    return predicate->type == ZCS_PREDICATE_AND ||
+           predicate->type == ZCS_PREDICATE_OR;
+}
+
 bool zcs_predicate_valid(const struct zcs_predicate *predicate,
                          const struct zcs_row_group *row_group)
 {
     if (predicate->column >= zcs_row_group_column_count(row_group))
         return false;
 
-    enum zcs_column_type column_type;
+    enum zcs_column_type column_type =
+        zcs_row_group_column_type(row_group, predicate->column);
+    if (!zcs_predicate_is_operator(predicate) &&
+        predicate->type != ZCS_PREDICATE_TRUE &&
+        predicate->column_type != column_type)
+        return false;
 
     switch (predicate->type) {
         case ZCS_PREDICATE_TRUE:
@@ -234,12 +250,8 @@ bool zcs_predicate_valid(const struct zcs_predicate *predicate,
             break;
         case ZCS_PREDICATE_LT:
         case ZCS_PREDICATE_GT:
-            column_type =
-                zcs_row_group_column_type(row_group, predicate->column);
             return column_type != ZCS_COLUMN_BIT;
         case ZCS_PREDICATE_CONTAINS:
-            column_type =
-                zcs_row_group_column_type(row_group, predicate->column);
             return column_type == ZCS_COLUMN_STR;
         case ZCS_PREDICATE_AND:
         case ZCS_PREDICATE_OR:
@@ -268,6 +280,7 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
     uint64_t mask = 0;
     switch (type) {
         case ZCS_COLUMN_BIT: {
+            assert(predicate->column_type == ZCS_COLUMN_BIT);
             const uint64_t *values =
                 zcs_row_group_cursor_next_bit(cursor, predicate->column, count);
             if (!values)
@@ -280,6 +293,7 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
             }
         } break;
         case ZCS_COLUMN_I32: {
+            assert(predicate->column_type == ZCS_COLUMN_I32);
             const int32_t *values =
                 zcs_row_group_cursor_next_i32(cursor, predicate->column, count);
             if (!values)
@@ -287,6 +301,7 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
             mask = zcs_match_i32_eq(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
+            assert(predicate->column_type == ZCS_COLUMN_I64);
             const int64_t *values =
                 zcs_row_group_cursor_next_i64(cursor, predicate->column, count);
             if (!values)
@@ -294,6 +309,7 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
             mask = zcs_match_i64_eq(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
+            assert(predicate->column_type == ZCS_COLUMN_STR);
             const struct zcs_string *values =
                 zcs_row_group_cursor_next_str(cursor, predicate->column, count);
             if (!values)
@@ -313,6 +329,7 @@ static enum zcs_predicate_match zcs_predicate_match_index_eq(
     enum zcs_predicate_match result = ZCS_PREDICATE_MATCH_UNKNOWN;
     switch (type) {
         case ZCS_COLUMN_BIT:
+            assert(predicate->column_type == ZCS_COLUMN_BIT);
             if (index->min.bit && index->max.bit)
                 result = predicate->value.bit ? ZCS_PREDICATE_MATCH_ALL_ROWS
                                               : ZCS_PREDICATE_MATCH_NO_ROWS;
@@ -321,6 +338,7 @@ static enum zcs_predicate_match zcs_predicate_match_index_eq(
                                               : ZCS_PREDICATE_MATCH_ALL_ROWS;
             break;
         case ZCS_COLUMN_I32:
+            assert(predicate->column_type == ZCS_COLUMN_I32);
             if (index->min.i32 > predicate->value.i32 ||
                 index->max.i32 < predicate->value.i32)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
@@ -329,6 +347,7 @@ static enum zcs_predicate_match zcs_predicate_match_index_eq(
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
             break;
         case ZCS_COLUMN_I64:
+            assert(predicate->column_type == ZCS_COLUMN_I64);
             if (index->min.i64 > predicate->value.i64 ||
                 index->max.i64 < predicate->value.i64)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
@@ -337,6 +356,7 @@ static enum zcs_predicate_match zcs_predicate_match_index_eq(
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
             break;
         case ZCS_COLUMN_STR:
+            assert(predicate->column_type == ZCS_COLUMN_STR);
             if (index->min.len > predicate->value.str.len ||
                 index->max.len < predicate->value.str.len)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
@@ -357,6 +377,7 @@ static bool zcs_predicate_match_rows_lt(const struct zcs_predicate *predicate,
         case ZCS_COLUMN_BIT:
             return false;  // unsupported
         case ZCS_COLUMN_I32: {
+            assert(predicate->column_type == ZCS_COLUMN_I32);
             const int32_t *values =
                 zcs_row_group_cursor_next_i32(cursor, predicate->column, count);
             if (!values)
@@ -364,6 +385,7 @@ static bool zcs_predicate_match_rows_lt(const struct zcs_predicate *predicate,
             mask = zcs_match_i32_lt(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
+            assert(predicate->column_type == ZCS_COLUMN_I64);
             const int64_t *values =
                 zcs_row_group_cursor_next_i64(cursor, predicate->column, count);
             if (!values)
@@ -371,6 +393,7 @@ static bool zcs_predicate_match_rows_lt(const struct zcs_predicate *predicate,
             mask = zcs_match_i64_lt(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
+            assert(predicate->column_type == ZCS_COLUMN_STR);
             const struct zcs_string *values =
                 zcs_row_group_cursor_next_str(cursor, predicate->column, count);
             if (!values)
@@ -390,12 +413,14 @@ static enum zcs_predicate_match zcs_predicate_match_index_lt(
     enum zcs_predicate_match result = ZCS_PREDICATE_MATCH_UNKNOWN;
     switch (type) {
         case ZCS_COLUMN_I32:
+            assert(predicate->column_type == ZCS_COLUMN_I32);
             if (index->min.i32 >= predicate->value.i32)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
             else if (index->max.i32 < predicate->value.i32)
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
             break;
         case ZCS_COLUMN_I64:
+            assert(predicate->column_type == ZCS_COLUMN_I64);
             if (index->min.i64 >= predicate->value.i64)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
             else if (index->max.i64 < predicate->value.i64)
@@ -417,6 +442,7 @@ static bool zcs_predicate_match_rows_gt(const struct zcs_predicate *predicate,
         case ZCS_COLUMN_BIT:
             return false;  // unsupported
         case ZCS_COLUMN_I32: {
+            assert(predicate->column_type == ZCS_COLUMN_I32);
             const int32_t *values =
                 zcs_row_group_cursor_next_i32(cursor, predicate->column, count);
             if (!values)
@@ -424,6 +450,7 @@ static bool zcs_predicate_match_rows_gt(const struct zcs_predicate *predicate,
             mask = zcs_match_i32_gt(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
+            assert(predicate->column_type == ZCS_COLUMN_I64);
             const int64_t *values =
                 zcs_row_group_cursor_next_i64(cursor, predicate->column, count);
             if (!values)
@@ -431,6 +458,7 @@ static bool zcs_predicate_match_rows_gt(const struct zcs_predicate *predicate,
             mask = zcs_match_i64_gt(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
+            assert(predicate->column_type == ZCS_COLUMN_STR);
             const struct zcs_string *values =
                 zcs_row_group_cursor_next_str(cursor, predicate->column, count);
             if (!values)
@@ -450,12 +478,14 @@ static enum zcs_predicate_match zcs_predicate_match_index_gt(
     enum zcs_predicate_match result = ZCS_PREDICATE_MATCH_UNKNOWN;
     switch (type) {
         case ZCS_COLUMN_I32:
+            assert(predicate->column_type == ZCS_COLUMN_I32);
             if (index->min.i32 > predicate->value.i32)
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
             else if (index->max.i32 <= predicate->value.i32)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
             break;
         case ZCS_COLUMN_I64:
+            assert(predicate->column_type == ZCS_COLUMN_I64);
             if (index->min.i64 > predicate->value.i64)
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
             else if (index->max.i64 <= predicate->value.i64)
@@ -643,12 +673,6 @@ static int zcs_predicate_cmp(const void *a, const void *b, void *ctx)
     // sort by cost asc
     return zcs_predicate_cost(*(struct zcs_predicate **)a, row_group) -
            zcs_predicate_cost(*(struct zcs_predicate **)b, row_group);
-}
-
-static bool zcs_predicate_is_operator(const struct zcs_predicate *predicate)
-{
-    return predicate->type == ZCS_PREDICATE_AND ||
-           predicate->type == ZCS_PREDICATE_OR;
 }
 
 bool zcs_predicate_optimize(struct zcs_predicate *predicate,
