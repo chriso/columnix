@@ -46,9 +46,9 @@ enum zcs_predicate_match {
 enum zcs_predicate_match zcs_predicate_match_indexes(
     const struct zcs_predicate *, const struct zcs_row_group *);
 
-uint64_t zcs_predicate_match_rows(const struct zcs_predicate *predicate,
-                                  const struct zcs_row_group *row_group,
-                                  struct zcs_row_group_cursor *cursor,
-                                  size_t *count);
+bool zcs_predicate_match_rows(const struct zcs_predicate *predicate,
+                              const struct zcs_row_group *row_group,
+                              struct zcs_row_group_cursor *cursor,
+                              uint64_t *matches, size_t *count);
 
 #endif

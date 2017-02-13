@@ -94,12 +94,15 @@ static MunitResult test_i32_match_rows(const MunitParameter params[], void *ptr)
          0x203},
     };
 
+    size_t count;
+    uint64_t matches;
+
     ZCS_FOREACH(test_cases, test_case)
     {
         assert_not_null(test_case.predicate);
-        size_t count;
-        uint64_t matches = zcs_predicate_match_rows(
-            test_case.predicate, fixture->row_group, fixture->cursor, &count);
+        assert_true(
+            zcs_predicate_match_rows(test_case.predicate, fixture->row_group,
+                                     fixture->cursor, &matches, &count));
         assert_size(count, ==, ROW_COUNT);
         assert_uint64(matches, ==, test_case.expected);
         zcs_predicate_free(test_case.predicate);
