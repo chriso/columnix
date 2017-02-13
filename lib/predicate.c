@@ -267,9 +267,18 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
 {
     uint64_t mask = 0;
     switch (type) {
-        case ZCS_COLUMN_BIT:
-            assert(false);  // FIXME
-            break;
+        case ZCS_COLUMN_BIT: {
+            const uint64_t *values =
+                zcs_row_group_cursor_next_bit(cursor, predicate->column, count);
+            if (!values)
+                return false;
+            if (*count) {
+                if (predicate->value.bit)
+                    mask = *values;
+                else
+                    mask = zcs_mask_cap(~*values, *count);
+            }
+        } break;
         case ZCS_COLUMN_I32: {
             const int32_t *values =
                 zcs_row_group_cursor_next_i32(cursor, predicate->column, count);
@@ -305,9 +314,11 @@ static enum zcs_predicate_match zcs_predicate_match_index_eq(
     switch (type) {
         case ZCS_COLUMN_BIT:
             if (index->min.bit && index->max.bit)
-                result = ZCS_PREDICATE_MATCH_ALL_ROWS;
+                result = predicate->value.bit ? ZCS_PREDICATE_MATCH_ALL_ROWS
+                                              : ZCS_PREDICATE_MATCH_NO_ROWS;
             else if (!index->min.bit && !index->max.bit)
-                result = ZCS_PREDICATE_MATCH_NO_ROWS;
+                result = predicate->value.bit ? ZCS_PREDICATE_MATCH_NO_ROWS
+                                              : ZCS_PREDICATE_MATCH_ALL_ROWS;
             break;
         case ZCS_COLUMN_I32:
             if (index->min.i32 > predicate->value.i32 ||
