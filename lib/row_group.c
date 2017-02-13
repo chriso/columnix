@@ -64,12 +64,14 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
             return false;
     }
     if (row_group->count == row_group->size) {
+        size_t new_size = row_group->size * 2;
+        assert(new_size && new_size > row_group->size);
         struct zcs_row_group_column *columns =
-            realloc(row_group->columns, row_group->size * 2 * sizeof(*columns));
+            realloc(row_group->columns, new_size * sizeof(*columns));
         if (!columns)
             return false;
         row_group->columns = columns;
-        row_group->size *= 2;
+        row_group->size = new_size;
     }
     struct zcs_row_group_column *wrapper =
         &row_group->columns[row_group->count++];

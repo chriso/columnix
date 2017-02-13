@@ -14,6 +14,14 @@ ifeq ($(pcmpistrm), 1)
   CFLAGS += -DZCS_PCMPISTRM -msse4.2
 endif
 
+ifeq ($(analyze), 1)
+  CFLAGS += --analyze
+endif
+
+ifeq ($(uasan), 1)
+  CFLAGS += -fsanitize=undefined -fsanitize=address
+endif
+
 ifeq ($(shell uname -s), Darwin)
   LIB = lib/libzcs.dylib
 else
@@ -36,7 +44,7 @@ $(LIB): $(OBJ)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(TESTS): $(TEST_OBJ) $(LIB)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 check: $(TESTS)
 	@./$(TESTS) $(grep)
