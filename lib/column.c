@@ -20,13 +20,6 @@ struct zcs_column {
     bool immutable;
 };
 
-typedef union {
-    bool bit;
-    int32_t i32;
-    int64_t i64;
-    struct zcs_string str;
-} zcs_value_t;
-
 struct zcs_column_cursor {
     const struct zcs_column *column;
     const void *start;

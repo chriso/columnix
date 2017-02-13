@@ -13,6 +13,18 @@ struct zcs_column;
 
 struct zcs_column_cursor;
 
+struct zcs_string {
+    const char *ptr;
+    size_t len;
+};
+
+typedef union {
+    bool bit;
+    int32_t i32;
+    int64_t i64;
+    struct zcs_string str;
+} zcs_value_t;
+
 typedef union {
     bool bit;
     int32_t i32;
@@ -24,11 +36,6 @@ struct zcs_column_index {
     uint64_t count;
     zcs_column_index_value_t min;
     zcs_column_index_value_t max;
-};
-
-struct zcs_string {
-    const char *ptr;
-    size_t len;
 };
 
 struct zcs_column *zcs_column_new(enum zcs_column_type, enum zcs_encode_type);
