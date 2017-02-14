@@ -112,13 +112,13 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
     return MUNIT_OK;
 }
 
-static MunitResult test_cursor_matching(const MunitParameter params[], void *ptr)
+static MunitResult test_cursor_matching(const MunitParameter params[],
+                                        void *ptr)
 {
     struct zcs_row_fixture *fixture = ptr;
 
-    struct zcs_predicate *predicate = zcs_predicate_new_and(4,
-        zcs_predicate_new_i32_gt(0, 20),
-        zcs_predicate_new_i64_lt(1, 900),
+    struct zcs_predicate *predicate = zcs_predicate_new_and(
+        4, zcs_predicate_new_i32_gt(0, 20), zcs_predicate_new_i64_lt(1, 900),
         zcs_predicate_new_bit_eq(2, true),
         zcs_predicate_new_str_contains(3, "0", false, ZCS_STR_LOCATION_END));
     assert_not_null(predicate);
@@ -147,9 +147,8 @@ static MunitResult test_count_matching(const MunitParameter params[], void *ptr)
 {
     struct zcs_row_fixture *fixture = ptr;
 
-    struct zcs_predicate *predicate = zcs_predicate_new_and(4,
-        zcs_predicate_new_i32_gt(0, 20),
-        zcs_predicate_new_i64_lt(1, 900),
+    struct zcs_predicate *predicate = zcs_predicate_new_and(
+        4, zcs_predicate_new_i32_gt(0, 20), zcs_predicate_new_i64_lt(1, 900),
         zcs_predicate_new_bit_eq(2, true),
         zcs_predicate_new_str_contains(3, "0", false, ZCS_STR_LOCATION_END));
     assert_not_null(predicate);
@@ -169,11 +168,34 @@ static MunitResult test_count_matching(const MunitParameter params[], void *ptr)
     return MUNIT_OK;
 }
 
+static MunitResult test_empty_row_group(const MunitParameter params[],
+                                        void *ptr)
+{
+    struct zcs_row_group *row_group = zcs_row_group_new();
+    assert_not_null(row_group);
+    struct zcs_row_cursor *cursor = zcs_row_cursor_new(row_group);
+    assert_not_null(cursor);
+
+    size_t count = zcs_row_cursor_count(cursor);
+    assert_size(count, ==, 0);
+    assert_false(zcs_row_cursor_error(cursor));
+
+    zcs_row_cursor_rewind(cursor);
+    assert_false(zcs_row_cursor_next(cursor));
+    assert_false(zcs_row_cursor_error(cursor));
+
+    zcs_row_cursor_free(cursor);
+    zcs_row_group_free(row_group);
+    return MUNIT_OK;
+}
+
 MunitTest row_tests[] = {
     {"/cursor", test_cursor, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {"/count", test_count, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {"/cursor-matching", test_cursor_matching, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/count-matching", test_count_matching, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/empty-row-group", test_empty_row_group, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};

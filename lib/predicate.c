@@ -569,6 +569,9 @@ enum zcs_predicate_match zcs_predicate_match_indexes(
     const struct zcs_predicate *predicate,
     const struct zcs_row_group *row_group)
 {
+    if (!zcs_row_group_row_count(row_group))
+        return ZCS_PREDICATE_MATCH_NO_ROWS;
+
     const struct zcs_column_index *index =
         zcs_row_group_column_index(row_group, predicate->column);
     enum zcs_column_type type =

@@ -19,8 +19,6 @@ static struct zcs_row_cursor *zcs_row_cursor_new_impl(
     struct zcs_row_group *row_group, struct zcs_predicate *predicate,
     bool implicit_predicate)
 {
-    if (!zcs_row_group_column_count(row_group))
-        return NULL; // FIXME
     struct zcs_row_cursor *cursor = calloc(1, sizeof(*cursor));
     if (!cursor)
         return NULL;

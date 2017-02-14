@@ -168,11 +168,10 @@ void zcs_row_group_cursor_rewind(struct zcs_row_group_cursor *cursor)
 
 bool zcs_row_group_cursor_next(struct zcs_row_group_cursor *cursor)
 {
-    if (!cursor->initialized) {
+    if (!cursor->initialized)
         cursor->initialized = true;
-    } else {
+    else
         cursor->position += ZCS_BATCH_SIZE;
-    }
     return cursor->position < cursor->row_count;
 }
 
