@@ -36,9 +36,7 @@ void zcs_row_group_cursor_free(struct zcs_row_group_cursor *);
 
 void zcs_row_group_cursor_rewind(struct zcs_row_group_cursor *);
 
-bool zcs_row_group_cursor_valid(const struct zcs_row_group_cursor *);
-
-void zcs_row_group_cursor_advance(struct zcs_row_group_cursor *);
+bool zcs_row_group_cursor_next(struct zcs_row_group_cursor *);
 
 size_t zcs_row_group_cursor_batch_count(const struct zcs_row_group_cursor *);
 

@@ -29,6 +29,7 @@ struct zcs_row_group_cursor {
     size_t column_count;
     size_t row_count;
     size_t position;
+    bool initialized;
 };
 
 struct zcs_row_group *zcs_row_group_new()
@@ -155,23 +156,24 @@ void zcs_row_group_cursor_free(struct zcs_row_group_cursor *cursor)
 
 void zcs_row_group_cursor_rewind(struct zcs_row_group_cursor *cursor)
 {
+    cursor->initialized = false;
+    cursor->position = 0;
     for (size_t i = 0; i < cursor->column_count; i++) {
         if (cursor->columns[i].cursor)
             zcs_column_cursor_free(cursor->columns[i].cursor);
         cursor->columns[i].cursor = NULL;
         cursor->columns[i].position = 0;
     }
-    cursor->position = 0;
 }
 
-bool zcs_row_group_cursor_valid(const struct zcs_row_group_cursor *cursor)
+bool zcs_row_group_cursor_next(struct zcs_row_group_cursor *cursor)
 {
+    if (!cursor->initialized) {
+        cursor->initialized = true;
+    } else {
+        cursor->position += ZCS_BATCH_SIZE;
+    }
     return cursor->position < cursor->row_count;
-}
-
-void zcs_row_group_cursor_advance(struct zcs_row_group_cursor *cursor)
-{
-    cursor->position += ZCS_BATCH_SIZE;
 }
 
 size_t zcs_row_group_cursor_batch_count(

@@ -102,10 +102,8 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
     char buffer[64];
 
     for (size_t cursor_repeat = 0; cursor_repeat < 2; cursor_repeat++) {
-
-        size_t position = 0, batch = 0, count;
-        for (; zcs_row_group_cursor_valid(cursor);
-             zcs_row_group_cursor_advance(cursor), batch++) {
+        size_t position = 0, count;
+        for (size_t batch = 0; zcs_row_group_cursor_next(cursor); batch++) {
             for (size_t batch_repeat = 0; batch_repeat < 2; batch_repeat++) {
                 const int32_t *i32_batch =
                     zcs_row_group_cursor_next_i32(cursor, 0, &count);
