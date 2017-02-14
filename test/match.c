@@ -3,7 +3,7 @@
 #include "helpers.h"
 
 #define RAND_MOD 512
-#define ITERATIONS 10000
+#define ITERATIONS 1000
 
 static int32_t random_i32()
 {
