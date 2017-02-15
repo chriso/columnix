@@ -21,6 +21,11 @@
  * SOFTWARE.
  */
 
+// https://nemequ.github.io/munit/
+
+// custom config:
+#define MUNIT_DISABLE_TIMING
+
 /*** Configuration ***/
 
 /* This is just where the output from the test goes.  It's really just
@@ -767,10 +772,12 @@ const char* munit_parameters_get(const MunitParameter params[], const char* key)
     return NULL;
 }
 
+#ifdef MUNIT_ENABLE_TIMING
 static void munit_print_time(FILE* fp, double seconds)
 {
     fprintf(fp, "%" MUNIT_TEST_TIME_FORMAT, seconds);
 }
+#endif
 
 /* Add a paramter to an array of parameters. */
 static MunitResult munit_parameters_add(
