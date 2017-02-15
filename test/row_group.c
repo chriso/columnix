@@ -156,10 +156,23 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
     return MUNIT_OK;
 }
 
+static MunitResult test_cursor_empty(const MunitParameter params[], void *ptr)
+{
+    struct zcs_row_group_fixture *fixture = ptr;
+    struct zcs_row_group *row_group = fixture->row_group;
+    struct zcs_row_group_cursor *cursor = zcs_row_group_cursor_new(row_group);
+    assert_not_null(cursor);
+    assert_false(zcs_row_group_cursor_next(cursor));
+    zcs_row_group_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
 MunitTest row_group_tests[] = {
     {"/add-column", test_add_column, setup, teardown, MUNIT_TEST_OPTION_NONE,
      NULL},
     {"/row-count-mismatch", test_row_count_mismatch, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/cursor", test_cursor, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+    {"/cursor-empty", test_cursor_empty, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
