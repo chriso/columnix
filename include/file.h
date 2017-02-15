@@ -12,7 +12,7 @@ bool zcs_writer_add_column(struct zcs_writer *, enum zcs_column_type,
 
 bool zcs_writer_add_row_group(struct zcs_writer *, struct zcs_row_group *);
 
-bool zcs_writer_finish(struct zcs_writer *);
+bool zcs_writer_finish(struct zcs_writer *, bool sync);
 
 struct zcs_reader *zcs_reader_new(const char *);
 

@@ -3,6 +3,7 @@
 #define _LARGEFILE_SOURCE
 
 #include <assert.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -129,16 +130,25 @@ static size_t zcs_write_align(size_t offset)
     return offset;
 }
 
+static size_t zcs_writer_offset(const struct zcs_writer *writer)
+{
+    return ftello(writer->file);
+}
+
+static bool zcs_writer_seek(const struct zcs_writer *writer, size_t offset)
+{
+    return fseeko(writer->file, offset, SEEK_SET) == 0;
+}
+
 static bool zcs_writer_write(const struct zcs_writer *writer, const void *buf,
                              size_t size)
 {
     if (!size)
         return true;
-    size_t offset = ftello(writer->file);
+    size_t offset = zcs_writer_offset(writer);
     size_t aligned_offset = zcs_write_align(offset);
-    if (offset != aligned_offset)
-        if (fseeko(writer->file, aligned_offset, SEEK_SET))
-            return false;
+    if (offset != aligned_offset && !zcs_writer_seek(writer, aligned_offset))
+        return false;
     return fwrite(buf, size, 1, writer->file) == 1;
 }
 
@@ -197,7 +207,7 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
     if (!zcs_writer_ensure_header(writer))
         return false;
 
-    size_t row_group_offset = ftello(writer->file);
+    size_t row_group_offset = zcs_writer_offset(writer);
 
     size_t row_group_column_headers_size =
         column_count * sizeof(struct zcs_row_group_column_header);
@@ -215,7 +225,7 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
         const void *buffer = zcs_column_export(column, &column_size);
         row_group_column_headers[i].size = column_size;
         row_group_column_headers[i].offset =
-            zcs_write_align(ftello(writer->file));
+            zcs_write_align(zcs_writer_offset(writer));
         const struct zcs_column_index *index = zcs_column_index(column);
         memcpy(&row_group_column_headers[i].index, index, sizeof(*index));
         if (!zcs_writer_write(writer, buffer, column_size))
@@ -226,7 +236,7 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
     struct zcs_row_group_header *row_group_header =
         &writer->row_groups.headers[writer->row_groups.count++];
     row_group_header->size =
-        zcs_write_align(ftello(writer->file)) - row_group_offset;
+        zcs_write_align(zcs_writer_offset(writer)) - row_group_offset;
     row_group_header->offset = row_group_offset;
 
     // write row group column headers
@@ -237,19 +247,19 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
     free(row_group_column_headers);
     return true;
 error:
-    fseeko(writer->file, row_group_offset, SEEK_SET);
+    zcs_writer_seek(writer, row_group_offset);
     free(row_group_column_headers);
     return false;
 }
 
-bool zcs_writer_finish(struct zcs_writer *writer)
+bool zcs_writer_finish(struct zcs_writer *writer, bool sync)
 {
     if (writer->footer_written)
         return true;
     if (!zcs_writer_ensure_header(writer))
         return false;
 
-    size_t offset = ftello(writer->file);
+    size_t offset = zcs_writer_offset(writer);
 
     // write row group headers
     size_t row_group_headers_size =
@@ -272,14 +282,24 @@ bool zcs_writer_finish(struct zcs_writer *writer)
 
     // set the file size
     int fd = fileno(writer->file);
-    size_t file_size = ftello(writer->file);
-    if (ftruncate(fd, file_size))
+    if (ftruncate(fd, zcs_writer_offset(writer)))
         goto error;
+
+    // sync the file
+    if (sync) {
+#ifdef __APPLE__
+        if (fcntl(fd, F_FULLFSYNC))
+            goto error;
+#else
+        if (fsync(fd))
+            goto error;
+#endif
+    }
 
     writer->footer_written = true;
     return true;
 error:
-    fseeko(writer->file, offset, SEEK_SET);
+    zcs_writer_seek(writer, offset);
     return false;
 }
 

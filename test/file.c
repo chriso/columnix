@@ -96,10 +96,10 @@ static MunitResult test_multiple_row_groups(const MunitParameter params[],
     // header has already been written:
     assert_false(zcs_writer_add_column(writer, 0, 0));
 
-    assert_true(zcs_writer_finish(writer));
+    assert_true(zcs_writer_finish(writer, true));
 
     // out of order calls either fail or are noops:
-    assert_true(zcs_writer_finish(writer));
+    assert_true(zcs_writer_finish(writer, true));
     assert_false(
         zcs_writer_add_row_group(writer, fixture->row_groups[0].row_group));
     assert_false(zcs_writer_add_column(writer, 0, 0));
@@ -173,7 +173,7 @@ static MunitResult test_no_row_groups(const MunitParameter params[], void *ptr)
             writer, zcs_column_type(fixture->row_groups[0].columns[i]),
             zcs_column_encoding(fixture->row_groups[0].columns[i])));
 
-    assert_true(zcs_writer_finish(writer));
+    assert_true(zcs_writer_finish(writer, true));
 
     zcs_writer_free(writer);
 
@@ -200,7 +200,7 @@ static MunitResult test_no_columns(const MunitParameter params[], void *ptr)
     struct zcs_file_fixture *fixture = ptr;
     struct zcs_writer *writer = zcs_writer_new(fixture->temp_file);
     assert_not_null(writer);
-    assert_true(zcs_writer_finish(writer));
+    assert_true(zcs_writer_finish(writer, true));
     zcs_writer_free(writer);
     struct zcs_reader *reader = zcs_reader_new(fixture->temp_file);
     assert_not_null(reader);
