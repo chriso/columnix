@@ -33,15 +33,15 @@ static void *setup(const MunitParameter params[], void *data)
     fixture->row_group = zcs_row_group_new();
     assert_not_null(fixture->row_group);
 
-    fixture->columns[0] = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODE_NONE);
-    fixture->columns[1] = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODE_NONE);
-    fixture->columns[2] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
-    fixture->columns[3] = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODE_NONE);
+    fixture->columns[0] = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODING_NONE);
+    fixture->columns[1] = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODING_NONE);
+    fixture->columns[2] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
+    fixture->columns[3] = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODING_NONE);
 
-    fixture->columns[4] = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODE_NONE);
-    fixture->columns[5] = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODE_NONE);
-    fixture->columns[6] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
-    fixture->columns[7] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
+    fixture->columns[4] = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODING_NONE);
+    fixture->columns[5] = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODING_NONE);
+    fixture->columns[6] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
+    fixture->columns[7] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
         assert_not_null(fixture->columns[i]);

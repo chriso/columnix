@@ -10,40 +10,40 @@
 
 static void *setup_bit(const MunitParameter params[], void *data)
 {
-    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
     assert_not_null(col);
     for (int32_t i = 0; i < COUNT; i++)
         assert_true(zcs_column_put_bit(col, i % 5 == 0));
     assert_int(zcs_column_type(col), ==, ZCS_COLUMN_BIT);
-    assert_int(zcs_column_encode(col), ==, ZCS_ENCODE_NONE);
+    assert_int(zcs_column_encoding(col), ==, ZCS_ENCODING_NONE);
     return col;
 }
 
 static void *setup_i32(const MunitParameter params[], void *data)
 {
-    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODE_NONE);
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODING_NONE);
     assert_not_null(col);
     for (int32_t i = 0; i < COUNT; i++)
         assert_true(zcs_column_put_i32(col, i));
     assert_int(zcs_column_type(col), ==, ZCS_COLUMN_I32);
-    assert_int(zcs_column_encode(col), ==, ZCS_ENCODE_NONE);
+    assert_int(zcs_column_encoding(col), ==, ZCS_ENCODING_NONE);
     return col;
 }
 
 static void *setup_i64(const MunitParameter params[], void *data)
 {
-    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODE_NONE);
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODING_NONE);
     assert_not_null(col);
     for (int32_t i = 0; i < COUNT; i++)
         assert_true(zcs_column_put_i64(col, i));
     assert_int(zcs_column_type(col), ==, ZCS_COLUMN_I64);
-    assert_int(zcs_column_encode(col), ==, ZCS_ENCODE_NONE);
+    assert_int(zcs_column_encoding(col), ==, ZCS_ENCODING_NONE);
     return col;
 }
 
 static void *setup_str(const MunitParameter params[], void *data)
 {
-    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODE_NONE);
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODING_NONE);
     assert_not_null(col);
     char buffer[64];
     for (size_t i = 0; i < COUNT; i++) {
@@ -51,7 +51,7 @@ static void *setup_str(const MunitParameter params[], void *data)
         assert_true(zcs_column_put_str(col, buffer));
     }
     assert_int(zcs_column_type(col), ==, ZCS_COLUMN_STR);
-    assert_int(zcs_column_encode(col), ==, ZCS_ENCODE_NONE);
+    assert_int(zcs_column_encoding(col), ==, ZCS_ENCODING_NONE);
     return col;
 }
 
@@ -98,7 +98,7 @@ static MunitResult test_import_immutable(const MunitParameter params[],
     const void *ptr = zcs_column_export(col, &size);
     assert_not_null(ptr);
     struct zcs_column *copy = zcs_column_new_immutable(
-        ZCS_COLUMN_I32, ZCS_ENCODE_NONE, ptr, size, zcs_column_index(col));
+        ZCS_COLUMN_I32, ZCS_ENCODING_NONE, ptr, size, zcs_column_index(col));
     assert_i32_col_equal(col, copy);
     assert_false(zcs_column_put_i32(copy, 0));  // immutable
     zcs_column_free(copy);
@@ -114,7 +114,7 @@ static MunitResult test_import_compressed(const MunitParameter params[],
     assert_not_null(ptr);
     void *dest;
     struct zcs_column *copy = zcs_column_new_compressed(
-        ZCS_COLUMN_I32, ZCS_ENCODE_NONE, &dest, size, zcs_column_index(col));
+        ZCS_COLUMN_I32, ZCS_ENCODING_NONE, &dest, size, zcs_column_index(col));
     assert_not_null(copy);
     memcpy(dest, ptr, size);
     assert_i32_col_equal(col, copy);
@@ -133,7 +133,7 @@ static MunitResult test_bit_put_mismatch(const MunitParameter params[],
 
 static MunitResult test_bit_index(const MunitParameter params[], void *fixture)
 {
-    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
     assert_not_null(col);
 
     const struct zcs_column_index *index = zcs_column_index(col);
@@ -155,7 +155,7 @@ static MunitResult test_bit_index(const MunitParameter params[], void *fixture)
     assert_uint64(index->max.bit, ==, true);
 
     zcs_column_free(col);
-    col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODE_NONE);
+    col = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
     assert_not_null(col);
 
     index = zcs_column_index(col);
@@ -222,7 +222,7 @@ static MunitResult test_i32_put_mismatch(const MunitParameter params[],
 
 static MunitResult test_i32_index(const MunitParameter params[], void *fixture)
 {
-    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODE_NONE);
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODING_NONE);
     assert_not_null(col);
 
     const struct zcs_column_index *index = zcs_column_index(col);
@@ -294,7 +294,7 @@ static MunitResult test_i64_put_mismatch(const MunitParameter params[],
 
 static MunitResult test_i64_index(const MunitParameter params[], void *fixture)
 {
-    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODE_NONE);
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODING_NONE);
     assert_not_null(col);
 
     const struct zcs_column_index *index = zcs_column_index(col);
@@ -371,7 +371,7 @@ static MunitResult test_str_put_mismatch(const MunitParameter params[],
 
 static MunitResult test_str_index(const MunitParameter params[], void *fixture)
 {
-    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODE_NONE);
+    struct zcs_column *col = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODING_NONE);
     assert_not_null(col);
 
     const struct zcs_column_index *index = zcs_column_index(col);

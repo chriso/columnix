@@ -14,7 +14,7 @@ struct zcs_column {
     size_t offset;
     size_t size;
     enum zcs_column_type type;
-    enum zcs_encode_type encode;
+    enum zcs_encoding_type encoding;
     struct zcs_column_index index;
     bool immutable;
 };
@@ -28,7 +28,7 @@ struct zcs_column_cursor {
 };
 
 static struct zcs_column *zcs_column_new_size(
-    enum zcs_column_type type, enum zcs_encode_type encode, size_t size,
+    enum zcs_column_type type, enum zcs_encoding_type encoding, size_t size,
     const struct zcs_column_index *index)
 {
     struct zcs_column *column = calloc(1, sizeof(*column));
@@ -41,7 +41,7 @@ static struct zcs_column *zcs_column_new_size(
         column->size = size;
     }
     column->type = type;
-    column->encode = encode;
+    column->encoding = encoding;
     if (index)
         memcpy(&column->index, index, sizeof(*index));
     return column;
@@ -51,16 +51,16 @@ error:
 }
 
 struct zcs_column *zcs_column_new(enum zcs_column_type type,
-                                  enum zcs_encode_type encode)
+                                  enum zcs_encoding_type encoding)
 {
-    return zcs_column_new_size(type, encode, zcs_column_initial_size, NULL);
+    return zcs_column_new_size(type, encoding, zcs_column_initial_size, NULL);
 }
 
 struct zcs_column *zcs_column_new_immutable(
-    enum zcs_column_type type, enum zcs_encode_type encode, const void *ptr,
+    enum zcs_column_type type, enum zcs_encoding_type encoding, const void *ptr,
     size_t size, const struct zcs_column_index *index)
 {
-    struct zcs_column *column = zcs_column_new_size(type, encode, 0, index);
+    struct zcs_column *column = zcs_column_new_size(type, encoding, 0, index);
     if (!column)
         return NULL;
     column->offset = size;
@@ -71,12 +71,13 @@ struct zcs_column *zcs_column_new_immutable(
 }
 
 struct zcs_column *zcs_column_new_compressed(
-    enum zcs_column_type type, enum zcs_encode_type encode, void **ptr,
+    enum zcs_column_type type, enum zcs_encoding_type encoding, void **ptr,
     size_t size, const struct zcs_column_index *index)
 {
     if (!size)
         return NULL;
-    struct zcs_column *column = zcs_column_new_size(type, encode, size, index);
+    struct zcs_column *column =
+        zcs_column_new_size(type, encoding, size, index);
     if (!column)
         return NULL;
     column->offset = size;
@@ -121,9 +122,9 @@ enum zcs_column_type zcs_column_type(const struct zcs_column *column)
     return column->type;
 }
 
-enum zcs_encode_type zcs_column_encode(const struct zcs_column *column)
+enum zcs_encoding_type zcs_column_encoding(const struct zcs_column *column)
 {
-    return column->encode;
+    return column->encoding;
 }
 
 const struct zcs_column_index *zcs_column_index(const struct zcs_column *column)

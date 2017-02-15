@@ -5,9 +5,17 @@
 
 struct zcs_row_group_column {
     enum zcs_column_type type;
-    enum zcs_encode_type encode;
+    enum zcs_encoding_type encoding;
     const struct zcs_column_index *index;
-    const struct zcs_column *column;
+    union {
+        struct zcs_column *ptr;
+        struct {
+            const void *ptr;
+            size_t size;
+        } lazy;
+    } column;
+    bool lazy;
+    bool initialized;
 };
 
 struct zcs_row_group {
@@ -50,20 +58,17 @@ error:
 
 void zcs_row_group_free(struct zcs_row_group *row_group)
 {
+    for (size_t i = 0; i < row_group->count; i++) {
+        struct zcs_row_group_column *row_group_column = &row_group->columns[i];
+        if (row_group_column->lazy && row_group_column->initialized)
+            zcs_column_free(row_group_column->column.ptr);
+    }
     free(row_group->columns);
     free(row_group);
 }
 
-bool zcs_row_group_add_column(struct zcs_row_group *row_group,
-                              const struct zcs_column *column)
+static bool zcs_row_group_ensure_column_size(struct zcs_row_group *row_group)
 {
-    const struct zcs_column_index *index = zcs_column_index(column);
-    if (row_group->count) {
-        const struct zcs_column_index *last_index =
-            zcs_row_group_column_index(row_group, row_group->count - 1);
-        if (index->count != last_index->count)
-            return false;
-    }
     if (row_group->count == row_group->size) {
         size_t new_size = row_group->size * 2;
         assert(new_size && new_size > row_group->size);
@@ -74,12 +79,58 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
         row_group->columns = columns;
         row_group->size = new_size;
     }
-    struct zcs_row_group_column *wrapper =
+    return true;
+}
+
+static bool zcs_row_group_valid_column(struct zcs_row_group *row_group,
+                                       const struct zcs_column_index *index)
+{
+    if (row_group->count) {
+        const struct zcs_column_index *last_index =
+            zcs_row_group_column_index(row_group, row_group->count - 1);
+        if (index->count != last_index->count)
+            return false;
+    }
+    return true;
+}
+
+bool zcs_row_group_add_column(struct zcs_row_group *row_group,
+                              struct zcs_column *column)
+{
+    const struct zcs_column_index *index = zcs_column_index(column);
+    if (!zcs_row_group_valid_column(row_group, index))
+        return false;
+    if (!zcs_row_group_ensure_column_size(row_group))
+        return false;
+    struct zcs_row_group_column *row_group_column =
         &row_group->columns[row_group->count++];
-    wrapper->column = column;
-    wrapper->type = zcs_column_type(column);
-    wrapper->encode = zcs_column_encode(column);
-    wrapper->index = index;
+    row_group_column->column.ptr = column;
+    row_group_column->type = zcs_column_type(column);
+    row_group_column->encoding = zcs_column_encoding(column);
+    row_group_column->index = index;
+    row_group_column->lazy = false;
+    return true;
+}
+
+bool zcs_row_group_add_column_lazy(struct zcs_row_group *row_group,
+                                   enum zcs_column_type type,
+                                   enum zcs_encoding_type encoding,
+                                   const struct zcs_column_index *index,
+                                   const void *ptr, size_t size)
+{
+    if (!zcs_row_group_valid_column(row_group, index))
+        return false;
+    if (!zcs_row_group_ensure_column_size(row_group))
+        return false;
+    struct zcs_row_group_column *row_group_column =
+        &row_group->columns[row_group->count++];
+    row_group_column->type = type;
+    row_group_column->encoding = encoding;
+    row_group_column->index = index;
+    row_group_column->column.lazy.ptr = ptr;
+    row_group_column->column.lazy.size = size;
+    row_group_column->lazy = true;
+    row_group_column->initialized = false;
     return true;
 }
 
@@ -104,11 +155,11 @@ enum zcs_column_type zcs_row_group_column_type(
     return row_group->columns[index].type;
 }
 
-enum zcs_encode_type zcs_row_group_column_encode(
+enum zcs_encoding_type zcs_row_group_column_encoding(
     const struct zcs_row_group *row_group, size_t index)
 {
     assert(index <= row_group->count);
-    return row_group->columns[index].encode;
+    return row_group->columns[index].encoding;
 }
 
 const struct zcs_column_index *zcs_row_group_column_index(
@@ -122,7 +173,18 @@ const struct zcs_column *zcs_row_group_column(
     const struct zcs_row_group *row_group, size_t index)
 {
     assert(index <= row_group->count);
-    return row_group->columns[index].column;
+    struct zcs_row_group_column *row_group_column = &row_group->columns[index];
+    if (row_group_column->lazy && !row_group_column->initialized) {
+        struct zcs_column *column = zcs_column_new_immutable(
+            row_group_column->type, row_group_column->encoding,
+            row_group_column->column.lazy.ptr,
+            row_group_column->column.lazy.size, row_group_column->index);
+        if (!column)
+            return NULL;
+        row_group_column->column.ptr = column;
+        row_group_column->initialized = true;
+    }
+    return row_group_column->column.ptr;
 }
 
 struct zcs_row_group_cursor *zcs_row_group_cursor_new(

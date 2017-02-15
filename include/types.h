@@ -8,7 +8,7 @@ enum zcs_column_type {
     ZCS_COLUMN_STR
 };
 
-enum zcs_encode_type { ZCS_ENCODE_NONE };
+enum zcs_encoding_type { ZCS_ENCODING_NONE };
 
 struct zcs_string {
     const char *ptr;
