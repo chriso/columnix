@@ -11,7 +11,7 @@
 #include "file.h"
 #include "reader.h"
 
-struct zcs_reader {
+struct zcs_row_group_reader {
     FILE *file;
     size_t file_size;
     struct {
@@ -28,9 +28,9 @@ struct zcs_reader {
     } mmap;
 };
 
-struct zcs_reader *zcs_reader_new(const char *path)
+struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
 {
-    struct zcs_reader *reader = calloc(1, sizeof(*reader));
+    struct zcs_row_group_reader *reader = calloc(1, sizeof(*reader));
     if (!reader)
         return NULL;
     reader->file = fopen(path, "rb");
@@ -90,39 +90,41 @@ error:
     return NULL;
 }
 
-size_t zcs_reader_column_count(const struct zcs_reader *reader)
+size_t zcs_row_group_reader_column_count(
+    const struct zcs_row_group_reader *reader)
 {
     return reader->columns.count;
 }
 
-size_t zcs_reader_row_group_count(const struct zcs_reader *reader)
+size_t zcs_row_group_reader_row_group_count(
+    const struct zcs_row_group_reader *reader)
 {
     return reader->row_groups.count;
 }
 
-enum zcs_column_type zcs_reader_column_type(const struct zcs_reader *reader,
-                                            size_t column)
+enum zcs_column_type zcs_row_group_reader_column_type(
+    const struct zcs_row_group_reader *reader, size_t column)
 {
     assert(column < reader->columns.count);
     return reader->columns.descriptors[column].type;
 }
 
-enum zcs_encoding_type zcs_reader_column_encoding(
-    const struct zcs_reader *reader, size_t column)
+enum zcs_encoding_type zcs_row_group_reader_column_encoding(
+    const struct zcs_row_group_reader *reader, size_t column)
 {
     assert(column < reader->columns.count);
     return reader->columns.descriptors[column].encoding;
 }
 
-enum zcs_compression_type zcs_reader_column_compression(
-    const struct zcs_reader *reader, size_t column)
+enum zcs_compression_type zcs_row_group_reader_column_compression(
+    const struct zcs_row_group_reader *reader, size_t column)
 {
     assert(column < reader->columns.count);
     return reader->columns.descriptors[column].compression;
 }
 
-static const struct zcs_column_header *zcs_reader_column_header(
-    const struct zcs_reader *reader, size_t row_group, size_t column)
+static const struct zcs_column_header *zcs_row_group_reader_column_header(
+    const struct zcs_row_group_reader *reader, size_t row_group, size_t column)
 {
     if (row_group >= reader->row_groups.count ||
         column >= reader->columns.count)
@@ -142,8 +144,8 @@ static const struct zcs_column_header *zcs_reader_column_header(
     return header;
 }
 
-struct zcs_row_group *zcs_reader_row_group(const struct zcs_reader *reader,
-                                           size_t index)
+struct zcs_row_group *zcs_row_group_reader_row_group(
+    const struct zcs_row_group_reader *reader, size_t index)
 {
     struct zcs_row_group *row_group = zcs_row_group_new();
     if (!row_group)
@@ -152,7 +154,7 @@ struct zcs_row_group *zcs_reader_row_group(const struct zcs_reader *reader,
         const struct zcs_column_descriptor *descriptor =
             &reader->columns.descriptors[i];
         const struct zcs_column_header *header =
-            zcs_reader_column_header(reader, index, i);
+            zcs_row_group_reader_column_header(reader, index, i);
         if (!header)
             goto error;
         const void *ptr =
@@ -169,7 +171,7 @@ error:
     return NULL;
 }
 
-void zcs_reader_free(struct zcs_reader *reader)
+void zcs_row_group_reader_free(struct zcs_row_group_reader *reader)
 {
     if (reader->mmap.ptr)
         munmap(reader->mmap.ptr, reader->mmap.size);

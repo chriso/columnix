@@ -90,50 +90,55 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
 
     ZCS_FOREACH(zcs_compression_types, compression)
     {
-        struct zcs_writer *writer = zcs_writer_new(fixture->temp_file);
+        struct zcs_row_group_writer *writer =
+            zcs_row_group_writer_new(fixture->temp_file);
         assert_not_null(writer);
 
         for (size_t i = 0; i < COLUMN_COUNT; i++)
-            assert_true(zcs_writer_add_column(
+            assert_true(zcs_row_group_writer_add_column(
                 writer, zcs_column_type(fixture->row_groups[0].columns[i]),
                 zcs_column_encoding(fixture->row_groups[0].columns[i]),
                 compression, level));
 
         for (size_t i = 0; i < ROW_GROUP_COUNT; i++)
-            assert_true(zcs_writer_add_row_group(
+            assert_true(zcs_row_group_writer_put(
                 writer, fixture->row_groups[i].row_group));
 
         // header has already been written:
-        assert_false(zcs_writer_add_column(writer, 0, 0, 0, 0));
+        assert_false(zcs_row_group_writer_add_column(writer, 0, 0, 0, 0));
 
-        assert_true(zcs_writer_finish(writer, true));
+        assert_true(zcs_row_group_writer_finish(writer, true));
 
         // out of order calls either fail or are noops:
-        assert_true(zcs_writer_finish(writer, true));
+        assert_true(zcs_row_group_writer_finish(writer, true));
         assert_false(
-            zcs_writer_add_row_group(writer, fixture->row_groups[0].row_group));
-        assert_false(zcs_writer_add_column(writer, 0, 0, 0, 0));
+            zcs_row_group_writer_put(writer, fixture->row_groups[0].row_group));
+        assert_false(zcs_row_group_writer_add_column(writer, 0, 0, 0, 0));
 
-        zcs_writer_free(writer);
+        zcs_row_group_writer_free(writer);
 
-        struct zcs_reader *reader = zcs_reader_new(fixture->temp_file);
+        struct zcs_row_group_reader *reader =
+            zcs_row_group_reader_new(fixture->temp_file);
         assert_not_null(reader);
 
-        assert_size(zcs_reader_row_group_count(reader), ==, ROW_GROUP_COUNT);
-        assert_size(zcs_reader_column_count(reader), ==, COLUMN_COUNT);
+        assert_size(zcs_row_group_reader_row_group_count(reader), ==,
+                    ROW_GROUP_COUNT);
+        assert_size(zcs_row_group_reader_column_count(reader), ==,
+                    COLUMN_COUNT);
 
         for (size_t i = 0; i < COLUMN_COUNT; i++) {
-            assert_int(zcs_reader_column_type(reader, i), ==,
+            assert_int(zcs_row_group_reader_column_type(reader, i), ==,
                        zcs_column_type(fixture->row_groups[0].columns[i]));
-            assert_int(zcs_reader_column_encoding(reader, i), ==,
+            assert_int(zcs_row_group_reader_column_encoding(reader, i), ==,
                        zcs_column_encoding(fixture->row_groups[0].columns[i]));
-            assert_int(zcs_reader_column_compression(reader, i), ==,
+            assert_int(zcs_row_group_reader_column_compression(reader, i), ==,
                        compression);
         }
 
         size_t position = 0;
         for (size_t i = 0; i < ROW_GROUP_COUNT; i++) {
-            struct zcs_row_group *row_group = zcs_reader_row_group(reader, i);
+            struct zcs_row_group *row_group =
+                zcs_row_group_reader_row_group(reader, i);
             assert_not_null(row_group);
             struct zcs_row_cursor *cursor = zcs_row_cursor_new(row_group);
             assert_not_null(cursor);
@@ -168,7 +173,7 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
 
         assert_size(position, ==, ROW_GROUP_COUNT * ROWS_PER_ROW_GROUP);
 
-        zcs_reader_free(reader);
+        zcs_row_group_reader_free(reader);
     }
 
     return MUNIT_OK;
@@ -178,33 +183,35 @@ static MunitResult test_no_row_groups(const MunitParameter params[], void *ptr)
 {
     struct zcs_file_fixture *fixture = ptr;
 
-    struct zcs_writer *writer = zcs_writer_new(fixture->temp_file);
+    struct zcs_row_group_writer *writer =
+        zcs_row_group_writer_new(fixture->temp_file);
     assert_not_null(writer);
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
-        assert_true(zcs_writer_add_column(
+        assert_true(zcs_row_group_writer_add_column(
             writer, zcs_column_type(fixture->row_groups[0].columns[i]),
             zcs_column_encoding(fixture->row_groups[0].columns[i]),
             ZCS_COMPRESSION_NONE, 0));
 
-    assert_true(zcs_writer_finish(writer, true));
+    assert_true(zcs_row_group_writer_finish(writer, true));
 
-    zcs_writer_free(writer);
+    zcs_row_group_writer_free(writer);
 
-    struct zcs_reader *reader = zcs_reader_new(fixture->temp_file);
+    struct zcs_row_group_reader *reader =
+        zcs_row_group_reader_new(fixture->temp_file);
     assert_not_null(reader);
 
-    assert_size(zcs_reader_row_group_count(reader), ==, 0);
-    assert_size(zcs_reader_column_count(reader), ==, COLUMN_COUNT);
+    assert_size(zcs_row_group_reader_row_group_count(reader), ==, 0);
+    assert_size(zcs_row_group_reader_column_count(reader), ==, COLUMN_COUNT);
 
     for (size_t i = 0; i < COLUMN_COUNT; i++) {
-        assert_int(zcs_reader_column_type(reader, i), ==,
+        assert_int(zcs_row_group_reader_column_type(reader, i), ==,
                    zcs_column_type(fixture->row_groups[0].columns[i]));
-        assert_int(zcs_reader_column_encoding(reader, i), ==,
+        assert_int(zcs_row_group_reader_column_encoding(reader, i), ==,
                    zcs_column_encoding(fixture->row_groups[0].columns[i]));
     }
 
-    zcs_reader_free(reader);
+    zcs_row_group_reader_free(reader);
 
     return MUNIT_OK;
 }
@@ -212,15 +219,17 @@ static MunitResult test_no_row_groups(const MunitParameter params[], void *ptr)
 static MunitResult test_no_columns(const MunitParameter params[], void *ptr)
 {
     struct zcs_file_fixture *fixture = ptr;
-    struct zcs_writer *writer = zcs_writer_new(fixture->temp_file);
+    struct zcs_row_group_writer *writer =
+        zcs_row_group_writer_new(fixture->temp_file);
     assert_not_null(writer);
-    assert_true(zcs_writer_finish(writer, true));
-    zcs_writer_free(writer);
-    struct zcs_reader *reader = zcs_reader_new(fixture->temp_file);
+    assert_true(zcs_row_group_writer_finish(writer, true));
+    zcs_row_group_writer_free(writer);
+    struct zcs_row_group_reader *reader =
+        zcs_row_group_reader_new(fixture->temp_file);
     assert_not_null(reader);
-    assert_size(zcs_reader_row_group_count(reader), ==, 0);
-    assert_size(zcs_reader_column_count(reader), ==, 0);
-    zcs_reader_free(reader);
+    assert_size(zcs_row_group_reader_row_group_count(reader), ==, 0);
+    assert_size(zcs_row_group_reader_column_count(reader), ==, 0);
+    zcs_row_group_reader_free(reader);
     return MUNIT_OK;
 }
 
@@ -233,33 +242,35 @@ static MunitResult test_empty_columns(const MunitParameter params[], void *ptr)
 
     ZCS_FOREACH(zcs_compression_types, compression)
     {
-        struct zcs_writer *writer = zcs_writer_new(fixture->temp_file);
+        struct zcs_row_group_writer *writer =
+            zcs_row_group_writer_new(fixture->temp_file);
         assert_not_null(writer);
         struct zcs_row_group *row_group = zcs_row_group_new();
         assert_not_null(row_group);
         struct zcs_column *column = zcs_column_new(ZCS_COLUMN_I32, 0);
         assert_not_null(column);
-        assert_true(zcs_writer_add_column(writer, ZCS_COLUMN_I32, 0,
-                                          compression, level));
+        assert_true(zcs_row_group_writer_add_column(writer, ZCS_COLUMN_I32, 0,
+                                                    compression, level));
         assert_true(zcs_row_group_add_column(row_group, column));
-        assert_true(zcs_writer_add_row_group(writer, row_group));
-        assert_true(zcs_writer_finish(writer, true));
-        zcs_writer_free(writer);
+        assert_true(zcs_row_group_writer_put(writer, row_group));
+        assert_true(zcs_row_group_writer_finish(writer, true));
+        zcs_row_group_writer_free(writer);
         zcs_row_group_free(row_group);
         zcs_column_free(column);
 
-        struct zcs_reader *reader = zcs_reader_new(fixture->temp_file);
+        struct zcs_row_group_reader *reader =
+            zcs_row_group_reader_new(fixture->temp_file);
         assert_not_null(reader);
-        assert_size(zcs_reader_row_group_count(reader), ==, 1);
-        assert_size(zcs_reader_column_count(reader), ==, 1);
-        row_group = zcs_reader_row_group(reader, 0);
+        assert_size(zcs_row_group_reader_row_group_count(reader), ==, 1);
+        assert_size(zcs_row_group_reader_column_count(reader), ==, 1);
+        row_group = zcs_row_group_reader_row_group(reader, 0);
         assert_not_null(row_group);
         struct zcs_row_cursor *cursor = zcs_row_cursor_new(row_group);
         assert_not_null(cursor);
         assert_false(zcs_row_cursor_next(cursor));
         zcs_row_cursor_free(cursor);
         zcs_row_group_free(row_group);
-        zcs_reader_free(reader);
+        zcs_row_group_reader_free(reader);
     }
 
     return MUNIT_OK;
