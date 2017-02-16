@@ -46,8 +46,8 @@ static void *setup(const MunitParameter params[], void *data)
     fixture->predicate = zcs_predicate_new_true();
     assert_not_null(fixture->predicate);
 
-    fixture->cursor = zcs_row_cursor_new(fixture->row_group,
-                                         fixture->predicate);
+    fixture->cursor =
+        zcs_row_cursor_new(fixture->row_group, fixture->predicate);
     assert_not_null(fixture->cursor);
 
     return fixture;

@@ -15,8 +15,8 @@ struct zcs_row_cursor {
     bool error;
 };
 
-struct zcs_row_cursor *zcs_row_cursor_new(
-    struct zcs_row_group *row_group, const struct zcs_predicate *predicate)
+struct zcs_row_cursor *zcs_row_cursor_new(struct zcs_row_group *row_group,
+                                          const struct zcs_predicate *predicate)
 {
     struct zcs_row_cursor *cursor = calloc(1, sizeof(*cursor));
     if (!cursor)
