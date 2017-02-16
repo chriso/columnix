@@ -19,6 +19,9 @@ struct zcs_file_fixture {
     char *temp_file;
 };
 
+static enum zcs_compression_type zcs_compression_types[] = {
+    ZCS_COMPRESSION_NONE, ZCS_COMPRESSION_LZ4, ZCS_COMPRESSION_ZSTD};
+
 static void *setup(const MunitParameter params[], void *data)
 {
     struct zcs_file_fixture *fixture = malloc(sizeof(*fixture));
@@ -76,18 +79,14 @@ static void teardown(void *ptr)
     free(fixture);
 }
 
-static MunitResult test_multiple_row_groups(const MunitParameter params[],
-                                            void *ptr)
+static MunitResult test_read_write(const MunitParameter params[], void *ptr)
 {
     struct zcs_file_fixture *fixture = ptr;
 
     enum zcs_compression_type compression;
-    enum zcs_compression_type compression_types[] = {
-        ZCS_COMPRESSION_NONE, ZCS_COMPRESSION_LZ4, ZCS_COMPRESSION_ZSTD};
-
     int level = 5;
 
-    ZCS_FOREACH(compression_types, compression)
+    ZCS_FOREACH(zcs_compression_types, compression)
     {
         struct zcs_writer *writer = zcs_writer_new(fixture->temp_file);
         assert_not_null(writer);
@@ -224,11 +223,54 @@ static MunitResult test_no_columns(const MunitParameter params[], void *ptr)
     return MUNIT_OK;
 }
 
+static MunitResult test_empty_columns(const MunitParameter params[], void *ptr)
+{
+    struct zcs_file_fixture *fixture = ptr;
+
+    enum zcs_compression_type compression;
+    int level = 5;
+
+    ZCS_FOREACH(zcs_compression_types, compression)
+    {
+        struct zcs_writer *writer = zcs_writer_new(fixture->temp_file);
+        assert_not_null(writer);
+        struct zcs_row_group *row_group = zcs_row_group_new();
+        assert_not_null(row_group);
+        struct zcs_column *column = zcs_column_new(ZCS_COLUMN_I32, 0);
+        assert_not_null(column);
+        assert_true(zcs_writer_add_column(writer, ZCS_COLUMN_I32, 0,
+                                          compression, level));
+        assert_true(zcs_row_group_add_column(row_group, column));
+        assert_true(zcs_writer_add_row_group(writer, row_group));
+        assert_true(zcs_writer_finish(writer, true));
+        zcs_writer_free(writer);
+        zcs_row_group_free(row_group);
+        zcs_column_free(column);
+
+        struct zcs_reader *reader = zcs_reader_new(fixture->temp_file);
+        assert_not_null(reader);
+        assert_size(zcs_reader_row_group_count(reader), ==, 1);
+        assert_size(zcs_reader_column_count(reader), ==, 1);
+        row_group = zcs_reader_row_group(reader, 0);
+        assert_not_null(row_group);
+        struct zcs_row_cursor *cursor = zcs_row_cursor_new(row_group);
+        assert_not_null(cursor);
+        assert_false(zcs_row_cursor_next(cursor));
+        zcs_row_cursor_free(cursor);
+        zcs_row_group_free(row_group);
+        zcs_reader_free(reader);
+    }
+
+    return MUNIT_OK;
+}
+
 MunitTest file_tests[] = {
-    {"/read-write", test_multiple_row_groups, setup, teardown,
-     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/read-write", test_read_write, setup, teardown, MUNIT_TEST_OPTION_NONE,
+     NULL},
     {"/no-row-groups", test_no_row_groups, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/no-columns", test_no_columns, setup, teardown, MUNIT_TEST_OPTION_NONE,
      NULL},
+    {"/empty-columns", test_empty_columns, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
