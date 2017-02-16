@@ -20,7 +20,8 @@ struct zcs_file_fixture {
 };
 
 static enum zcs_compression_type zcs_compression_types[] = {
-    ZCS_COMPRESSION_NONE, ZCS_COMPRESSION_LZ4, ZCS_COMPRESSION_ZSTD};
+    ZCS_COMPRESSION_NONE, ZCS_COMPRESSION_LZ4, ZCS_COMPRESSION_LZ4HC,
+    ZCS_COMPRESSION_ZSTD};
 
 static void *setup(const MunitParameter params[], void *data)
 {

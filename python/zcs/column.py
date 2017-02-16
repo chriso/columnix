@@ -6,7 +6,8 @@ STR = 3
 NONE = 0
 
 LZ4 = 1
-ZSTD = 2
+LZ4HC = 2
+ZSTD = 3
 
 
 class Column(object):
