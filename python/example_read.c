@@ -13,7 +13,6 @@ int main()
 
     size_t row_groups = zcs_reader_row_group_count(reader);
     for (size_t i = 0; i < row_groups; i++) {
-
         struct zcs_row_group *row_group = zcs_reader_row_group(reader, i);
         assert(row_group);
 
@@ -21,7 +20,6 @@ int main()
         assert(cursor);
 
         while (zcs_row_cursor_next(cursor)) {
-
             int64_t timestamp;
             const struct zcs_string *email;
             int32_t event;

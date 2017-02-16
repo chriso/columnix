@@ -1,8 +1,9 @@
 #define _BSD_SOURCE
 #include <stdio.h>
 
-#include "file.h"
+#include "reader.h"
 #include "row.h"
+#include "writer.h"
 
 #include "helpers.h"
 #include "temp_file.h"

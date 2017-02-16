@@ -222,7 +222,7 @@ struct zcs_row_group_cursor *zcs_row_group_cursor_new(
 {
     size_t column_count = zcs_row_group_column_count(row_group);
     size_t size = sizeof(struct zcs_row_group_cursor) +
-        column_count * sizeof(struct zcs_row_group_cursor_column);
+                  column_count * sizeof(struct zcs_row_group_cursor_column);
     struct zcs_row_group_cursor *cursor = calloc(1, size);
     if (!cursor)
         return NULL;

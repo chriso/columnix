@@ -1,36 +1,39 @@
 #ifndef ZCS_FILE_
 #define ZCS_FILE_
 
-#include "row_group.h"
+#include "index.h"
 
-struct zcs_writer *zcs_writer_new(const char *);
+#define ZCS_FILE_MAGIC 0x65726f7473637a1dLLU
 
-void zcs_writer_free(struct zcs_writer *);
+#define ZCS_WRITE_ALIGN 8
 
-bool zcs_writer_add_column(struct zcs_writer *, enum zcs_column_type,
-                           enum zcs_encoding_type, enum zcs_compression_type,
-                           int level);
+struct zcs_header {
+    uint64_t magic;
+};
 
-bool zcs_writer_add_row_group(struct zcs_writer *, struct zcs_row_group *);
+struct zcs_footer {
+    uint32_t row_group_count;
+    uint32_t column_count;
+    uint64_t magic;
+};
 
-bool zcs_writer_finish(struct zcs_writer *, bool sync);
+struct zcs_column_descriptor {
+    uint32_t type;
+    uint32_t encoding;
+    uint32_t compression;
+    int32_t level;
+};
 
-struct zcs_reader *zcs_reader_new(const char *);
+struct zcs_row_group_header {
+    uint64_t size;
+    uint64_t offset;
+};
 
-size_t zcs_reader_column_count(const struct zcs_reader *);
-
-size_t zcs_reader_row_group_count(const struct zcs_reader *);
-
-enum zcs_column_type zcs_reader_column_type(const struct zcs_reader *, size_t);
-
-enum zcs_encoding_type zcs_reader_column_encoding(const struct zcs_reader *,
-                                                  size_t);
-
-enum zcs_compression_type zcs_reader_column_compression(
-    const struct zcs_reader *, size_t);
-
-struct zcs_row_group *zcs_reader_row_group(struct zcs_reader *, size_t);
-
-void zcs_reader_free(struct zcs_reader *reader);
+struct zcs_column_header {
+    uint64_t offset;
+    uint64_t size;
+    uint64_t decompressed_size;
+    struct zcs_column_index index;
+};
 
 #endif

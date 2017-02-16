@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include <limits.h>
+#include <stdlib.h>
 
 #include <lz4.h>
 #include <lz4hc.h>
