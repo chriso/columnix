@@ -1,4 +1,6 @@
-CFLAGS = -std=c99 -Wall -pedantic -Iinclude -Itest
+LIBNAME = libzcs
+
+CFLAGS += -std=c99 -Wall -pedantic -Iinclude -Itest
 VENDOR_LIBS = -llz4 -lzstd
 
 ifeq ($(release), 1)
@@ -15,20 +17,21 @@ ifeq ($(pcmpistrm), 1)
   CFLAGS += -DZCS_PCMPISTRM -msse4.2
 endif
 
-ifeq ($(analyze), 1)
-  CFLAGS += --analyze
+ifeq ($(asan), 1)
+  CFLAGS += -fsanitize=address
+  LDFLAGS += -fsanitize=address
 endif
 
-ifeq ($(uasan), 1)
-  CFLAGS += -fsanitize=undefined -fsanitize=address
-  LDFLAGS += -fsanitize=undefined -fsanitize=address
+ifeq ($(usan), 1)
+  CFLAGS += -fsanitize=undefined
+  LDFLAGS += -fsanitize=undefined
 endif
 
 ifeq ($(shell uname -s), Darwin)
-  LIB = lib/libzcs.dylib
+  LIB = lib/$(LIBNAME).dylib
 else
   CFLAGS += -fPIC
-  LIB = lib/libzcs.so
+  LIB = lib/$(LIBNAME).so
 endif
 
 SRC = $(wildcard lib/*.c)
@@ -48,6 +51,9 @@ $(LIB): $(OBJ)
 $(TESTS): $(TEST_OBJ) $(LIB)
 	$(CC) $(LDFLAGS) -o $@ $^
 
+analyze: clean
+	CFLAGS=--analyze $(MAKE) $(OBJ) $(TEST_OBJ)
+
 check: $(TESTS)
 	@./$(TESTS) $(grep)
 
@@ -60,4 +66,4 @@ format:
 valgrind: $(TESTS)
 	valgrind --leak-check=full $(TESTS) --no-fork
 
-.PHONY: check clean format valgrind
+.PHONY: analyze check clean format valgrind
