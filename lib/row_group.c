@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include "compression.h"
 #include "row_group.h"
 
 struct zcs_row_group_column {
@@ -12,6 +13,8 @@ struct zcs_row_group_column {
         struct {
             const void *ptr;
             size_t size;
+            size_t decompressed_size;
+            enum zcs_compression_type compression;
         } lazy;
     } column;
     bool lazy;
@@ -115,8 +118,10 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
 bool zcs_row_group_add_column_lazy(struct zcs_row_group *row_group,
                                    enum zcs_column_type type,
                                    enum zcs_encoding_type encoding,
+                                   enum zcs_compression_type compression,
                                    const struct zcs_column_index *index,
-                                   const void *ptr, size_t size)
+                                   const void *ptr, size_t size,
+                                   size_t decompressed_size)
 {
     if (!zcs_row_group_valid_column(row_group, index))
         return false;
@@ -129,6 +134,8 @@ bool zcs_row_group_add_column_lazy(struct zcs_row_group *row_group,
     row_group_column->index = index;
     row_group_column->column.lazy.ptr = ptr;
     row_group_column->column.lazy.size = size;
+    row_group_column->column.lazy.compression = compression;
+    row_group_column->column.lazy.decompressed_size = decompressed_size;
     row_group_column->lazy = true;
     row_group_column->initialized = false;
     return true;
@@ -175,12 +182,31 @@ const struct zcs_column *zcs_row_group_column(
     assert(index <= row_group->count);
     struct zcs_row_group_column *row_group_column = &row_group->columns[index];
     if (row_group_column->lazy && !row_group_column->initialized) {
-        struct zcs_column *column = zcs_column_new_immutable(
-            row_group_column->type, row_group_column->encoding,
-            row_group_column->column.lazy.ptr,
-            row_group_column->column.lazy.size, row_group_column->index);
-        if (!column)
-            return NULL;
+        struct zcs_column *column;
+        if (row_group_column->column.lazy.compression) {
+            void *dest;
+            size_t dest_size = row_group_column->column.lazy.decompressed_size;
+            column = zcs_column_new_compressed(
+                row_group_column->type, row_group_column->encoding, &dest,
+                dest_size, row_group_column->index);
+            if (!column)
+                return NULL;
+
+            if (!zcs_decompress(row_group_column->column.lazy.compression,
+                                row_group_column->column.lazy.ptr,
+                                row_group_column->column.lazy.size, dest,
+                                dest_size)) {
+                zcs_column_free(column);
+                return NULL;
+            }
+        } else {
+            column = zcs_column_new_immutable(
+                row_group_column->type, row_group_column->encoding,
+                row_group_column->column.lazy.ptr,
+                row_group_column->column.lazy.size, row_group_column->index);
+            if (!column)
+                return NULL;
+        }
         row_group_column->column.ptr = column;
         row_group_column->initialized = true;
     }

@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "compression.h"
 #include "row_group.h"
 
 #define ZCS_FILE_MAGIC 0x65726f7473637a1dLLU
@@ -30,6 +31,8 @@ struct zcs_footer {
 struct zcs_column_descriptor {
     uint32_t type;
     uint32_t encoding;
+    uint32_t compression;
+    int32_t level;
 };
 
 struct zcs_row_group_header {
@@ -38,8 +41,9 @@ struct zcs_row_group_header {
 };
 
 struct zcs_column_header {
-    uint64_t size;
     uint64_t offset;
+    uint64_t size;
+    uint64_t decompressed_size;
     struct zcs_column_index index;
 };
 
@@ -91,12 +95,12 @@ error:
 }
 
 bool zcs_writer_add_column(struct zcs_writer *writer, enum zcs_column_type type,
-                           enum zcs_encoding_type encoding)
+                           enum zcs_encoding_type encoding,
+                           enum zcs_compression_type compression, int level)
 {
     if (writer->header_written)
         return false;
 
-    // make room for the extra column descriptor
     if (!writer->columns.count) {
         writer->columns.descriptors =
             malloc(sizeof(*writer->columns.descriptors));
@@ -114,11 +118,12 @@ bool zcs_writer_add_column(struct zcs_writer *writer, enum zcs_column_type type,
         writer->columns.size = new_size;
     }
 
-    // save column type and encoding
     struct zcs_column_descriptor *descriptor =
         &writer->columns.descriptors[writer->columns.count++];
     descriptor->type = type;
     descriptor->encoding = encoding;
+    descriptor->compression = compression;
+    descriptor->level = level;
 
     return true;
 }
@@ -220,14 +225,34 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
         const struct zcs_column *column = zcs_row_group_column(row_group, i);
         if (!column)
             goto error;
+
         size_t column_size;
         const void *buffer = zcs_column_export(column, &column_size);
-        column_headers[i].size = column_size;
+
+        column_headers[i].decompressed_size = column_size;
         column_headers[i].offset = zcs_write_align(zcs_writer_offset(writer));
         const struct zcs_column_index *index = zcs_column_index(column);
         memcpy(&column_headers[i].index, index, sizeof(*index));
-        if (!zcs_writer_write(writer, buffer, column_size))
-            goto error;
+
+        const struct zcs_column_descriptor *descriptor =
+            &writer->columns.descriptors[i];
+        if (descriptor->compression) {
+            size_t compressed_size;
+            void *compressed =
+                zcs_compress(descriptor->compression, descriptor->level, buffer,
+                             column_size, &compressed_size);
+            if (!compressed)
+                goto error;
+            column_headers[i].size = compressed_size;
+            bool ok = zcs_writer_write(writer, compressed, compressed_size);
+            free(compressed);
+            if (!ok)
+                goto error;
+        } else {
+            column_headers[i].size = column_size;
+            if (!zcs_writer_write(writer, buffer, column_size))
+                goto error;
+        }
     }
 
     // update the row group header
@@ -397,6 +422,13 @@ enum zcs_encoding_type zcs_reader_column_encoding(
     return reader->columns.descriptors[column].encoding;
 }
 
+enum zcs_compression_type zcs_reader_column_compression(
+    const struct zcs_reader *reader, size_t column)
+{
+    assert(column < reader->columns.count);
+    return reader->columns.descriptors[column].compression;
+}
+
 static const struct zcs_column_header *zcs_reader_column_header(
     struct zcs_reader *reader, size_t row_group, size_t column)
 {
@@ -433,9 +465,10 @@ struct zcs_row_group *zcs_reader_row_group(struct zcs_reader *reader,
             goto error;
         const void *ptr =
             (const void *)((uintptr_t)reader->mmap.ptr + header->offset);
-        if (!zcs_row_group_add_column_lazy(row_group, descriptor->type,
-                                           descriptor->encoding, &header->index,
-                                           ptr, header->size))
+        if (!zcs_row_group_add_column_lazy(
+                row_group, descriptor->type, descriptor->encoding,
+                descriptor->compression, &header->index, ptr, header->size,
+                header->decompressed_size))
             goto error;
     }
     return row_group;

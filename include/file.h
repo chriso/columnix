@@ -8,7 +8,8 @@ struct zcs_writer *zcs_writer_new(const char *);
 void zcs_writer_free(struct zcs_writer *);
 
 bool zcs_writer_add_column(struct zcs_writer *, enum zcs_column_type,
-                           enum zcs_encoding_type);
+                           enum zcs_encoding_type, enum zcs_compression_type,
+                           int level);
 
 bool zcs_writer_add_row_group(struct zcs_writer *, struct zcs_row_group *);
 
@@ -24,6 +25,9 @@ enum zcs_column_type zcs_reader_column_type(const struct zcs_reader *, size_t);
 
 enum zcs_encoding_type zcs_reader_column_encoding(const struct zcs_reader *,
                                                   size_t);
+
+enum zcs_compression_type zcs_reader_column_compression(
+    const struct zcs_reader *, size_t);
 
 struct zcs_row_group *zcs_reader_row_group(struct zcs_reader *, size_t);
 

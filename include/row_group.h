@@ -15,8 +15,9 @@ bool zcs_row_group_add_column(struct zcs_row_group *, struct zcs_column *);
 
 bool zcs_row_group_add_column_lazy(struct zcs_row_group *, enum zcs_column_type,
                                    enum zcs_encoding_type,
+                                   enum zcs_compression_type,
                                    const struct zcs_column_index *,
-                                   const void *, size_t);
+                                   const void *, size_t, size_t);
 
 size_t zcs_row_group_column_count(const struct zcs_row_group *);
 
