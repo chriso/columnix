@@ -236,7 +236,7 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
 
         const struct zcs_column_descriptor *descriptor =
             &writer->columns.descriptors[i];
-        if (descriptor->compression) {
+        if (descriptor->compression && column_size) {
             size_t compressed_size;
             void *compressed =
                 zcs_compress(descriptor->compression, descriptor->level, buffer,

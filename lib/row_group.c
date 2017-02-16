@@ -183,7 +183,8 @@ const struct zcs_column *zcs_row_group_column(
     struct zcs_row_group_column *row_group_column = &row_group->columns[index];
     if (row_group_column->lazy && !row_group_column->initialized) {
         struct zcs_column *column;
-        if (row_group_column->column.lazy.compression) {
+        if (row_group_column->column.lazy.compression &&
+            row_group_column->column.lazy.size) {
             void *dest;
             size_t dest_size = row_group_column->column.lazy.decompressed_size;
             column = zcs_column_new_compressed(
