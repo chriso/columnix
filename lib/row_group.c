@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "compression.h"
+#include "compress.h"
 #include "row_group.h"
 
 static const size_t zcs_row_group_column_initial_size = 8;

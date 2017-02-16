@@ -9,7 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "compression.h"
+#include "compress.h"
 #include "file.h"
 #include "writer.h"
 

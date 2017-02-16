@@ -7,7 +7,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#include "compression.h"
+#include "compress.h"
 #include "file.h"
 #include "reader.h"
 

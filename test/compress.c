@@ -1,4 +1,4 @@
-#include "compression.h"
+#include "compress.h"
 
 #include "helpers.h"
 
@@ -44,7 +44,7 @@ static MunitResult test_zstd(const MunitParameter params[], void *buffer)
     return MUNIT_OK;
 }
 
-MunitTest compression_tests[] = {
+MunitTest compress_tests[] = {
     {"/lz4", test_lz4, setup, free, MUNIT_TEST_OPTION_NONE, NULL},
     {"/zstd", test_zstd, setup, free, MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};

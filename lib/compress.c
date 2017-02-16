@@ -1,11 +1,10 @@
 #include <limits.h>
 #include <stdlib.h>
 
-#include <lz4.h>
 #include <lz4hc.h>
 #include <zstd.h>
 
-#include "compression.h"
+#include "compress.h"
 
 static void *zcs_compress_lz4(int level, const void *src, size_t src_size,
                               size_t *dest_size)
