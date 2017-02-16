@@ -183,13 +183,14 @@ static struct zcs_predicate *zcs_predicate_new_operator(size_t count,
         return NULL;
     predicate->operand_count = count;
     predicate->operands = malloc(count * sizeof(struct zcs_predicate *));
-    if (!predicate->operands) {
-        zcs_predicate_free(predicate);
-        return NULL;
-    }
+    if (!predicate->operands)
+        goto error;
     for (size_t i = 0; i < count; i++)
         predicate->operands[i] = va_arg(operands, struct zcs_predicate *);
     return predicate;
+error:
+    zcs_predicate_free(predicate);
+    return NULL;
 }
 
 struct zcs_predicate *zcs_predicate_new_and(size_t count, ...)
@@ -284,7 +285,7 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
             const uint64_t *values = zcs_row_group_cursor_batch_bit(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             if (*count) {
                 if (predicate->value.bit)
                     mask = *values;
@@ -297,7 +298,7 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
             const int32_t *values = zcs_row_group_cursor_batch_i32(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_i32_eq(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
@@ -305,7 +306,7 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
             const int64_t *values = zcs_row_group_cursor_batch_i64(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_i64_eq(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
@@ -313,13 +314,15 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
             const struct zcs_string *values = zcs_row_group_cursor_batch_str(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_str_eq(*count, values, &predicate->value.str,
                                     predicate->case_sensitive);
         } break;
     }
     *matches = mask;
     return true;
+error:
+    return false;
 }
 
 static enum zcs_predicate_match zcs_predicate_match_index_eq(
@@ -375,13 +378,13 @@ static bool zcs_predicate_match_rows_lt(const struct zcs_predicate *predicate,
     uint64_t mask = 0;
     switch (type) {
         case ZCS_COLUMN_BIT:
-            return false;  // unsupported
+            goto error;  // unsupported
         case ZCS_COLUMN_I32: {
             assert(predicate->column_type == ZCS_COLUMN_I32);
             const int32_t *values = zcs_row_group_cursor_batch_i32(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_i32_lt(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
@@ -389,7 +392,7 @@ static bool zcs_predicate_match_rows_lt(const struct zcs_predicate *predicate,
             const int64_t *values = zcs_row_group_cursor_batch_i64(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_i64_lt(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
@@ -397,13 +400,15 @@ static bool zcs_predicate_match_rows_lt(const struct zcs_predicate *predicate,
             const struct zcs_string *values = zcs_row_group_cursor_batch_str(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_str_lt(*count, values, &predicate->value.str,
                                     predicate->case_sensitive);
         } break;
     }
     *matches = mask;
     return true;
+error:
+    return false;
 }
 
 static enum zcs_predicate_match zcs_predicate_match_index_lt(
@@ -440,13 +445,13 @@ static bool zcs_predicate_match_rows_gt(const struct zcs_predicate *predicate,
     uint64_t mask = 0;
     switch (type) {
         case ZCS_COLUMN_BIT:
-            return false;  // unsupported
+            goto error;  // unsupported
         case ZCS_COLUMN_I32: {
             assert(predicate->column_type == ZCS_COLUMN_I32);
             const int32_t *values = zcs_row_group_cursor_batch_i32(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_i32_gt(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
@@ -454,7 +459,7 @@ static bool zcs_predicate_match_rows_gt(const struct zcs_predicate *predicate,
             const int64_t *values = zcs_row_group_cursor_batch_i64(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_i64_gt(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
@@ -462,13 +467,15 @@ static bool zcs_predicate_match_rows_gt(const struct zcs_predicate *predicate,
             const struct zcs_string *values = zcs_row_group_cursor_batch_str(
                 cursor, predicate->column, count);
             if (!values)
-                return false;
+                goto error;
             mask = zcs_match_str_gt(*count, values, &predicate->value.str,
                                     predicate->case_sensitive);
         } break;
     }
     *matches = mask;
     return true;
+error:
+    return false;
 }
 
 static enum zcs_predicate_match zcs_predicate_match_index_gt(
@@ -513,17 +520,17 @@ bool zcs_predicate_match_rows(const struct zcs_predicate *predicate,
         case ZCS_PREDICATE_EQ:
             if (!zcs_predicate_match_rows_eq(predicate, cursor, column_type,
                                              &mask, count))
-                return false;
+                goto error;
             break;
         case ZCS_PREDICATE_LT:
             if (!zcs_predicate_match_rows_lt(predicate, cursor, column_type,
                                              &mask, count))
-                return false;
+                goto error;
             break;
         case ZCS_PREDICATE_GT:
             if (!zcs_predicate_match_rows_gt(predicate, cursor, column_type,
                                              &mask, count))
-                return false;
+                goto error;
             break;
         case ZCS_PREDICATE_CONTAINS:
             assert(column_type == ZCS_COLUMN_STR);
@@ -532,7 +539,7 @@ bool zcs_predicate_match_rows(const struct zcs_predicate *predicate,
                     zcs_row_group_cursor_batch_str(cursor, predicate->column,
                                                    count);
                 if (!values)
-                    return false;
+                    goto error;
                 mask = zcs_match_str_contains(
                     *count, values, &predicate->value.str,
                     predicate->case_sensitive, predicate->location);
@@ -545,7 +552,7 @@ bool zcs_predicate_match_rows(const struct zcs_predicate *predicate,
                 uint64_t operand_mask;
                 if (!zcs_predicate_match_rows(predicate->operands[i], row_group,
                                               cursor, &operand_mask, count))
-                    return false;
+                    goto error;
                 mask &= operand_mask;
             }
             break;
@@ -557,13 +564,15 @@ bool zcs_predicate_match_rows(const struct zcs_predicate *predicate,
                 uint64_t operand_mask;
                 if (!zcs_predicate_match_rows(predicate->operands[i], row_group,
                                               cursor, &operand_mask, count))
-                    return false;
+                    goto error;
                 mask |= operand_mask;
             }
             break;
     }
     *matches = predicate->negate ? zcs_mask_cap(~mask, *count) : mask;
     return true;
+error:
+    return false;
 }
 
 enum zcs_predicate_match zcs_predicate_match_indexes(
