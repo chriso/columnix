@@ -4,6 +4,8 @@
 #include "compression.h"
 #include "row_group.h"
 
+static const size_t zcs_row_group_column_initial_size = 8;
+
 struct zcs_row_group_column {
     enum zcs_column_type type;
     enum zcs_encoding_type encoding;
@@ -36,11 +38,11 @@ struct zcs_row_group_cursor_column {
 
 struct zcs_row_group_cursor {
     struct zcs_row_group *row_group;
-    struct zcs_row_group_cursor_column *columns;
     size_t column_count;
     size_t row_count;
     size_t position;
     bool initialized;
+    struct zcs_row_group_cursor_column columns[];
 };
 
 struct zcs_row_group *zcs_row_group_new()
@@ -48,11 +50,12 @@ struct zcs_row_group *zcs_row_group_new()
     struct zcs_row_group *row_group = malloc(sizeof(*row_group));
     if (!row_group)
         return NULL;
-    row_group->columns = malloc(sizeof(*row_group->columns));
+    row_group->columns =
+        malloc(zcs_row_group_column_initial_size * sizeof(*row_group->columns));
     if (!row_group->columns)
         goto error;
     row_group->count = 0;
-    row_group->size = 1;
+    row_group->size = zcs_row_group_column_initial_size;
     return row_group;
 error:
     free(row_group);
@@ -217,29 +220,21 @@ const struct zcs_column *zcs_row_group_column(
 struct zcs_row_group_cursor *zcs_row_group_cursor_new(
     struct zcs_row_group *row_group)
 {
-    struct zcs_row_group_cursor *cursor = calloc(1, sizeof(*cursor));
+    size_t column_count = zcs_row_group_column_count(row_group);
+    size_t size = sizeof(struct zcs_row_group_cursor) +
+        column_count * sizeof(struct zcs_row_group_cursor_column);
+    struct zcs_row_group_cursor *cursor = calloc(1, size);
     if (!cursor)
         return NULL;
     cursor->row_group = row_group;
-    cursor->column_count = zcs_row_group_column_count(row_group);
+    cursor->column_count = column_count;
     cursor->row_count = zcs_row_group_row_count(row_group);
-    if (cursor->column_count) {
-        cursor->columns =
-            calloc(cursor->column_count, sizeof(*cursor->columns));
-        if (!cursor->columns)
-            goto error;
-    }
     return cursor;
-error:
-    free(cursor);
-    return NULL;
 }
 
 void zcs_row_group_cursor_free(struct zcs_row_group_cursor *cursor)
 {
     zcs_row_group_cursor_rewind(cursor);
-    if (cursor->column_count)
-        free(cursor->columns);
     free(cursor);
 }
 
