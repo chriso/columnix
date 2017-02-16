@@ -27,7 +27,7 @@ struct zcs_footer {
     uint64_t magic;
 };
 
-struct zcs_column_header {
+struct zcs_column_descriptor {
     uint32_t type;
     uint32_t encoding;
 };
@@ -37,7 +37,7 @@ struct zcs_row_group_header {
     uint64_t offset;
 };
 
-struct zcs_row_group_column_header {
+struct zcs_column_header {
     uint64_t size;
     uint64_t offset;
     struct zcs_column_index index;
@@ -46,7 +46,7 @@ struct zcs_row_group_column_header {
 struct zcs_writer {
     FILE *file;
     struct {
-        struct zcs_column_header *headers;
+        struct zcs_column_descriptor *descriptors;
         size_t count;
         size_t size;
     } columns;
@@ -63,7 +63,7 @@ struct zcs_reader {
     FILE *file;
     size_t file_size;
     struct {
-        const struct zcs_column_header *headers;
+        const struct zcs_column_descriptor *descriptors;
         size_t count;
     } columns;
     struct {
@@ -96,28 +96,29 @@ bool zcs_writer_add_column(struct zcs_writer *writer, enum zcs_column_type type,
     if (writer->header_written)
         return false;
 
-    // make room for the extra column header
+    // make room for the extra column descriptor
     if (!writer->columns.count) {
-        writer->columns.headers = malloc(sizeof(*writer->columns.headers));
-        if (!writer->columns.headers)
+        writer->columns.descriptors =
+            malloc(sizeof(*writer->columns.descriptors));
+        if (!writer->columns.descriptors)
             return false;
         writer->columns.size = 1;
     } else if (writer->columns.count == writer->columns.size) {
         size_t new_size = writer->columns.size * 2;
         assert(new_size && new_size > writer->columns.size);
-        struct zcs_column_header *headers =
-            realloc(writer->columns.headers, new_size * sizeof(*headers));
-        if (!headers)
+        struct zcs_column_descriptor *descriptors = realloc(
+            writer->columns.descriptors, new_size * sizeof(*descriptors));
+        if (!descriptors)
             return false;
-        writer->columns.headers = headers;
+        writer->columns.descriptors = descriptors;
         writer->columns.size = new_size;
     }
 
     // save column type and encoding
-    struct zcs_column_header *header =
-        &writer->columns.headers[writer->columns.count++];
-    header->type = type;
-    header->encoding = encoding;
+    struct zcs_column_descriptor *descriptor =
+        &writer->columns.descriptors[writer->columns.count++];
+    descriptor->type = type;
+    descriptor->encoding = encoding;
 
     return true;
 }
@@ -125,9 +126,7 @@ bool zcs_writer_add_column(struct zcs_writer *writer, enum zcs_column_type type,
 static size_t zcs_write_align(size_t offset)
 {
     size_t mod = offset % ZCS_WRITE_ALIGN;
-    if (mod)
-        offset = offset - mod + ZCS_WRITE_ALIGN;
-    return offset;
+    return mod ? offset - mod + ZCS_WRITE_ALIGN : offset;
 }
 
 static size_t zcs_writer_offset(const struct zcs_writer *writer)
@@ -179,9 +178,10 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
     if (!column_count)
         return true;  // noop
     for (size_t i = 0; i < column_count; i++) {
-        struct zcs_column_header *header = &writer->columns.headers[i];
-        if (header->type != zcs_row_group_column_type(row_group, i) ||
-            header->encoding != zcs_row_group_column_encoding(row_group, i))
+        struct zcs_column_descriptor *descriptor =
+            &writer->columns.descriptors[i];
+        if (descriptor->type != zcs_row_group_column_type(row_group, i) ||
+            descriptor->encoding != zcs_row_group_column_encoding(row_group, i))
             return false;
     }
 
@@ -209,11 +209,10 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
 
     size_t row_group_offset = zcs_writer_offset(writer);
 
-    size_t row_group_column_headers_size =
-        column_count * sizeof(struct zcs_row_group_column_header);
-    struct zcs_row_group_column_header *row_group_column_headers =
-        malloc(row_group_column_headers_size);
-    if (!row_group_column_headers)
+    size_t column_headers_size =
+        column_count * sizeof(struct zcs_column_header);
+    struct zcs_column_header *column_headers = malloc(column_headers_size);
+    if (!column_headers)
         goto error;
 
     // write columns
@@ -223,11 +222,10 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
             goto error;
         size_t column_size;
         const void *buffer = zcs_column_export(column, &column_size);
-        row_group_column_headers[i].size = column_size;
-        row_group_column_headers[i].offset =
-            zcs_write_align(zcs_writer_offset(writer));
+        column_headers[i].size = column_size;
+        column_headers[i].offset = zcs_write_align(zcs_writer_offset(writer));
         const struct zcs_column_index *index = zcs_column_index(column);
-        memcpy(&row_group_column_headers[i].index, index, sizeof(*index));
+        memcpy(&column_headers[i].index, index, sizeof(*index));
         if (!zcs_writer_write(writer, buffer, column_size))
             goto error;
     }
@@ -239,16 +237,15 @@ bool zcs_writer_add_row_group(struct zcs_writer *writer,
         zcs_write_align(zcs_writer_offset(writer)) - row_group_offset;
     row_group_header->offset = row_group_offset;
 
-    // write row group column headers
-    if (!zcs_writer_write(writer, row_group_column_headers,
-                          row_group_column_headers_size))
+    // write column headers
+    if (!zcs_writer_write(writer, column_headers, column_headers_size))
         goto error;
 
-    free(row_group_column_headers);
+    free(column_headers);
     return true;
 error:
     zcs_writer_seek(writer, row_group_offset);
-    free(row_group_column_headers);
+    free(column_headers);
     return false;
 }
 
@@ -269,9 +266,10 @@ bool zcs_writer_finish(struct zcs_writer *writer, bool sync)
         goto error;
 
     // write column headers
-    size_t column_headers_size =
-        writer->columns.count * sizeof(struct zcs_column_header);
-    if (!zcs_writer_write(writer, writer->columns.headers, column_headers_size))
+    size_t column_descriptors_size =
+        writer->columns.count * sizeof(struct zcs_column_descriptor);
+    if (!zcs_writer_write(writer, writer->columns.descriptors,
+                          column_descriptors_size))
         goto error;
 
     // write the footer
@@ -305,8 +303,8 @@ error:
 
 void zcs_writer_free(struct zcs_writer *writer)
 {
-    if (writer->columns.headers)
-        free(writer->columns.headers);
+    if (writer->columns.descriptors)
+        free(writer->columns.descriptors);
     if (writer->row_groups.headers)
         free(writer->row_groups.headers);
     fclose(writer->file);
@@ -351,18 +349,18 @@ struct zcs_reader *zcs_reader_new(const char *path)
     // check the file contains the row group and column headers
     size_t row_group_headers_size =
         footer->row_group_count * sizeof(struct zcs_row_group_header);
-    size_t column_headers_size =
-        footer->column_count * sizeof(struct zcs_column_header);
-    size_t headers_size = row_group_headers_size + column_headers_size +
+    size_t column_descriptors_size =
+        footer->column_count * sizeof(struct zcs_column_descriptor);
+    size_t headers_size = row_group_headers_size + column_descriptors_size +
                           sizeof(struct zcs_footer);
     if (file_size < headers_size)
         goto error;
 
     reader->columns.count = footer->column_count;
     reader->row_groups.count = footer->row_group_count;
-    reader->columns.headers =
+    reader->columns.descriptors =
         (const void *)((uintptr_t)end - sizeof(struct zcs_footer) -
-                       column_headers_size);
+                       column_descriptors_size);
     reader->row_groups.headers = (const void *)((uintptr_t)end - headers_size);
 
     return reader;
@@ -389,61 +387,55 @@ enum zcs_column_type zcs_reader_column_type(const struct zcs_reader *reader,
                                             size_t column)
 {
     assert(column < reader->columns.count);
-    return reader->columns.headers[column].type;
+    return reader->columns.descriptors[column].type;
 }
 
 enum zcs_encoding_type zcs_reader_column_encoding(
     const struct zcs_reader *reader, size_t column)
 {
     assert(column < reader->columns.count);
-    return reader->columns.headers[column].encoding;
+    return reader->columns.descriptors[column].encoding;
 }
 
-static const struct zcs_row_group_column_header *
-zcs_reader_row_group_column_header(struct zcs_reader *reader, size_t row_group,
-                                   size_t column)
+static const struct zcs_column_header *zcs_reader_column_header(
+    struct zcs_reader *reader, size_t row_group, size_t column)
 {
     if (row_group >= reader->row_groups.count ||
         column >= reader->columns.count)
         return NULL;
     const struct zcs_row_group_header *row_group_header =
         &reader->row_groups.headers[row_group];
-    size_t row_group_column_headers_size =
-        reader->columns.count * sizeof(struct zcs_row_group_column_header);
-    size_t row_group_column_headers_offset =
-        row_group_header->offset + row_group_header->size;
-    if (row_group_column_headers_offset + row_group_column_headers_size >
-        reader->file_size)
+    size_t headers_size =
+        reader->columns.count * sizeof(struct zcs_column_header);
+    size_t headers_offset = row_group_header->offset + row_group_header->size;
+    if (headers_offset + headers_size > reader->file_size)
         return NULL;
-    const struct zcs_row_group_column_header *row_group_column_header =
-        (void *)((uintptr_t)reader->mmap.ptr + row_group_column_headers_offset +
-                 (column * sizeof(*row_group_column_header)));
-    size_t size = row_group_column_header->size;
-    size_t offset = row_group_column_header->offset;
-    if (offset + size > reader->file_size)
+    const struct zcs_column_header *header =
+        (void *)((uintptr_t)reader->mmap.ptr + headers_offset +
+                 (column * sizeof(*header)));
+    if (header->offset + header->size > reader->file_size)
         return NULL;
-    return row_group_column_header;
+    return header;
 }
 
 struct zcs_row_group *zcs_reader_row_group(struct zcs_reader *reader,
-                                           size_t row_group_index)
+                                           size_t index)
 {
     struct zcs_row_group *row_group = zcs_row_group_new();
     if (!row_group)
         return NULL;
     for (size_t i = 0; i < reader->columns.count; i++) {
-        const struct zcs_column_header *column_header =
-            &reader->columns.headers[i];
-        const struct zcs_row_group_column_header *row_group_column_header =
-            zcs_reader_row_group_column_header(reader, row_group_index, i);
-        if (!row_group_column_header)
+        const struct zcs_column_descriptor *descriptor =
+            &reader->columns.descriptors[i];
+        const struct zcs_column_header *header =
+            zcs_reader_column_header(reader, index, i);
+        if (!header)
             goto error;
-        size_t size = row_group_column_header->size;
-        size_t offset = row_group_column_header->offset;
-        const void *ptr = (const void *)((uintptr_t)reader->mmap.ptr + offset);
-        if (!zcs_row_group_add_column_lazy(
-                row_group, column_header->type, column_header->encoding,
-                &row_group_column_header->index, ptr, size))
+        const void *ptr =
+            (const void *)((uintptr_t)reader->mmap.ptr + header->offset);
+        if (!zcs_row_group_add_column_lazy(row_group, descriptor->type,
+                                           descriptor->encoding, &header->index,
+                                           ptr, header->size))
             goto error;
     }
     return row_group;
