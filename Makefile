@@ -1,4 +1,5 @@
 CFLAGS = -std=c99 -Wall -pedantic -Iinclude -Itest
+VENDOR_LIBS = -llz4 -lzstd
 
 ifeq ($(release), 1)
   CFLAGS += -O3 -march=native -DNDEBUG
@@ -39,7 +40,7 @@ TEST_OBJ = $(TEST_SRC:.c=.o)
 TESTS = test/runner
 
 $(LIB): $(OBJ)
-	$(CC) $(LDFLAGS) -shared -o $@ $^
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(VENDOR_LIBS)
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
