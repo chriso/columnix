@@ -30,6 +30,11 @@ ifeq ($(usan), 1)
   LDFLAGS += -fsanitize=undefined
 endif
 
+ifeq ($(coverage), 1)
+  CFLAGS += -coverage
+  LDFLAGS += -coverage
+endif
+
 ifeq ($(shell uname -s), Darwin)
   LIB = lib/$(LIBNAME).dylib
 else
@@ -62,7 +67,13 @@ check: $(TESTS)
 	@./$(TESTS) $(grep)
 
 clean:
-	rm -f $(LIB) $(OBJ) $(TESTS) $(TEST_OBJ)
+	rm -f lib/$(LIBNAME).* $(OBJ) $(TESTS) $(TEST_OBJ) \
+	    {lib,test}/*.{gcno,gcda} *.gcov *.html
+
+coverage: clean
+	$(MAKE) check coverage=1
+	gcovr -r . --gcov-exclude=test --branch --html --html-details -o coverage.html
+	open coverage.html
 
 format:
 	clang-format -i */*.{c,h}
