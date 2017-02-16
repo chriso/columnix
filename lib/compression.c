@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <limits.h>
 
 #include <lz4.h>
 #include <zstd.h>
@@ -8,6 +9,8 @@
 static void *zcs_compress_lz4(int level, const void *src, size_t src_size,
                               size_t *dest_size)
 {
+    if (src_size > INT_MAX)
+        return NULL;
     int max_size = LZ4_compressBound(src_size);
     if (!max_size)
         return NULL;
@@ -28,7 +31,7 @@ static bool zcs_decompress_lz4(const void *src, size_t src_size, void *dest,
                                size_t dest_size)
 {
     int result = LZ4_decompress_safe(src, dest, src_size, dest_size);
-    return result == dest_size;
+    return result && (size_t)result == dest_size;
 }
 
 static void *zcs_compress_zstd(int level, const void *src, size_t src_size,

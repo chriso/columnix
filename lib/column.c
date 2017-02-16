@@ -103,7 +103,8 @@ static const void *zcs_column_head(const struct zcs_column *column)
 static const void *zcs_column_offset(const struct zcs_column *column,
                                      size_t offset)
 {
-    return (const void *)((uintptr_t)zcs_column_head(column) + offset);
+    const void *ptr = zcs_column_head(column);
+    return (const void *)((uintptr_t)ptr + offset);
 }
 
 static const void *zcs_column_tail(const struct zcs_column *column)

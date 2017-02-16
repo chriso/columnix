@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #include "compression.h"
-#include "row_group.h"
+#include "file.h"
 
 #define ZCS_FILE_MAGIC 0x65726f7473637a1dLLU
 

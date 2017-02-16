@@ -364,8 +364,6 @@ static enum zcs_predicate_match zcs_predicate_match_index_eq(
                 index->max.len < predicate->value.str.len)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
             break;
-        default:
-            break;
     }
     return result;
 }
@@ -417,6 +415,8 @@ static enum zcs_predicate_match zcs_predicate_match_index_lt(
 {
     enum zcs_predicate_match result = ZCS_PREDICATE_MATCH_UNKNOWN;
     switch (type) {
+        case ZCS_COLUMN_BIT:
+            break;
         case ZCS_COLUMN_I32:
             assert(predicate->column_type == ZCS_COLUMN_I32);
             if (index->min.i32 >= predicate->value.i32)
@@ -431,7 +431,7 @@ static enum zcs_predicate_match zcs_predicate_match_index_lt(
             else if (index->max.i64 < predicate->value.i64)
                 result = ZCS_PREDICATE_MATCH_ALL_ROWS;
             break;
-        default:
+        case ZCS_COLUMN_STR:
             break;
     }
     return result;
@@ -484,6 +484,8 @@ static enum zcs_predicate_match zcs_predicate_match_index_gt(
 {
     enum zcs_predicate_match result = ZCS_PREDICATE_MATCH_UNKNOWN;
     switch (type) {
+        case ZCS_COLUMN_BIT:
+            break;
         case ZCS_COLUMN_I32:
             assert(predicate->column_type == ZCS_COLUMN_I32);
             if (index->min.i32 > predicate->value.i32)
@@ -498,7 +500,7 @@ static enum zcs_predicate_match zcs_predicate_match_index_gt(
             else if (index->max.i64 <= predicate->value.i64)
                 result = ZCS_PREDICATE_MATCH_NO_ROWS;
             break;
-        default:
+        case ZCS_COLUMN_STR:
             break;
     }
     return result;
