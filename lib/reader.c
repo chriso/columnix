@@ -122,7 +122,7 @@ enum zcs_compression_type zcs_reader_column_compression(
 }
 
 static const struct zcs_column_header *zcs_reader_column_header(
-    struct zcs_reader *reader, size_t row_group, size_t column)
+    const struct zcs_reader *reader, size_t row_group, size_t column)
 {
     if (row_group >= reader->row_groups.count ||
         column >= reader->columns.count)
@@ -142,7 +142,7 @@ static const struct zcs_column_header *zcs_reader_column_header(
     return header;
 }
 
-struct zcs_row_group *zcs_reader_row_group(struct zcs_reader *reader,
+struct zcs_row_group *zcs_reader_row_group(const struct zcs_reader *reader,
                                            size_t index)
 {
     struct zcs_row_group *row_group = zcs_row_group_new();

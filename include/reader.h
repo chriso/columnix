@@ -17,7 +17,7 @@ enum zcs_encoding_type zcs_reader_column_encoding(const struct zcs_reader *,
 enum zcs_compression_type zcs_reader_column_compression(
     const struct zcs_reader *, size_t);
 
-struct zcs_row_group *zcs_reader_row_group(struct zcs_reader *, size_t);
+struct zcs_row_group *zcs_reader_row_group(const struct zcs_reader *, size_t);
 
 void zcs_reader_free(struct zcs_reader *reader);
 
