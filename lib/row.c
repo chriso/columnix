@@ -132,7 +132,7 @@ bool zcs_row_cursor_get_bit(const struct zcs_row_cursor *cursor,
     assert(cursor->row_mask);
     size_t count;
     const uint64_t *bitset =
-        zcs_row_group_cursor_next_bit(cursor->cursor, column_index, &count);
+        zcs_row_group_cursor_batch_bit(cursor->cursor, column_index, &count);
     uint64_t row_bit = (uint64_t)1 << cursor->position;
     if (!count || !bitset)
         return false;
@@ -146,7 +146,7 @@ bool zcs_row_cursor_get_i32(const struct zcs_row_cursor *cursor,
     assert(cursor->row_mask);
     size_t count;
     const int32_t *batch =
-        zcs_row_group_cursor_next_i32(cursor->cursor, column_index, &count);
+        zcs_row_group_cursor_batch_i32(cursor->cursor, column_index, &count);
     if (!batch || !count)
         return false;
     *value = batch[cursor->position];
@@ -159,7 +159,7 @@ bool zcs_row_cursor_get_i64(const struct zcs_row_cursor *cursor,
     assert(cursor->row_mask);
     size_t count;
     const int64_t *batch =
-        zcs_row_group_cursor_next_i64(cursor->cursor, column_index, &count);
+        zcs_row_group_cursor_batch_i64(cursor->cursor, column_index, &count);
     if (!batch || !count)
         return false;
     *value = batch[cursor->position];
@@ -172,7 +172,7 @@ const struct zcs_string *zcs_row_cursor_get_str(
     assert(cursor->row_mask);
     size_t count;
     const struct zcs_string *batch =
-        zcs_row_group_cursor_next_str(cursor->cursor, column_index, &count);
+        zcs_row_group_cursor_batch_str(cursor->cursor, column_index, &count);
     if (!batch || !count)
         return NULL;
     return &batch[cursor->position];

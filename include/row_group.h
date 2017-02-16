@@ -45,16 +45,16 @@ bool zcs_row_group_cursor_next(struct zcs_row_group_cursor *);
 
 size_t zcs_row_group_cursor_batch_count(const struct zcs_row_group_cursor *);
 
-const uint64_t *zcs_row_group_cursor_next_bit(struct zcs_row_group_cursor *,
+const uint64_t *zcs_row_group_cursor_batch_bit(struct zcs_row_group_cursor *,
+                                               size_t column_index,
+                                               size_t *count);
+const int32_t *zcs_row_group_cursor_batch_i32(struct zcs_row_group_cursor *,
                                               size_t column_index,
                                               size_t *count);
-const int32_t *zcs_row_group_cursor_next_i32(struct zcs_row_group_cursor *,
-                                             size_t column_index,
-                                             size_t *count);
-const int64_t *zcs_row_group_cursor_next_i64(struct zcs_row_group_cursor *,
-                                             size_t column_index,
-                                             size_t *count);
-const struct zcs_string *zcs_row_group_cursor_next_str(
+const int64_t *zcs_row_group_cursor_batch_i64(struct zcs_row_group_cursor *,
+                                              size_t column_index,
+                                              size_t *count);
+const struct zcs_string *zcs_row_group_cursor_batch_str(
     struct zcs_row_group_cursor *, size_t column_index, size_t *count);
 
 #endif

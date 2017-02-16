@@ -287,7 +287,7 @@ static bool zcs_row_group_cursor_lazy_init(struct zcs_row_group_cursor *cursor,
     return cursor->columns[column_index].cursor != NULL;
 }
 
-const uint64_t *zcs_row_group_cursor_next_bit(
+const uint64_t *zcs_row_group_cursor_batch_bit(
     struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
 {
     if (!zcs_row_group_cursor_lazy_init(cursor, column_index))
@@ -305,7 +305,7 @@ const uint64_t *zcs_row_group_cursor_next_bit(
     return column->values;
 }
 
-const int32_t *zcs_row_group_cursor_next_i32(
+const int32_t *zcs_row_group_cursor_batch_i32(
     struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
 {
     if (!zcs_row_group_cursor_lazy_init(cursor, column_index))
@@ -323,7 +323,7 @@ const int32_t *zcs_row_group_cursor_next_i32(
     return column->values;
 }
 
-const int64_t *zcs_row_group_cursor_next_i64(
+const int64_t *zcs_row_group_cursor_batch_i64(
     struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
 {
     if (!zcs_row_group_cursor_lazy_init(cursor, column_index))
@@ -341,7 +341,7 @@ const int64_t *zcs_row_group_cursor_next_i64(
     return column->values;
 }
 
-const struct zcs_string *zcs_row_group_cursor_next_str(
+const struct zcs_string *zcs_row_group_cursor_batch_str(
     struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
 {
     if (!zcs_row_group_cursor_lazy_init(cursor, column_index))

@@ -106,7 +106,7 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
         for (size_t batch = 0; zcs_row_group_cursor_next(cursor); batch++) {
             for (size_t batch_repeat = 0; batch_repeat < 2; batch_repeat++) {
                 const int32_t *i32_batch =
-                    zcs_row_group_cursor_next_i32(cursor, 0, &count);
+                    zcs_row_group_cursor_batch_i32(cursor, 0, &count);
                 assert_not_null(i32_batch);
                 for (size_t i = 0; i < count; i++)
                     assert_int32(i32_batch[i], ==, position + i);
@@ -114,7 +114,7 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
 
             if (batch % 3 == 1) {
                 const int64_t *i64_batch =
-                    zcs_row_group_cursor_next_i64(cursor, 1, &count);
+                    zcs_row_group_cursor_batch_i64(cursor, 1, &count);
                 assert_not_null(i64_batch);
                 for (size_t i = 0; i < count; i++)
                     assert_int64(i64_batch[i], ==, (position + i) * 10);
@@ -122,7 +122,7 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
 
             if (batch % 5 == 3) {
                 const uint64_t *bitset =
-                    zcs_row_group_cursor_next_bit(cursor, 2, &count);
+                    zcs_row_group_cursor_batch_bit(cursor, 2, &count);
                 assert_not_null(bitset);
                 for (size_t i = 0; i < count; i++) {
                     bool bit = *bitset & ((uint64_t)1 << i);
@@ -135,7 +135,7 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
 
             if (batch % 7 == 5) {
                 const struct zcs_string *str_batch =
-                    zcs_row_group_cursor_next_str(cursor, 3, &count);
+                    zcs_row_group_cursor_batch_str(cursor, 3, &count);
                 assert_not_null(str_batch);
                 for (size_t i = 0; i < count; i++) {
                     sprintf(buffer, "zcs %zu", position + i);

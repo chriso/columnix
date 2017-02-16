@@ -281,8 +281,8 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
     switch (type) {
         case ZCS_COLUMN_BIT: {
             assert(predicate->column_type == ZCS_COLUMN_BIT);
-            const uint64_t *values =
-                zcs_row_group_cursor_next_bit(cursor, predicate->column, count);
+            const uint64_t *values = zcs_row_group_cursor_batch_bit(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             if (*count) {
@@ -294,24 +294,24 @@ static bool zcs_predicate_match_rows_eq(const struct zcs_predicate *predicate,
         } break;
         case ZCS_COLUMN_I32: {
             assert(predicate->column_type == ZCS_COLUMN_I32);
-            const int32_t *values =
-                zcs_row_group_cursor_next_i32(cursor, predicate->column, count);
+            const int32_t *values = zcs_row_group_cursor_batch_i32(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_i32_eq(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
             assert(predicate->column_type == ZCS_COLUMN_I64);
-            const int64_t *values =
-                zcs_row_group_cursor_next_i64(cursor, predicate->column, count);
+            const int64_t *values = zcs_row_group_cursor_batch_i64(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_i64_eq(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
             assert(predicate->column_type == ZCS_COLUMN_STR);
-            const struct zcs_string *values =
-                zcs_row_group_cursor_next_str(cursor, predicate->column, count);
+            const struct zcs_string *values = zcs_row_group_cursor_batch_str(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_str_eq(*count, values, &predicate->value.str,
@@ -378,24 +378,24 @@ static bool zcs_predicate_match_rows_lt(const struct zcs_predicate *predicate,
             return false;  // unsupported
         case ZCS_COLUMN_I32: {
             assert(predicate->column_type == ZCS_COLUMN_I32);
-            const int32_t *values =
-                zcs_row_group_cursor_next_i32(cursor, predicate->column, count);
+            const int32_t *values = zcs_row_group_cursor_batch_i32(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_i32_lt(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
             assert(predicate->column_type == ZCS_COLUMN_I64);
-            const int64_t *values =
-                zcs_row_group_cursor_next_i64(cursor, predicate->column, count);
+            const int64_t *values = zcs_row_group_cursor_batch_i64(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_i64_lt(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
             assert(predicate->column_type == ZCS_COLUMN_STR);
-            const struct zcs_string *values =
-                zcs_row_group_cursor_next_str(cursor, predicate->column, count);
+            const struct zcs_string *values = zcs_row_group_cursor_batch_str(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_str_lt(*count, values, &predicate->value.str,
@@ -443,24 +443,24 @@ static bool zcs_predicate_match_rows_gt(const struct zcs_predicate *predicate,
             return false;  // unsupported
         case ZCS_COLUMN_I32: {
             assert(predicate->column_type == ZCS_COLUMN_I32);
-            const int32_t *values =
-                zcs_row_group_cursor_next_i32(cursor, predicate->column, count);
+            const int32_t *values = zcs_row_group_cursor_batch_i32(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_i32_gt(*count, values, predicate->value.i32);
         } break;
         case ZCS_COLUMN_I64: {
             assert(predicate->column_type == ZCS_COLUMN_I64);
-            const int64_t *values =
-                zcs_row_group_cursor_next_i64(cursor, predicate->column, count);
+            const int64_t *values = zcs_row_group_cursor_batch_i64(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_i64_gt(*count, values, predicate->value.i64);
         } break;
         case ZCS_COLUMN_STR: {
             assert(predicate->column_type == ZCS_COLUMN_STR);
-            const struct zcs_string *values =
-                zcs_row_group_cursor_next_str(cursor, predicate->column, count);
+            const struct zcs_string *values = zcs_row_group_cursor_batch_str(
+                cursor, predicate->column, count);
             if (!values)
                 return false;
             mask = zcs_match_str_gt(*count, values, &predicate->value.str,
@@ -528,8 +528,9 @@ bool zcs_predicate_match_rows(const struct zcs_predicate *predicate,
         case ZCS_PREDICATE_CONTAINS:
             assert(column_type == ZCS_COLUMN_STR);
             {
-                const struct zcs_string *values = zcs_row_group_cursor_next_str(
-                    cursor, predicate->column, count);
+                const struct zcs_string *values =
+                    zcs_row_group_cursor_batch_str(cursor, predicate->column,
+                                                   count);
                 if (!values)
                     return false;
                 mask = zcs_match_str_contains(
