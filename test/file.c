@@ -152,9 +152,8 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
                 else
                     assert_false(bit);
 
-                const struct zcs_string *string =
-                    zcs_row_cursor_get_str(cursor, 3);
-                assert_not_null(string);
+                const struct zcs_string *string;
+                assert_true(zcs_row_cursor_get_str(cursor, 3, &string));
                 char buffer[64];
                 sprintf(buffer, "zcs %zu", position);
                 assert_int(string->len, ==, strlen(buffer));

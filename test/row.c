@@ -75,8 +75,8 @@ static void test_cursor_position(struct zcs_row_cursor *cursor, size_t expected)
     else
         assert_false(bit);
 
-    const struct zcs_string *string = zcs_row_cursor_get_str(cursor, 3);
-    assert_not_null(string);
+    const struct zcs_string *string;
+    assert_true(zcs_row_cursor_get_str(cursor, 3, &string));
     char buffer[64];
     sprintf(buffer, "zcs %zu", expected);
     assert_int(string->len, ==, strlen(buffer));

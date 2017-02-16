@@ -166,14 +166,16 @@ bool zcs_row_cursor_get_i64(const struct zcs_row_cursor *cursor,
     return true;
 }
 
-const struct zcs_string *zcs_row_cursor_get_str(
-    const struct zcs_row_cursor *cursor, size_t column_index)
+bool zcs_row_cursor_get_str(const struct zcs_row_cursor *cursor,
+                            size_t column_index,
+                            const struct zcs_string **value)
 {
     assert(cursor->row_mask);
     size_t count;
     const struct zcs_string *batch =
         zcs_row_group_cursor_batch_str(cursor->cursor, column_index, &count);
     if (!batch || !count)
-        return NULL;
-    return &batch[cursor->position];
+        return false;
+    *value = &batch[cursor->position];
+    return true;
 }

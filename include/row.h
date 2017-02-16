@@ -26,7 +26,7 @@ bool zcs_row_cursor_get_i32(const struct zcs_row_cursor *, size_t column_index,
                             int32_t *value);
 bool zcs_row_cursor_get_i64(const struct zcs_row_cursor *, size_t column_index,
                             int64_t *value);
-const struct zcs_string *zcs_row_cursor_get_str(const struct zcs_row_cursor *,
-                                                size_t column_index);
+bool zcs_row_cursor_get_str(const struct zcs_row_cursor *, size_t column_index,
+                            const struct zcs_string **value);
 
 #endif
