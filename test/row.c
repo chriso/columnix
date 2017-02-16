@@ -11,6 +11,7 @@ struct zcs_row_fixture {
     struct zcs_row_group *row_group;
     struct zcs_column *columns[COLUMN_COUNT];
     struct zcs_row_cursor *cursor;
+    struct zcs_predicate *predicate;
 };
 
 static void *setup(const MunitParameter params[], void *data)
@@ -42,7 +43,11 @@ static void *setup(const MunitParameter params[], void *data)
         assert_true(
             zcs_row_group_add_column(fixture->row_group, fixture->columns[i]));
 
-    fixture->cursor = zcs_row_cursor_new(fixture->row_group);
+    fixture->predicate = zcs_predicate_new_true();
+    assert_not_null(fixture->predicate);
+
+    fixture->cursor = zcs_row_cursor_new(fixture->row_group,
+                                         fixture->predicate);
     assert_not_null(fixture->cursor);
 
     return fixture;
@@ -52,6 +57,7 @@ static void teardown(void *ptr)
 {
     struct zcs_row_fixture *fixture = ptr;
     zcs_row_cursor_free(fixture->cursor);
+    zcs_predicate_free(fixture->predicate);
     for (size_t i = 0; i < COLUMN_COUNT; i++)
         zcs_column_free(fixture->columns[i]);
     zcs_row_group_free(fixture->row_group);
@@ -124,7 +130,7 @@ static MunitResult test_cursor_matching(const MunitParameter params[],
     assert_not_null(predicate);
 
     struct zcs_row_cursor *cursor =
-        zcs_row_cursor_new_matching(fixture->row_group, predicate);
+        zcs_row_cursor_new(fixture->row_group, predicate);
     assert_not_null(cursor);
 
     size_t position, expected[] = {30, 60};
@@ -154,7 +160,7 @@ static MunitResult test_count_matching(const MunitParameter params[], void *ptr)
     assert_not_null(predicate);
 
     struct zcs_row_cursor *cursor =
-        zcs_row_cursor_new_matching(fixture->row_group, predicate);
+        zcs_row_cursor_new(fixture->row_group, predicate);
     assert_not_null(cursor);
 
     size_t count = zcs_row_cursor_count(cursor);
@@ -171,9 +177,12 @@ static MunitResult test_count_matching(const MunitParameter params[], void *ptr)
 static MunitResult test_empty_row_group(const MunitParameter params[],
                                         void *ptr)
 {
+    struct zcs_row_fixture *fixture = ptr;
+
     struct zcs_row_group *row_group = zcs_row_group_new();
     assert_not_null(row_group);
-    struct zcs_row_cursor *cursor = zcs_row_cursor_new(row_group);
+    struct zcs_row_cursor *cursor =
+        zcs_row_cursor_new(row_group, fixture->predicate);
     assert_not_null(cursor);
 
     size_t count = zcs_row_cursor_count(cursor);

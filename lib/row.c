@@ -6,7 +6,7 @@
 struct zcs_row_cursor {
     struct zcs_row_group *row_group;
     struct zcs_row_group_cursor *cursor;
-    struct zcs_predicate *predicate;
+    const struct zcs_predicate *predicate;
     size_t column_count;
     uint64_t row_mask;
     size_t position;
@@ -15,9 +15,8 @@ struct zcs_row_cursor {
     bool error;
 };
 
-static struct zcs_row_cursor *zcs_row_cursor_new_impl(
-    struct zcs_row_group *row_group, struct zcs_predicate *predicate,
-    bool implicit_predicate)
+struct zcs_row_cursor *zcs_row_cursor_new(
+    struct zcs_row_group *row_group, const struct zcs_predicate *predicate)
 {
     struct zcs_row_cursor *cursor = calloc(1, sizeof(*cursor));
     if (!cursor)
@@ -27,7 +26,6 @@ static struct zcs_row_cursor *zcs_row_cursor_new_impl(
     if (!cursor->cursor)
         goto error;
     cursor->predicate = predicate;
-    cursor->implicit_predicate = implicit_predicate;
     cursor->index_match =
         zcs_predicate_match_indexes(cursor->predicate, cursor->row_group);
     zcs_row_cursor_rewind(cursor);
@@ -37,24 +35,8 @@ error:
     return NULL;
 }
 
-struct zcs_row_cursor *zcs_row_cursor_new(struct zcs_row_group *row_group)
-{
-    struct zcs_predicate *predicate = zcs_predicate_new_true();
-    if (!predicate)
-        return NULL;
-    return zcs_row_cursor_new_impl(row_group, predicate, true);
-}
-
-struct zcs_row_cursor *zcs_row_cursor_new_matching(
-    struct zcs_row_group *row_group, struct zcs_predicate *predicate)
-{
-    return zcs_row_cursor_new_impl(row_group, predicate, false);
-}
-
 void zcs_row_cursor_free(struct zcs_row_cursor *cursor)
 {
-    if (cursor->implicit_predicate)
-        zcs_predicate_free(cursor->predicate);
     zcs_row_group_cursor_free(cursor->cursor);
     free(cursor);
 }

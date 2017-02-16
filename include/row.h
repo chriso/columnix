@@ -5,10 +5,8 @@
 
 struct zcs_row_cursor;
 
-struct zcs_row_cursor *zcs_row_cursor_new(struct zcs_row_group *);
-
-struct zcs_row_cursor *zcs_row_cursor_new_matching(struct zcs_row_group *,
-                                                   struct zcs_predicate *);
+struct zcs_row_cursor *zcs_row_cursor_new(struct zcs_row_group *,
+                                          const struct zcs_predicate *);
 
 void zcs_row_cursor_free(struct zcs_row_cursor *);
 

@@ -85,6 +85,9 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
 {
     struct zcs_file_fixture *fixture = ptr;
 
+    struct zcs_predicate *predicate = zcs_predicate_new_true();
+    assert_not_null(predicate);
+
     enum zcs_compression_type compression;
     int level = 5;
 
@@ -140,7 +143,8 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
             struct zcs_row_group *row_group =
                 zcs_row_group_reader_row_group(reader, i);
             assert_not_null(row_group);
-            struct zcs_row_cursor *cursor = zcs_row_cursor_new(row_group);
+            struct zcs_row_cursor *cursor =
+                zcs_row_cursor_new(row_group, predicate);
             assert_not_null(cursor);
 
             for (; zcs_row_cursor_next(cursor); position++) {
@@ -175,6 +179,8 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
 
         zcs_row_group_reader_free(reader);
     }
+
+    zcs_predicate_free(predicate);
 
     return MUNIT_OK;
 }
@@ -237,6 +243,9 @@ static MunitResult test_empty_columns(const MunitParameter params[], void *ptr)
 {
     struct zcs_file_fixture *fixture = ptr;
 
+    struct zcs_predicate *predicate = zcs_predicate_new_true();
+    assert_not_null(predicate);
+
     enum zcs_compression_type compression;
     int level = 5;
 
@@ -265,13 +274,16 @@ static MunitResult test_empty_columns(const MunitParameter params[], void *ptr)
         assert_size(zcs_row_group_reader_column_count(reader), ==, 1);
         row_group = zcs_row_group_reader_row_group(reader, 0);
         assert_not_null(row_group);
-        struct zcs_row_cursor *cursor = zcs_row_cursor_new(row_group);
+        struct zcs_row_cursor *cursor =
+            zcs_row_cursor_new(row_group, predicate);
         assert_not_null(cursor);
         assert_false(zcs_row_cursor_next(cursor));
         zcs_row_cursor_free(cursor);
         zcs_row_group_free(row_group);
         zcs_row_group_reader_free(reader);
     }
+
+    zcs_predicate_free(predicate);
 
     return MUNIT_OK;
 }
