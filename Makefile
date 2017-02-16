@@ -3,6 +3,9 @@ LIBNAME = libzcs
 CFLAGS += -std=c99 -Wall -pedantic -Iinclude -Itest
 VENDOR_LIBS = -llz4 -lzstd
 
+PREFIX ?= /usr/local
+INCLUDEDIR = $(PREFIX)/include/zcs
+
 ifeq ($(release), 1)
   CFLAGS += -O3 -march=native -DNDEBUG
 else
@@ -36,6 +39,7 @@ endif
 
 SRC = $(wildcard lib/*.c)
 OBJ = $(SRC:.c=.o)
+HEADERS = $(wildcard include/*.h)
 
 TEST_SRC = $(wildcard test/*.c)
 TEST_OBJ = $(TEST_SRC:.c=.o)
@@ -63,7 +67,16 @@ clean:
 format:
 	clang-format -i */*.{c,h}
 
+install: $(LIB)
+	install $(LIB) $(PREFIX)/$(LIB)
+	install -d $(INCLUDEDIR)
+	install -m 644 $(HEADERS) $(INCLUDEDIR)
+
+uninstall:
+	rm -f $(PREFIX)/$(LIB) $(INCLUDEDIR)/*.h
+	rmdir $(INCLUDEDIR)
+
 valgrind: $(TESTS)
 	valgrind --leak-check=full $(TESTS) --no-fork
 
-.PHONY: analyze check clean format valgrind
+.PHONY: analyze check clean format install uninstall valgrind
