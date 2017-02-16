@@ -1,30 +1,13 @@
 #ifndef ZCS_COLUMN_
 #define ZCS_COLUMN_
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-
-#include "types.h"
+#include "index.h"
 
 #define ZCS_BATCH_SIZE 64
 
 struct zcs_column;
 
 struct zcs_column_cursor;
-
-typedef union {
-    bool bit;
-    int32_t i32;
-    int64_t i64;
-    uint64_t len;
-} zcs_column_index_value_t;
-
-struct zcs_column_index {
-    uint64_t count;
-    zcs_column_index_value_t min;
-    zcs_column_index_value_t max;
-};
 
 struct zcs_column *zcs_column_new(enum zcs_column_type, enum zcs_encoding_type);
 

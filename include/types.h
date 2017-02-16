@@ -1,6 +1,10 @@
 #ifndef ZCS_TYPES_
 #define ZCS_TYPES_
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 enum zcs_column_type {
     ZCS_COLUMN_BIT,
     ZCS_COLUMN_I32,
