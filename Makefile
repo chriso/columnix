@@ -29,7 +29,6 @@ endif
 
 SRC = $(wildcard lib/*.c)
 OBJ = $(SRC:.c=.o)
-HEADERS = $(wildcard include/*.h)
 
 TEST_SRC = $(wildcard test/*.c)
 TEST_OBJ = $(TEST_SRC:.c=.o)
@@ -40,7 +39,6 @@ $(LIB): $(OBJ)
 	$(CC) $(LDFLAGS) $(EXTFLAGS) -shared -o $@ $^ $(LDLIBS)
 
 $(OBJ): CFLAGS += $(EXTFLAGS)
-
 $(TEST_OBJ): CFLAGS = $(BASE_CFLAGS) -g -Itest
 
 .c.o:
@@ -69,7 +67,7 @@ format:
 install: $(LIB)
 	install -m 755 $(LIB) $(PREFIX)/$(LIB)
 	install -d $(INCLUDEDIR)/zcs
-	install -m 644 $(HEADERS) $(INCLUDEDIR)/zcs
+	install -m 644 $(wildcard include/*.h) $(INCLUDEDIR)/zcs
 
 uninstall:
 	rm -f $(PREFIX)/$(LIB) $(INCLUDEDIR)/zcs/*.h
@@ -78,4 +76,4 @@ uninstall:
 valgrind: $(TESTS)
 	valgrind --leak-check=full $(TESTS) --no-fork
 
-.PHONY: analyze check clean format install uninstall valgrind
+.PHONY: analyze check clean coverage format install uninstall valgrind
