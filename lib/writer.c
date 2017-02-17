@@ -13,6 +13,14 @@
 #include "file.h"
 #include "writer.h"
 
+struct zcs_writer {
+    struct zcs_row_group_writer *writer;
+    struct zcs_column **columns;
+    size_t row_group_size;
+    size_t column_count;
+    size_t position;
+};
+
 struct zcs_row_group_writer {
     FILE *file;
     struct {
@@ -28,6 +36,155 @@ struct zcs_row_group_writer {
     bool header_written;
     bool footer_written;
 };
+
+struct zcs_writer *zcs_writer_new(const char *path, size_t row_group_size)
+{
+    struct zcs_writer *writer = calloc(1, sizeof(*writer));
+    if (!writer)
+        return NULL;
+    writer->writer = zcs_row_group_writer_new(path);
+    if (!writer->writer)
+        goto error;
+    writer->row_group_size = row_group_size;
+    return writer;
+error:
+    free(writer);
+    return NULL;
+}
+
+void zcs_writer_free(struct zcs_writer *writer)
+{
+    if (writer->columns) {
+        for (size_t i = 0; i < writer->column_count; i++)
+            zcs_column_free(writer->columns[i]);
+        free(writer->columns);
+    }
+    zcs_row_group_writer_free(writer->writer);
+    free(writer);
+}
+
+bool zcs_writer_add_column(struct zcs_writer *writer, enum zcs_column_type type,
+                           enum zcs_encoding_type encoding,
+                           enum zcs_compression_type compression, int level)
+{
+    if (!zcs_row_group_writer_add_column(writer->writer, type, encoding,
+                                         compression, level))
+        return false;
+    writer->column_count++;
+    return true;
+}
+
+static bool zcs_writer_flush_row_group(struct zcs_writer *writer)
+{
+    if (!writer->columns)
+        return true;
+    struct zcs_row_group *row_group = zcs_row_group_new();
+    if (!row_group)
+        return false;
+    for (size_t i = 0; i < writer->column_count; i++)
+        if (!zcs_row_group_add_column(row_group, writer->columns[i]))
+            goto error;
+    if (!zcs_row_group_writer_put(writer->writer, row_group))
+        goto error;
+    zcs_row_group_free(row_group);
+    for (size_t i = 0; i < writer->column_count; i++)
+        zcs_column_free(writer->columns[i]);
+    free(writer->columns);
+    writer->columns = NULL;
+    writer->position = 0;
+    return true;
+error:
+    zcs_row_group_free(row_group);
+    return false;
+}
+
+static bool zcs_writer_ensure_columns(struct zcs_writer *writer)
+{
+    assert(!writer->columns && writer->column_count);
+    writer->columns = calloc(writer->column_count, sizeof(*writer->columns));
+    if (!writer->columns)
+        return false;
+    for (size_t i = 0; i < writer->column_count; i++) {
+        struct zcs_column_descriptor *descriptor =
+            &writer->writer->columns.descriptors[i];
+        writer->columns[i] =
+            zcs_column_new(descriptor->type, descriptor->encoding);
+        if (!writer->columns[i])
+            goto error;
+    }
+    return true;
+error:
+    for (size_t i = 0; i < writer->column_count; i++)
+        if (writer->columns[i])
+            zcs_column_free(writer->columns[i]);
+    free(writer->columns);
+    writer->columns = NULL;
+    return false;
+}
+
+static bool zcs_writer_put_check(struct zcs_writer *writer, size_t column_index)
+{
+    if (column_index >= writer->column_count)
+        return false;
+    if (column_index == 0 && writer->position == writer->row_group_size)
+        if (!zcs_writer_flush_row_group(writer))
+            return false;
+    if (!writer->columns)
+        if (!zcs_writer_ensure_columns(writer))
+            return false;
+    return true;
+}
+
+bool zcs_writer_put_bit(struct zcs_writer *writer, size_t column_index,
+                        bool value)
+{
+    if (!zcs_writer_put_check(writer, column_index))
+        return false;
+    if (!zcs_column_put_bit(writer->columns[column_index], value))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
+bool zcs_writer_put_i32(struct zcs_writer *writer, size_t column_index,
+                        int32_t value)
+{
+    if (!zcs_writer_put_check(writer, column_index))
+        return false;
+    if (!zcs_column_put_i32(writer->columns[column_index], value))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
+bool zcs_writer_put_i64(struct zcs_writer *writer, size_t column_index,
+                        int64_t value)
+{
+    if (!zcs_writer_put_check(writer, column_index))
+        return false;
+    if (!zcs_column_put_i64(writer->columns[column_index], value))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
+bool zcs_writer_put_str(struct zcs_writer *writer, size_t column_index,
+                        const char *value)
+{
+    if (!zcs_writer_put_check(writer, column_index))
+        return false;
+    if (!zcs_column_put_str(writer->columns[column_index], value))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
+bool zcs_writer_finish(struct zcs_writer *writer, bool sync)
+{
+    if (!zcs_writer_flush_row_group(writer))
+        return false;
+    return zcs_row_group_writer_finish(writer->writer, sync);
+}
 
 struct zcs_row_group_writer *zcs_row_group_writer_new(const char *path)
 {

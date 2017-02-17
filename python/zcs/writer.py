@@ -7,78 +7,61 @@ class Writer(object):
     def __init__(self, path, columns, row_group_size=100000, sync=True):
         self.path = path
         self.columns = columns
-        self.column_types = [column.type for column in columns]
         self.row_group_size = row_group_size
         self.sync = sync
-
+        self.column_types = [column.type for column in columns]
         self.writer = None
-        self.row_group_columns = None
-        self.row_count = 0
 
     def __enter__(self):
         assert self.writer is None
-        self.writer = zcs_row_group_writer_new(self.path)
+        self.writer = zcs_writer_new(self.path, self.row_group_size)
         if not self.writer:
             raise RuntimeError("failed to create writer for %s" % self.path)
 
         for column in self.columns:
-            if not zcs_row_group_writer_add_column(self.writer, column.type,
-                                                   column.encoding,
-                                                   column.compression,
-                                                   column.level):
+            if not zcs_writer_add_column(self.writer, column.type,
+                                         column.encoding, column.compression,
+                                         column.level):
                 raise RuntimeError("failed to add column")
         return self
 
     def __exit__(self, err, value, traceback):
         assert self.writer is not None
         if not err:
-            self._flush_row_group_columns()
-            zcs_row_group_writer_finish(self.writer, self.sync)
-        zcs_row_group_writer_free(self.writer)
+            zcs_writer_finish(self.writer, self.sync)
+        zcs_writer_free(self.writer)
         self.writer = None
 
     def put(self, row):
-        if self.row_group_columns is None:
-            assert self.writer is not None
-            self.row_group_columns = \
-                [zcs_column_new(column.type, column.encoding)
-                 for column in self.columns]
-            if any(column is None for column in self.row_group_columns):
-                raise RuntimeError("failed to create column")
-
+        # TODO: try with zip()
+        # TODO: try with a put lookup table
         for i, value in enumerate(row):
             column_type = self.column_types[i]
-            row_group_column = self.row_group_columns[i]
             if column_type == BIT:
-                ok = zcs_column_put_bit(row_group_column, value)
+                self.put_bit(i, value)
             elif column_type == I32:
-                ok = zcs_column_put_i32(row_group_column, value)
+                self.put_i32(i, value)
             elif column_type == I64:
-                ok = zcs_column_put_i64(row_group_column, value)
+                self.put_i64(i, value)
             elif column_type == STR:
-                ok = zcs_column_put_str(row_group_column, value)
-            if not ok:
-                raise RuntimeError("failed to put value %r for column %i" %
-                                   (value, i))
+                self.put_str(i, value)
 
-        self.row_count += 1
-        if self.row_count == self.row_group_size:
-            self._flush_row_group_columns()
-
-    def _flush_row_group_columns(self):
+    def put_bit(self, column, value):
         assert self.writer is not None
-        if self.row_group_columns is None:
-            return
-        row_group = zcs_row_group_new()
-        if not row_group:
-            raise MemoryError
-        for column in self.row_group_columns:
-            if not zcs_row_group_add_column(row_group, column):
-                raise RuntimeError("failed to add row group column")
-        if not zcs_row_group_writer_put(self.writer, row_group):
-            raise RuntimeError("failed to put row group")
-        self.row_count = 0
-        for column in self.row_group_columns:
-            zcs_column_free(column)
-        self.row_group_columns = None
-        zcs_row_group_free(row_group)
+        if not zcs_writer_put_bit(self.writer, column, value):
+            raise RuntimeError("put_bit(%d, %r)" % (column, value))
+
+    def put_i32(self, column, value):
+        assert self.writer is not None
+        if not zcs_writer_put_i32(self.writer, column, value):
+            raise RuntimeError("put_i32(%d, %r)" % (column, value))
+
+    def put_i64(self, column, value):
+        assert self.writer is not None
+        if not zcs_writer_put_i64(self.writer, column, value):
+            raise RuntimeError("put_i64(%d, %r)" % (column, value))
+
+    def put_str(self, column, value):
+        assert self.writer is not None
+        if not zcs_writer_put_str(self.writer, column, value):
+            raise RuntimeError("put_str(%d, %r)" % (column, value))
