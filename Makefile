@@ -39,7 +39,7 @@ $(LIB): $(OBJ)
 	$(CC) $(LDFLAGS) $(EXTFLAGS) -shared -o $@ $^ $(LDLIBS)
 
 $(OBJ): CFLAGS += $(EXTFLAGS)
-$(TEST_OBJ): CFLAGS = $(BASE_CFLAGS) -g -Itest
+$(TEST_OBJ): CFLAGS = $(BASE_CFLAGS) -Itest
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
