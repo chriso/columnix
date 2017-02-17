@@ -339,39 +339,26 @@ enum zcs_compression_type zcs_row_group_reader_column_compression(
     return reader->columns.descriptors[column].compression;
 }
 
-static const struct zcs_column_header *zcs_row_group_reader_column_header(
-    const struct zcs_row_group_reader *reader, size_t row_group, size_t column)
+struct zcs_row_group *zcs_row_group_reader_get(
+    const struct zcs_row_group_reader *reader, size_t index)
 {
-    if (row_group >= reader->row_groups.count ||
-        column >= reader->columns.count)
-        return NULL;
     const struct zcs_row_group_header *row_group_header =
-        &reader->row_groups.headers[row_group];
+        &reader->row_groups.headers[index];
     size_t headers_size =
         reader->columns.count * sizeof(struct zcs_column_header);
     size_t headers_offset = row_group_header->offset + row_group_header->size;
     if (headers_offset + headers_size > reader->file_size)
         return NULL;
-    const struct zcs_column_header *header =
-        (void *)((uintptr_t)reader->mmap.ptr + headers_offset +
-                 (column * sizeof(*header)));
-    if (header->offset + header->size > reader->file_size)
-        return NULL;
-    return header;
-}
-
-struct zcs_row_group *zcs_row_group_reader_get(
-    const struct zcs_row_group_reader *reader, size_t index)
-{
+    const struct zcs_column_header *columns_headers =
+        (void *)((uintptr_t)reader->mmap.ptr + headers_offset);
     struct zcs_row_group *row_group = zcs_row_group_new();
     if (!row_group)
         return NULL;
     for (size_t i = 0; i < reader->columns.count; i++) {
         const struct zcs_column_descriptor *descriptor =
             &reader->columns.descriptors[i];
-        const struct zcs_column_header *header =
-            zcs_row_group_reader_column_header(reader, index, i);
-        if (!header)
+        const struct zcs_column_header *header = &columns_headers[i];
+        if (header->offset + header->size > reader->file_size)
             goto error;
         const void *ptr =
             (const void *)((uintptr_t)reader->mmap.ptr + header->offset);
