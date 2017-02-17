@@ -43,13 +43,10 @@ Example read (C):
     }
 """
 
-from ctypes import cdll
+from ctypes import cdll, util
 from ctypes import c_char_p, c_size_t, c_void_p, c_int, c_int32, c_int64, c_bool
-import platform
 
-shared_lib_ext = "dylib" if platform.uname()[0] == "Darwin" else "so"
-
-libzcs = cdll.LoadLibrary("libzcs.%s" % shared_lib_ext)
+libzcs = cdll.LoadLibrary(util.find_library("zcs"))
 
 zcs_writer_new = libzcs.zcs_writer_new
 zcs_writer_new.argtypes = [c_char_p, c_size_t]
@@ -101,8 +98,8 @@ class Writer(object):
         self.row_group_size = row_group_size
         self.sync = sync
         self.column_types = [column.type for column in columns]
-        self.put_by_type = [self.put_bit, self.put_i32, self.put_i64,
-                            self.put_str]
+        self.put_lookup = [self.put_bit, self.put_i32, self.put_i64,
+                           self.put_str]
         self.writer = None
 
     def __enter__(self):
@@ -125,10 +122,10 @@ class Writer(object):
         self.writer = None
 
     def put(self, row):
-        put_by_type = self.put_by_type
+        put_lookup = self.put_lookup
         column_types = self.column_types
         for i, value in enumerate(row):
-            put_by_type[column_types[i]](i, value)
+            put_lookup[column_types[i]](i, value)
 
     def put_bit(self, column, value):
         assert self.writer is not None
