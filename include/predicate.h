@@ -37,6 +37,9 @@ bool zcs_predicate_valid(const struct zcs_predicate *,
 void zcs_predicate_optimize(struct zcs_predicate *,
                             const struct zcs_row_group *);
 
+const struct zcs_predicate **zcs_predicate_operands(
+    const struct zcs_predicate *, size_t *);
+
 enum zcs_predicate_match {
     ZCS_PREDICATE_MATCH_NO_ROWS = -1,
     ZCS_PREDICATE_MATCH_UNKNOWN = 0,

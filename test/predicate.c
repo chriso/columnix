@@ -440,6 +440,22 @@ static MunitResult test_optimize(const MunitParameter params[], void *ptr)
 
     zcs_predicate_optimize(p_or, fixture->row_group);
 
+    size_t operand_count;
+    const struct zcs_predicate **operands =
+        zcs_predicate_operands(p_or, &operand_count);
+    assert_not_null(operands);
+    assert_size(operand_count, ==, 4);
+    assert_ptr_equal(operands[0], p_true);
+    assert_ptr_equal(operands[1], p_and);
+    assert_ptr_equal(operands[2], p_i64);
+    assert_ptr_equal(operands[3], p_str);
+
+    operands = zcs_predicate_operands(p_and, &operand_count);
+    assert_not_null(operands);
+    assert_size(operand_count, ==, 2);
+    assert_ptr_equal(operands[0], p_bit);
+    assert_ptr_equal(operands[1], p_i32);
+
     // FIXME: check operands are now sorted by cost asc
 
     // noops:

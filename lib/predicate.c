@@ -704,8 +704,6 @@ static int zcs_predicate_cmp(const void *a, const void *b, void *ctx)
 void zcs_predicate_optimize(struct zcs_predicate *predicate,
                             const struct zcs_row_group *row_group)
 {
-    if (!zcs_predicate_is_operator(predicate))
-        return;
 #ifdef __APPLE__
     qsort_r(predicate->operands, predicate->operand_count,
             sizeof(struct zcs_predicate *), (void *)row_group,
@@ -715,4 +713,18 @@ void zcs_predicate_optimize(struct zcs_predicate *predicate,
             sizeof(struct zcs_predicate *), zcs_predicate_cmp,
             (void *)row_group);
 #endif
+    if (zcs_predicate_is_operator(predicate)) {
+        for (size_t i = 0; i < predicate->operand_count; i++)
+            zcs_predicate_optimize(predicate->operands[i], row_group);
+        return;
+    }
+}
+
+const struct zcs_predicate **zcs_predicate_operands(
+    const struct zcs_predicate *predicate, size_t *size)
+{
+    // this is necessary to test zcs_predicate_optimize() operand reordering
+    // the only other way would be to make the zcs_predicate struct public
+    *size = predicate->operand_count;
+    return (const struct zcs_predicate **)predicate->operands;
 }
