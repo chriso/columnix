@@ -327,47 +327,54 @@ bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
 
     size_t row_group_offset = zcs_row_group_writer_offset(writer);
 
-    size_t column_headers_size =
-        column_count * sizeof(struct zcs_column_header);
-    struct zcs_column_header *column_headers = malloc(column_headers_size);
-    if (!column_headers)
+    size_t headers_size = column_count * sizeof(struct zcs_column_header);
+    struct zcs_column_header *headers = calloc(column_count, headers_size);
+    if (!headers)
         goto error;
 
     // write columns
     for (size_t i = 0; i < column_count; i++) {
+        const struct zcs_column_descriptor *descriptor =
+            &writer->columns.descriptors[i];
+
+        // get the column buffer and size
         const struct zcs_column *column = zcs_row_group_column(row_group, i);
         if (!column)
             goto error;
-
         size_t column_size;
         const void *buffer = zcs_column_export(column, &column_size);
 
-        column_headers[i].decompressed_size = column_size;
-        column_headers[i].offset =
+        // store important info in the column header
+        headers[i].decompressed_size = column_size;
+        headers[i].offset =
             zcs_write_align(zcs_row_group_writer_offset(writer));
         const struct zcs_column_index *index = zcs_column_index(column);
-        memcpy(&column_headers[i].index, index, sizeof(*index));
+        memcpy(&headers[i].index, index, sizeof(*index));
 
-        const struct zcs_column_descriptor *descriptor =
-            &writer->columns.descriptors[i];
+        // compress the column
+        size_t compressed_size = 0;
+        void *compressed = NULL;
         if (descriptor->compression && column_size) {
-            size_t compressed_size;
-            void *compressed =
+            compressed =
                 zcs_compress(descriptor->compression, descriptor->level, buffer,
                              column_size, &compressed_size);
             if (!compressed)
                 goto error;
-            column_headers[i].size = compressed_size;
-            bool ok =
-                zcs_row_group_writer_write(writer, compressed, compressed_size);
-            free(compressed);
-            if (!ok)
-                goto error;
-        } else {
-            column_headers[i].size = column_size;
-            if (!zcs_row_group_writer_write(writer, buffer, column_size))
-                goto error;
+            // fallback if the compression leads to an increase in size
+            if (compressed_size >= column_size) {
+                headers[i].compression = ZCS_COMPRESSION_NONE;
+            } else {
+                headers[i].compression = descriptor->compression;
+                buffer = compressed;
+                column_size = compressed_size;
+            }
         }
+        headers[i].size = column_size;
+        bool ok = zcs_row_group_writer_write(writer, buffer, column_size);
+        if (compressed)
+            free(compressed);
+        if (!ok)
+            goto error;
     }
 
     // update the row group header
@@ -378,17 +385,16 @@ bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
     row_group_header->offset = row_group_offset;
 
     // write column headers
-    if (!zcs_row_group_writer_write(writer, column_headers,
-                                    column_headers_size))
+    if (!zcs_row_group_writer_write(writer, headers, headers_size))
         goto error;
 
     writer->row_count += zcs_row_group_row_count(row_group);
 
-    free(column_headers);
+    free(headers);
     return true;
 error:
     zcs_row_group_writer_seek(writer, row_group_offset);
-    free(column_headers);
+    free(headers);
     return false;
 }
 

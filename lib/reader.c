@@ -368,7 +368,7 @@ struct zcs_row_group *zcs_row_group_reader_get(
         const void *ptr = zcs_row_group_reader_at(reader, header->offset);
         if (!zcs_row_group_add_column_lazy(
                 row_group, descriptor->type, descriptor->encoding,
-                descriptor->compression, &header->index, ptr, header->size,
+                header->compression, &header->index, ptr, header->size,
                 header->decompressed_size))
             goto error;
     }

@@ -34,6 +34,8 @@ struct zcs_column_header {
     uint64_t offset;
     uint64_t size;
     uint64_t decompressed_size;
+    uint32_t compression;
+    uint32_t __padding;
     struct zcs_column_index index;
 };
 
