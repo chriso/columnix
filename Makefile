@@ -67,8 +67,7 @@ check: $(TESTS)
 	@./$(TESTS) $(grep)
 
 clean:
-	rm -f lib/$(LIBNAME).* $(OBJ) $(TESTS) $(TEST_OBJ) \
-	    {lib,test}/*.{gcno,gcda} *.gcov *.html
+	rm -f $(TESTS) lib/$(LIBNAME).* */*.o */*.gcno */*.gcda *.gcov coverage*.html
 
 coverage: clean
 	$(MAKE) check coverage=1
