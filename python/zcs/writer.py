@@ -17,14 +17,15 @@ class Writer(object):
 
     def __enter__(self):
         assert self.writer is None
-        self.writer = zcs_writer_new(self.path)
+        self.writer = zcs_row_group_writer_new(self.path)
         if not self.writer:
             raise RuntimeError("failed to create writer for %s" % self.path)
 
         for column in self.columns:
-            if not zcs_writer_add_column(self.writer, column.type,
-                                         column.encoding,
-                                         column.compression, column.level):
+            if not zcs_row_group_writer_add_column(self.writer, column.type,
+                                                   column.encoding,
+                                                   column.compression,
+                                                   column.level):
                 raise RuntimeError("failed to add column")
         return self
 
@@ -32,8 +33,8 @@ class Writer(object):
         assert self.writer is not None
         if not err:
             self._flush_row_group_columns()
-            zcs_writer_finish(self.writer, self.sync)
-        zcs_writer_free(self.writer)
+            zcs_row_group_writer_finish(self.writer, self.sync)
+        zcs_row_group_writer_free(self.writer)
         self.writer = None
 
     def put(self, row):
@@ -74,8 +75,8 @@ class Writer(object):
         for column in self.row_group_columns:
             if not zcs_row_group_add_column(row_group, column):
                 raise RuntimeError("failed to add row group column")
-        if not zcs_writer_add_row_group(self.writer, row_group):
-            raise RuntimeError("failed to write row group")
+        if not zcs_row_group_writer_put(self.writer, row_group):
+            raise RuntimeError("failed to put row group")
         self.row_count = 0
         for column in self.row_group_columns:
             zcs_column_free(column)

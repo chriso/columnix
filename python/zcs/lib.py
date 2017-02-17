@@ -39,22 +39,23 @@ zcs_row_group_add_column = libzcs.zcs_row_group_add_column
 zcs_row_group_add_column.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 zcs_row_group_add_column.restype = ctypes.c_bool
 
-zcs_writer_new = libzcs.zcs_writer_new
-zcs_writer_new.argtypes = [ctypes.c_char_p]
-zcs_writer_new.restype = ctypes.c_void_p
+zcs_row_group_writer_new = libzcs.zcs_row_group_writer_new
+zcs_row_group_writer_new.argtypes = [ctypes.c_char_p]
+zcs_row_group_writer_new.restype = ctypes.c_void_p
 
-zcs_writer_free = libzcs.zcs_writer_free
-zcs_writer_free.argtypes = [ctypes.c_void_p]
+zcs_row_group_writer_free = libzcs.zcs_row_group_writer_free
+zcs_row_group_writer_free.argtypes = [ctypes.c_void_p]
 
-zcs_writer_add_column = libzcs.zcs_writer_add_column
-zcs_writer_add_column.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int,
-                                  ctypes.c_int, ctypes.c_int]
-zcs_writer_add_column.restype = ctypes.c_bool
+zcs_row_group_writer_add_column = libzcs.zcs_row_group_writer_add_column
+zcs_row_group_writer_add_column.argtypes = [ctypes.c_void_p, ctypes.c_int,
+                                            ctypes.c_int, ctypes.c_int,
+                                            ctypes.c_int]
+zcs_row_group_writer_add_column.restype = ctypes.c_bool
 
-zcs_writer_add_row_group = libzcs.zcs_writer_add_row_group
-zcs_writer_add_row_group.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-zcs_writer_add_row_group.restype = ctypes.c_bool
+zcs_row_group_writer_put = libzcs.zcs_row_group_writer_put
+zcs_row_group_writer_put.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+zcs_row_group_writer_put.restype = ctypes.c_bool
 
-zcs_writer_finish = libzcs.zcs_writer_finish
-zcs_writer_finish.argtypes = [ctypes.c_void_p, ctypes.c_bool]
-zcs_writer_finish.restype = ctypes.c_bool
+zcs_row_group_writer_finish = libzcs.zcs_row_group_writer_finish
+zcs_row_group_writer_finish.argtypes = [ctypes.c_void_p, ctypes.c_bool]
+zcs_row_group_writer_finish.restype = ctypes.c_bool
