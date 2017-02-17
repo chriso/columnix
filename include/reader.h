@@ -19,9 +19,9 @@ bool zcs_reader_next(struct zcs_reader *);
 
 bool zcs_reader_error(const struct zcs_reader *);
 
-size_t zcs_reader_count(struct zcs_reader *);
-
 size_t zcs_reader_column_count(const struct zcs_reader *);
+
+size_t zcs_reader_row_count(struct zcs_reader *);
 
 enum zcs_column_type zcs_reader_column_type(const struct zcs_reader *, size_t);
 
@@ -45,6 +45,8 @@ struct zcs_row_group_reader;
 struct zcs_row_group_reader *zcs_row_group_reader_new(const char *);
 
 size_t zcs_row_group_reader_column_count(const struct zcs_row_group_reader *);
+
+size_t zcs_row_group_reader_row_count(const struct zcs_row_group_reader *);
 
 size_t zcs_row_group_reader_row_group_count(
     const struct zcs_row_group_reader *);

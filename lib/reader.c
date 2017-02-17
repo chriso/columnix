@@ -27,6 +27,7 @@ struct zcs_reader {
 struct zcs_row_group_reader {
     FILE *file;
     size_t file_size;
+    size_t row_count;
     struct {
         const struct zcs_column_descriptor *descriptors;
         size_t count;
@@ -163,8 +164,10 @@ bool zcs_reader_error(const struct zcs_reader *reader)
     return reader->error;
 }
 
-size_t zcs_reader_count(struct zcs_reader *reader)
+size_t zcs_reader_row_count(struct zcs_reader *reader)
 {
+    if (reader->implicit_predicate)
+        return zcs_row_group_reader_row_count(reader->reader);
     zcs_reader_rewind(reader);
     size_t count = 0;
     for (; zcs_reader_valid(reader); zcs_reader_advance(reader)) {
@@ -280,6 +283,7 @@ struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
     if (file_size < headers_size)
         goto error;
 
+    reader->row_count = footer->row_count;
     reader->columns.count = footer->column_count;
     reader->row_groups.count = footer->row_group_count;
     reader->columns.descriptors =
@@ -301,6 +305,11 @@ size_t zcs_row_group_reader_column_count(
     const struct zcs_row_group_reader *reader)
 {
     return reader->columns.count;
+}
+
+size_t zcs_row_group_reader_row_count(const struct zcs_row_group_reader *reader)
+{
+    return reader->row_count;
 }
 
 size_t zcs_row_group_reader_row_group_count(

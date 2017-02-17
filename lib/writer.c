@@ -33,6 +33,7 @@ struct zcs_row_group_writer {
         size_t count;
         size_t size;
     } row_groups;
+    size_t row_count;
     bool header_written;
     bool footer_written;
 };
@@ -381,6 +382,8 @@ bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
                                     column_headers_size))
         goto error;
 
+    writer->row_count += zcs_row_group_row_count(row_group);
+
     free(column_headers);
     return true;
 error:
@@ -414,7 +417,7 @@ bool zcs_row_group_writer_finish(struct zcs_row_group_writer *writer, bool sync)
 
     // write the footer
     struct zcs_footer footer = {writer->row_groups.count, writer->columns.count,
-                                ZCS_FILE_MAGIC};
+                                writer->row_count, ZCS_FILE_MAGIC};
     if (!zcs_row_group_writer_write(writer, &footer, sizeof(footer)))
         goto error;
 
