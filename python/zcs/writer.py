@@ -12,6 +12,9 @@ class Writer(object):
         self.column_types = [column.type for column in columns]
         self.writer = None
 
+        self.put_by_type = [self.put_bit, self.put_i32, self.put_i64,
+                            self.put_str]
+
     def __enter__(self):
         assert self.writer is None
         self.writer = zcs_writer_new(self.path, self.row_group_size)
@@ -33,18 +36,10 @@ class Writer(object):
         self.writer = None
 
     def put(self, row):
-        # TODO: try with zip()
-        # TODO: try with a put lookup table
+        put_by_type = self.put_by_type
+        column_types = self.column_types
         for i, value in enumerate(row):
-            column_type = self.column_types[i]
-            if column_type == BIT:
-                self.put_bit(i, value)
-            elif column_type == I32:
-                self.put_i32(i, value)
-            elif column_type == I64:
-                self.put_i64(i, value)
-            elif column_type == STR:
-                self.put_str(i, value)
+            put_by_type[column_types[i]](i, value)
 
     def put_bit(self, column, value):
         assert self.writer is not None
