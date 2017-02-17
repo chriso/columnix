@@ -9,3 +9,4 @@ test/runner
 *.html
 
 *.pyc
+python/example.zcs
