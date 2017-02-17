@@ -26,6 +26,7 @@ struct zcs_reader {
 
 struct zcs_row_group_reader {
     FILE *file;
+    void *mmap_ptr;
     size_t file_size;
     size_t row_count;
     struct {
@@ -36,10 +37,6 @@ struct zcs_row_group_reader {
         const struct zcs_row_group_header *headers;
         size_t count;
     } row_groups;
-    struct {
-        void *ptr;
-        size_t size;
-    } mmap;
 };
 
 static struct zcs_reader *zcs_reader_new_impl(const char *path,
@@ -238,6 +235,12 @@ bool zcs_reader_get_str(const struct zcs_reader *reader, size_t column_index,
     return zcs_row_cursor_get_str(reader->row_cursor, column_index, value);
 }
 
+static const void *zcs_row_group_reader_at(
+    const struct zcs_row_group_reader *reader, size_t offset)
+{
+    return (const void *)((uintptr_t)reader->mmap_ptr + offset);
+}
+
 struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
 {
     struct zcs_row_group_reader *reader = calloc(1, sizeof(*reader));
@@ -258,43 +261,42 @@ struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
     reader->file_size = file_size;
 
     // mmap the file
-    void *start = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (start == MAP_FAILED)
+    void *mmap_ptr = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (mmap_ptr == MAP_FAILED)
         goto error;
-    reader->mmap.ptr = start;
-    reader->mmap.size = file_size;
-    void *end = (void *)((uintptr_t)start + file_size);
+    reader->mmap_ptr = mmap_ptr;
 
     // check the footer
     if (file_size < sizeof(struct zcs_footer))
         goto error;
-    struct zcs_footer *footer =
-        (void *)((uintptr_t)end - sizeof(struct zcs_footer));
+    const struct zcs_footer *footer =
+        zcs_row_group_reader_at(reader, file_size - sizeof(struct zcs_footer));
     if (footer->magic != ZCS_FILE_MAGIC)
         goto error;
 
-    // check the file contains the row group and column headers
+    // check the file contains the row group headers and column descriptors
     size_t row_group_headers_size =
         footer->row_group_count * sizeof(struct zcs_row_group_header);
-    size_t column_descriptors_size =
+    size_t descriptors_size =
         footer->column_count * sizeof(struct zcs_column_descriptor);
-    size_t headers_size = row_group_headers_size + column_descriptors_size +
-                          sizeof(struct zcs_footer);
+    size_t headers_size =
+        row_group_headers_size + descriptors_size + sizeof(struct zcs_footer);
     if (file_size < headers_size)
         goto error;
 
+    // cache counts and header locations
     reader->row_count = footer->row_count;
     reader->columns.count = footer->column_count;
     reader->row_groups.count = footer->row_group_count;
-    reader->columns.descriptors =
-        (const void *)((uintptr_t)end - sizeof(struct zcs_footer) -
-                       column_descriptors_size);
-    reader->row_groups.headers = (const void *)((uintptr_t)end - headers_size);
+    reader->columns.descriptors = zcs_row_group_reader_at(
+        reader, file_size - sizeof(struct zcs_footer) - descriptors_size);
+    reader->row_groups.headers =
+        zcs_row_group_reader_at(reader, file_size - headers_size);
 
     return reader;
 error:
-    if (reader->mmap.ptr)
-        munmap(reader->mmap.ptr, reader->mmap.size);
+    if (reader->mmap_ptr)
+        munmap(reader->mmap_ptr, reader->file_size);
     if (reader->file)
         fclose(reader->file);
     free(reader);
@@ -350,7 +352,7 @@ struct zcs_row_group *zcs_row_group_reader_get(
     if (headers_offset + headers_size > reader->file_size)
         return NULL;
     const struct zcs_column_header *columns_headers =
-        (void *)((uintptr_t)reader->mmap.ptr + headers_offset);
+        zcs_row_group_reader_at(reader, headers_offset);
     struct zcs_row_group *row_group = zcs_row_group_new();
     if (!row_group)
         return NULL;
@@ -360,8 +362,7 @@ struct zcs_row_group *zcs_row_group_reader_get(
         const struct zcs_column_header *header = &columns_headers[i];
         if (header->offset + header->size > reader->file_size)
             goto error;
-        const void *ptr =
-            (const void *)((uintptr_t)reader->mmap.ptr + header->offset);
+        const void *ptr = zcs_row_group_reader_at(reader, header->offset);
         if (!zcs_row_group_add_column_lazy(
                 row_group, descriptor->type, descriptor->encoding,
                 descriptor->compression, &header->index, ptr, header->size,
@@ -376,8 +377,8 @@ error:
 
 void zcs_row_group_reader_free(struct zcs_row_group_reader *reader)
 {
-    if (reader->mmap.ptr)
-        munmap(reader->mmap.ptr, reader->mmap.size);
+    if (reader->mmap_ptr)
+        munmap(reader->mmap_ptr, reader->file_size);
     fclose(reader->file);
     free(reader);
 }
