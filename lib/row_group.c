@@ -161,28 +161,28 @@ size_t zcs_row_group_row_count(const struct zcs_row_group *row_group)
 enum zcs_column_type zcs_row_group_column_type(
     const struct zcs_row_group *row_group, size_t index)
 {
-    assert(index <= row_group->count);
+    assert(index < row_group->count);
     return row_group->columns[index].type;
 }
 
 enum zcs_encoding_type zcs_row_group_column_encoding(
     const struct zcs_row_group *row_group, size_t index)
 {
-    assert(index <= row_group->count);
+    assert(index < row_group->count);
     return row_group->columns[index].encoding;
 }
 
 const struct zcs_column_index *zcs_row_group_column_index(
     const struct zcs_row_group *row_group, size_t index)
 {
-    assert(index <= row_group->count);
+    assert(index < row_group->count);
     return row_group->columns[index].index;
 }
 
 const struct zcs_column *zcs_row_group_column(
     const struct zcs_row_group *row_group, size_t index)
 {
-    assert(index <= row_group->count);
+    assert(index < row_group->count);
     struct zcs_row_group_column *row_group_column = &row_group->columns[index];
     if (row_group_column->lazy && !row_group_column->initialized) {
         struct zcs_column *column;
