@@ -24,6 +24,7 @@ struct zcs_predicate {
     zcs_value_t value;
     size_t operand_count;
     struct zcs_predicate **operands;
+    char *string;
     enum zcs_str_location location;
     bool case_sensitive;
     bool negate;
@@ -43,6 +44,8 @@ void zcs_predicate_free(struct zcs_predicate *predicate)
             zcs_predicate_free(predicate->operands[i]);
         free(predicate->operands);
     }
+    if (predicate->string)
+        free(predicate->string);
     free(predicate);
 }
 
@@ -134,10 +137,18 @@ static struct zcs_predicate *zcs_predicate_new_str(size_t column,
     predicate->column = column;
     predicate->type = type;
     predicate->column_type = ZCS_COLUMN_STR;
-    predicate->value.str.ptr = value;
-    predicate->value.str.len = strlen(value);
+    size_t length = strlen(value);
+    predicate->string = malloc(length + 1);
+    if (!predicate->string)
+        goto error;
+    memcpy(predicate->string, value, length + 1);
+    predicate->value.str.ptr = predicate->string;
+    predicate->value.str.len = length;
     predicate->case_sensitive = case_sensitive;
     return predicate;
+error:
+    free(predicate);
+    return NULL;
 }
 
 struct zcs_predicate *zcs_predicate_new_str_eq(size_t column, const char *value,
