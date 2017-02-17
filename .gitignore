@@ -6,7 +6,6 @@
 *.gcov
 
 test/runner
-*.html
+coverage*.html
 
 *.pyc
-python/example.zcs
