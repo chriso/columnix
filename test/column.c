@@ -90,17 +90,17 @@ static void assert_i32_col_equal(const struct zcs_column *a,
     assert_memory_equal(sizeof(*a_index), a_index, b_index);
 }
 
-static MunitResult test_import_immutable(const MunitParameter params[],
-                                         void *fixture)
+static MunitResult test_import_mmapped(const MunitParameter params[],
+                                       void *fixture)
 {
     struct zcs_column *col = (struct zcs_column *)fixture;
     size_t size;
     const void *ptr = zcs_column_export(col, &size);
     assert_not_null(ptr);
-    struct zcs_column *copy = zcs_column_new_immutable(
+    struct zcs_column *copy = zcs_column_new_mmapped(
         ZCS_COLUMN_I32, ZCS_ENCODING_NONE, ptr, size, zcs_column_index(col));
     assert_i32_col_equal(col, copy);
-    assert_false(zcs_column_put_i32(copy, 0));  // immutable
+    assert_false(zcs_column_put_i32(copy, 0));  // mmapped
     zcs_column_free(copy);
     return MUNIT_OK;
 }
@@ -439,7 +439,7 @@ static MunitResult test_str_cursor(const MunitParameter params[], void *fixture)
 
 MunitTest column_tests[] = {
     {"/export", test_export, setup_i32, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-    {"/import-immutable", test_import_immutable, setup_i32, teardown,
+    {"/import-mmapped", test_import_mmapped, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/import-compressed", test_import_compressed, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},

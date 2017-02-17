@@ -1,6 +1,9 @@
+#define _BSD_SOURCE
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #include "column.h"
 
@@ -9,14 +12,14 @@ static const size_t zcs_column_initial_size = 64;
 struct zcs_column {
     union {
         void *mutable;
-        const void *immutable;
+        const void *mmapped;
     } buffer;
     size_t offset;
     size_t size;
     enum zcs_column_type type;
     enum zcs_encoding_type encoding;
     struct zcs_column_index index;
-    bool immutable;
+    bool mmapped;
 };
 
 struct zcs_column_cursor {
@@ -56,17 +59,18 @@ struct zcs_column *zcs_column_new(enum zcs_column_type type,
     return zcs_column_new_size(type, encoding, zcs_column_initial_size, NULL);
 }
 
-struct zcs_column *zcs_column_new_immutable(
-    enum zcs_column_type type, enum zcs_encoding_type encoding, const void *ptr,
-    size_t size, const struct zcs_column_index *index)
+struct zcs_column *zcs_column_new_mmapped(enum zcs_column_type type,
+                                          enum zcs_encoding_type encoding,
+                                          const void *ptr, size_t size,
+                                          const struct zcs_column_index *index)
 {
     struct zcs_column *column = zcs_column_new_size(type, encoding, 0, index);
     if (!column)
         return NULL;
     column->offset = size;
     column->size = size;
-    column->immutable = true;
-    column->buffer.immutable = ptr;
+    column->mmapped = true;
+    column->buffer.mmapped = ptr;
     return column;
 }
 
@@ -87,15 +91,15 @@ struct zcs_column *zcs_column_new_compressed(
 
 void zcs_column_free(struct zcs_column *column)
 {
-    if (!column->immutable)
+    if (!column->mmapped)
         free(column->buffer.mutable);
     free(column);
 }
 
 static const void *zcs_column_head(const struct zcs_column *column)
 {
-    if (column->immutable)
-        return column->buffer.immutable;
+    if (column->mmapped)
+        return column->buffer.mmapped;
     else
         return column->buffer.mutable;
 }
@@ -152,7 +156,7 @@ __attribute__((noinline)) static bool zcs_column_resize(
 
 static void *zcs_column_alloc(struct zcs_column *column, size_t size)
 {
-    if (column->immutable)
+    if (column->mmapped)
         return false;
     if (column->offset + size > column->size)
         if (!zcs_column_resize(column, size))
@@ -166,7 +170,7 @@ bool zcs_column_put_bit(struct zcs_column *column, bool value)
 {
     if (column->type != ZCS_COLUMN_BIT)
         return false;
-    if (column->immutable)
+    if (column->mmapped)
         return false;
     uint64_t *bitset;
     if (column->index.count % 64 == 0) {
@@ -252,6 +256,16 @@ bool zcs_column_put_str(struct zcs_column *column, const char *value)
     return true;
 }
 
+static bool zcs_column_madvise(const struct zcs_column *column, int advice)
+{
+    if (!column->mmapped || !column->size)
+        return true;
+    size_t page_size = getpagesize();
+    uintptr_t addr = (uintptr_t)column->buffer.mmapped;
+    size_t offset = addr % page_size;
+    return !madvise((void *)(addr - offset), (column->size + offset), advice);
+}
+
 struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *column)
 {
     struct zcs_column_cursor *cursor = malloc(sizeof(*cursor));
@@ -260,8 +274,13 @@ struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *column)
     cursor->column = column;
     cursor->start = zcs_column_head(column);
     cursor->end = zcs_column_tail(column);
+    if (!zcs_column_madvise(column, MADV_SEQUENTIAL))
+        goto error;
     zcs_column_cursor_rewind(cursor);
     return cursor;
+error:
+    free(cursor);
+    return NULL;
 }
 
 void zcs_column_cursor_free(struct zcs_column_cursor *cursor)

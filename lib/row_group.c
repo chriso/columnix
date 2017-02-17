@@ -204,7 +204,7 @@ const struct zcs_column *zcs_row_group_column(
                 return NULL;
             }
         } else {
-            column = zcs_column_new_immutable(
+            column = zcs_column_new_mmapped(
                 row_group_column->type, row_group_column->encoding,
                 row_group_column->column.lazy.ptr,
                 row_group_column->column.lazy.size, row_group_column->index);

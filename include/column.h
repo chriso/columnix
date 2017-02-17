@@ -11,10 +11,10 @@ struct zcs_column_cursor;
 
 struct zcs_column *zcs_column_new(enum zcs_column_type, enum zcs_encoding_type);
 
-struct zcs_column *zcs_column_new_immutable(enum zcs_column_type,
-                                            enum zcs_encoding_type,
-                                            const void *, size_t,
-                                            const struct zcs_column_index *);
+struct zcs_column *zcs_column_new_mmapped(enum zcs_column_type,
+                                          enum zcs_encoding_type, const void *,
+                                          size_t,
+                                          const struct zcs_column_index *);
 
 struct zcs_column *zcs_column_new_compressed(enum zcs_column_type,
                                              enum zcs_encoding_type, void **,
