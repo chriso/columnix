@@ -165,8 +165,9 @@ bool zcs_reader_error(const struct zcs_reader *reader)
 
 size_t zcs_reader_row_count(struct zcs_reader *reader)
 {
-    if (reader->match_all_rows)
-        return zcs_row_group_reader_row_count(reader->reader);
+    size_t total_row_count = zcs_row_group_reader_row_count(reader->reader);
+    if (reader->match_all_rows || !total_row_count)
+        return total_row_count;
     zcs_reader_rewind(reader);
     size_t count = 0;
     for (; zcs_reader_valid(reader); zcs_reader_advance(reader)) {
