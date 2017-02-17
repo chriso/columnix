@@ -212,10 +212,10 @@ bool zcs_row_group_writer_add_column(struct zcs_row_group_writer *writer,
 
     if (!writer->columns.count) {
         writer->columns.descriptors =
-            malloc(sizeof(*writer->columns.descriptors));
+            malloc(sizeof(*writer->columns.descriptors) * 8);
         if (!writer->columns.descriptors)
             return false;
-        writer->columns.size = 1;
+        writer->columns.size = 8;
     } else if (writer->columns.count == writer->columns.size) {
         size_t new_size = writer->columns.size * 2;
         assert(new_size && new_size > writer->columns.size);
@@ -306,10 +306,10 @@ bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
     // make room for the extra row group header
     if (!writer->row_groups.count) {
         writer->row_groups.headers =
-            malloc(sizeof(*writer->row_groups.headers));
+            malloc(sizeof(*writer->row_groups.headers) * 16);
         if (!writer->row_groups.headers)
             return false;
-        writer->row_groups.size = 1;
+        writer->row_groups.size = 16;
     } else if (writer->row_groups.count == writer->row_groups.size) {
         size_t new_size = writer->row_groups.size * 2;
         assert(new_size && new_size > writer->row_groups.size);
