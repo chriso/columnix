@@ -39,6 +39,17 @@ struct zcs_row_group_reader {
     } row_groups;
 };
 
+struct zcs_reader_query_context {
+    struct zcs_row_group_reader *reader;
+    struct zcs_predicate *predicate;
+    size_t position;
+    size_t row_group_count;
+    void (*iter)(struct zcs_row_cursor *, pthread_mutex_t *, void *);
+    void *data;
+    bool error;
+    pthread_mutex_t mutex;
+};
+
 static struct zcs_reader *zcs_reader_new_impl(const char *path,
                                               struct zcs_predicate *predicate,
                                               bool match_all_rows)
@@ -181,6 +192,80 @@ size_t zcs_reader_row_count(struct zcs_reader *reader)
 error:
     reader->error = true;
     return 0;
+}
+
+static void *zcs_reader_query_thread(void *ptr)
+{
+    struct zcs_reader_query_context *context = ptr;
+    struct zcs_row_group *row_group = NULL;
+    struct zcs_row_cursor *cursor = NULL;
+    for (;;) {
+        pthread_mutex_lock(&context->mutex);
+        size_t position = context->position++;
+        pthread_mutex_unlock(&context->mutex);
+        if (position >= context->row_group_count)
+            break;
+        row_group = zcs_row_group_reader_get(context->reader, position);
+        if (!row_group)
+            goto error;
+        cursor = zcs_row_cursor_new(row_group, context->predicate);
+        if (!cursor)
+            goto error;
+        context->iter(cursor, &context->mutex, context->data);
+        if (zcs_row_cursor_error(cursor))
+            goto error;
+        zcs_row_group_free(row_group);
+        zcs_row_cursor_free(cursor);
+        row_group = NULL;
+        cursor = NULL;
+    }
+    return NULL;
+error:
+    if (row_group)
+        zcs_row_group_free(row_group);
+    if (cursor)
+        zcs_row_cursor_free(cursor);
+    pthread_mutex_lock(&context->mutex);
+    context->error = true;
+    pthread_mutex_unlock(&context->mutex);
+    return NULL;
+}
+
+bool zcs_reader_query(struct zcs_reader *reader, int thread_count,
+                      void *data, void (*iter)(struct zcs_row_cursor *,
+                                               pthread_mutex_t *, void *))
+{
+    if (thread_count <= 0)
+        return false;
+    if (!reader->row_group_count)
+        return true;
+    pthread_t *threads = NULL;
+    struct zcs_reader_query_context query_context = {
+        .reader = reader->reader,
+        .predicate = reader->predicate,
+        .position = 0,
+        .row_group_count = reader->row_group_count,
+        .iter = iter,
+        .data = data,
+        .error = false};
+    if (pthread_mutex_init(&query_context.mutex, NULL))
+        return false;
+    threads = malloc(thread_count * sizeof(pthread_t));
+    if (!threads)
+        goto error;
+    for (int i = 0; i < thread_count; i++)
+        if (pthread_create(&threads[i], NULL, zcs_reader_query_thread,
+                           &query_context))
+            goto error;
+    for (int i = 0; i < thread_count; i++)
+        pthread_join(threads[i], NULL);
+    free(threads);
+    pthread_mutex_destroy(&query_context.mutex);
+    return !query_context.error;
+error:
+    free(threads);
+    pthread_mutex_destroy(&query_context.mutex);
+    return false;
 }
 
 size_t zcs_reader_column_count(const struct zcs_reader *reader)

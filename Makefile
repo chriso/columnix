@@ -1,13 +1,16 @@
 LDLIBS = -llz4 -lzstd
 
 BASE_CFLAGS = -std=c99 -Wall -pedantic -Iinclude -g
-CFLAGS += $(BASE_CFLAGS)
+CFLAGS += $(BASE_CFLAGS) -pthread
 
 PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
 
 ifeq ($(release), 1)
-  CFLAGS += -O3 -march=native -DZCS_AVX2 -DZCS_PCMPISTRM
+  CFLAGS += -O3 -march=native -DZCS_AVX2
+endif
+ifeq ($(pcmpistrm), 1)
+  CFLAGS += -DZCS_PCMPISTRM
 endif
 
 ifeq ($(asan), 1)
@@ -24,6 +27,7 @@ ifeq ($(shell uname -s), Darwin)
   LIB = lib/libzcs.dylib
 else
   CFLAGS += -fPIC
+  LDFLAGS += -pthread
   LIB = lib/libzcs.so
 endif
 

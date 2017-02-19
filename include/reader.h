@@ -1,8 +1,9 @@
 #ifndef ZCS_READER_
 #define ZCS_READER_
 
-#include "predicate.h"
-#include "row_group.h"
+#include <pthread.h>
+
+#include "row.h"
 
 struct zcs_reader;
 
@@ -22,6 +23,10 @@ bool zcs_reader_error(const struct zcs_reader *);
 size_t zcs_reader_column_count(const struct zcs_reader *);
 
 size_t zcs_reader_row_count(struct zcs_reader *);
+
+bool zcs_reader_query(struct zcs_reader *, int thread_count, void *data,
+                      void (*iter)(struct zcs_row_cursor *, pthread_mutex_t *,
+                                   void *));
 
 enum zcs_column_type zcs_reader_column_type(const struct zcs_reader *, size_t);
 

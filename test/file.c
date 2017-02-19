@@ -44,6 +44,16 @@ static void teardown(void *ptr)
     free(fixture);
 }
 
+static void count_rows(struct zcs_row_cursor *cursor, pthread_mutex_t *mutex,
+                       void *data)
+{
+    size_t *count = data;
+    size_t row_group_count = zcs_row_cursor_count(cursor);
+    pthread_mutex_lock(mutex);
+    *count += row_group_count;
+    pthread_mutex_unlock(mutex);
+}
+
 static MunitResult test_read_write(const MunitParameter params[], void *ptr)
 {
     struct zcs_file_fixture *fixture = ptr;
@@ -112,6 +122,9 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
         }
         assert_false(zcs_reader_error(reader));
         assert_size(position, ==, ROW_COUNT);
+        size_t count = 0;
+        assert_true(zcs_reader_query(reader, 4, (void *)&count, count_rows));
+        assert_size(count, ==, ROW_COUNT);
         zcs_reader_free(reader);
 
         // high-level reader matching rows
