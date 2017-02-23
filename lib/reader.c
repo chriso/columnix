@@ -454,11 +454,18 @@ struct zcs_row_group *zcs_row_group_reader_get(
         const struct zcs_column_header *header = &columns_headers[i];
         if (header->offset + header->size > reader->file_size)
             goto error;
-        const void *ptr = zcs_row_group_reader_at(reader, header->offset);
-        if (!zcs_row_group_add_column_lazy(
-                row_group, descriptor->type, descriptor->encoding,
-                header->compression, &header->index, ptr, header->size,
-                header->decompressed_size))
+
+        struct zcs_lazy_column column = {
+            .type = descriptor->type,
+            .encoding = descriptor->encoding,
+            .compression = header->compression,
+            .index = &header->index,
+            .ptr = zcs_row_group_reader_at(reader, header->offset),
+            .size = header->size,
+            .decompressed_size = header->decompressed_size
+        };
+
+        if (!zcs_row_group_add_lazy_column(row_group, &column))
             goto error;
     }
     return row_group;

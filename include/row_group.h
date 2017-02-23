@@ -13,11 +13,18 @@ void zcs_row_group_free(struct zcs_row_group *);
 
 bool zcs_row_group_add_column(struct zcs_row_group *, struct zcs_column *);
 
-bool zcs_row_group_add_column_lazy(struct zcs_row_group *, enum zcs_column_type,
-                                   enum zcs_encoding_type,
-                                   enum zcs_compression_type,
-                                   const struct zcs_column_index *,
-                                   const void *, size_t, size_t);
+struct zcs_lazy_column {
+    enum zcs_column_type type;
+    enum zcs_encoding_type encoding;
+    enum zcs_compression_type compression;
+    const struct zcs_column_index *index;
+    const void *ptr;
+    size_t size;
+    size_t decompressed_size;
+};
+
+bool zcs_row_group_add_lazy_column(struct zcs_row_group *,
+                                   const struct zcs_lazy_column *column);
 
 size_t zcs_row_group_column_count(const struct zcs_row_group *);
 

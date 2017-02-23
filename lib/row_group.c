@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "compress.h"
 #include "row_group.h"
@@ -10,17 +11,9 @@ struct zcs_row_group_column {
     enum zcs_column_type type;
     enum zcs_encoding_type encoding;
     const struct zcs_column_index *index;
-    union {
-        struct zcs_column *ptr;
-        struct {
-            const void *ptr;
-            size_t size;
-            size_t decompressed_size;
-            enum zcs_compression_type compression;
-        } lazy;
-    } column;
+    struct zcs_column *column;
+    struct zcs_lazy_column lazy_column;
     bool lazy;
-    bool initialized;
 };
 
 struct zcs_row_group {
@@ -66,8 +59,8 @@ void zcs_row_group_free(struct zcs_row_group *row_group)
 {
     for (size_t i = 0; i < row_group->count; i++) {
         struct zcs_row_group_column *row_group_column = &row_group->columns[i];
-        if (row_group_column->lazy && row_group_column->initialized)
-            zcs_column_free(row_group_column->column.ptr);
+        if (row_group_column->lazy && row_group_column->column)
+            zcs_column_free(row_group_column->column);
     }
     free(row_group->columns);
     free(row_group);
@@ -103,6 +96,8 @@ static bool zcs_row_group_valid_column(struct zcs_row_group *row_group,
 bool zcs_row_group_add_column(struct zcs_row_group *row_group,
                               struct zcs_column *column)
 {
+    if (!column)
+        return false;
     const struct zcs_column_index *index = zcs_column_index(column);
     if (!zcs_row_group_valid_column(row_group, index))
         return false;
@@ -110,7 +105,7 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
         return false;
     struct zcs_row_group_column *row_group_column =
         &row_group->columns[row_group->count++];
-    row_group_column->column.ptr = column;
+    row_group_column->column = column;
     row_group_column->type = zcs_column_type(column);
     row_group_column->encoding = zcs_column_encoding(column);
     row_group_column->index = index;
@@ -118,29 +113,21 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
     return true;
 }
 
-bool zcs_row_group_add_column_lazy(struct zcs_row_group *row_group,
-                                   enum zcs_column_type type,
-                                   enum zcs_encoding_type encoding,
-                                   enum zcs_compression_type compression,
-                                   const struct zcs_column_index *index,
-                                   const void *ptr, size_t size,
-                                   size_t decompressed_size)
+bool zcs_row_group_add_lazy_column(struct zcs_row_group *row_group,
+                                   const struct zcs_lazy_column *column)
 {
-    if (!zcs_row_group_valid_column(row_group, index))
+    if (!zcs_row_group_valid_column(row_group, column->index))
         return false;
     if (!zcs_row_group_ensure_column_size(row_group))
         return false;
     struct zcs_row_group_column *row_group_column =
         &row_group->columns[row_group->count++];
-    row_group_column->type = type;
-    row_group_column->encoding = encoding;
-    row_group_column->index = index;
-    row_group_column->column.lazy.ptr = ptr;
-    row_group_column->column.lazy.size = size;
-    row_group_column->column.lazy.compression = compression;
-    row_group_column->column.lazy.decompressed_size = decompressed_size;
+    row_group_column->type = column->type;
+    row_group_column->encoding = column->encoding;
+    row_group_column->index = column->index;
+    row_group_column->column = NULL;
+    memcpy(&row_group_column->lazy_column, column, sizeof(*column));
     row_group_column->lazy = true;
-    row_group_column->initialized = false;
     return true;
 }
 
@@ -184,21 +171,21 @@ const struct zcs_column *zcs_row_group_column(
 {
     assert(index < row_group->count);
     struct zcs_row_group_column *row_group_column = &row_group->columns[index];
-    if (row_group_column->lazy && !row_group_column->initialized) {
+    if (row_group_column->lazy && !row_group_column->column) {
         struct zcs_column *column;
-        if (row_group_column->column.lazy.compression &&
-            row_group_column->column.lazy.size) {
+        if (row_group_column->lazy_column.compression &&
+            row_group_column->lazy_column.size) {
             void *dest;
-            size_t dest_size = row_group_column->column.lazy.decompressed_size;
+            size_t dest_size = row_group_column->lazy_column.decompressed_size;
             column = zcs_column_new_compressed(
                 row_group_column->type, row_group_column->encoding, &dest,
                 dest_size, row_group_column->index);
             if (!column)
                 return NULL;
 
-            if (!zcs_decompress(row_group_column->column.lazy.compression,
-                                row_group_column->column.lazy.ptr,
-                                row_group_column->column.lazy.size, dest,
+            if (!zcs_decompress(row_group_column->lazy_column.compression,
+                                row_group_column->lazy_column.ptr,
+                                row_group_column->lazy_column.size, dest,
                                 dest_size)) {
                 zcs_column_free(column);
                 return NULL;
@@ -206,15 +193,14 @@ const struct zcs_column *zcs_row_group_column(
         } else {
             column = zcs_column_new_mmapped(
                 row_group_column->type, row_group_column->encoding,
-                row_group_column->column.lazy.ptr,
-                row_group_column->column.lazy.size, row_group_column->index);
+                row_group_column->lazy_column.ptr,
+                row_group_column->lazy_column.size, row_group_column->index);
             if (!column)
                 return NULL;
         }
-        row_group_column->column.ptr = column;
-        row_group_column->initialized = true;
+        row_group_column->column = column;
     }
-    return row_group_column->column.ptr;
+    return row_group_column->column;
 }
 
 struct zcs_row_group_cursor *zcs_row_group_cursor_new(
