@@ -13,7 +13,7 @@
 #include "file.h"
 #include "writer.h"
 
-#define ZCS_NULL_COMPRESSION_TYPE ZCS_COMPRESSION_NONE
+#define ZCS_NULL_COMPRESSION_TYPE ZCS_COMPRESSION_LZ4
 #define ZCS_NULL_COMPRESSION_LEVEL 0
 
 struct zcs_writer_physical_column {
