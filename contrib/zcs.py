@@ -58,6 +58,9 @@ zcs_writer_free.argtypes = [c_void_p]
 zcs_writer_add_column = libzcs.zcs_writer_add_column
 zcs_writer_add_column.argtypes = [c_void_p, c_int, c_int, c_int, c_int]
 
+zcs_writer_put_null = libzcs.zcs_writer_put_null
+zcs_writer_put_null.argtypes = [c_void_p, c_bool]
+
 zcs_writer_put_bit = libzcs.zcs_writer_put_bit
 zcs_writer_put_bit.argtypes = [c_void_p, c_bool]
 
@@ -124,8 +127,16 @@ class Writer(object):
     def put(self, row):
         put_lookup = self.put_lookup
         column_types = self.column_types
-        for i, value in enumerate(row):
-            put_lookup[column_types[i]](i, value)
+        for column, value in enumerate(row):
+            if value is None:
+                self.put_null(column)
+            else:
+                put_lookup[column_types[column]](column, value)
+
+    def put_null(self, column):
+        assert self.writer is not None
+        if not zcs_writer_put_null(self.writer, column):
+            raise RuntimeError("put_null(%d)" % column)
 
     def put_bit(self, column, value):
         assert self.writer is not None
