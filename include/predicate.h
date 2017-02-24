@@ -10,6 +10,8 @@ void zcs_predicate_free(struct zcs_predicate *);
 
 struct zcs_predicate *zcs_predicate_new_true(void);
 
+struct zcs_predicate *zcs_predicate_new_null(size_t);
+
 struct zcs_predicate *zcs_predicate_negate(struct zcs_predicate *);
 
 struct zcs_predicate *zcs_predicate_new_bit_eq(size_t, bool);
