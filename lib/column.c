@@ -256,6 +256,21 @@ bool zcs_column_put_str(struct zcs_column *column, const char *value)
     return true;
 }
 
+bool zcs_column_put_unit(struct zcs_column *column)
+{
+    switch (column->type) {
+        case ZCS_COLUMN_I32:
+            return zcs_column_put_i32(column, 0);
+        case ZCS_COLUMN_I64:
+            return zcs_column_put_i64(column, 0);
+        case ZCS_COLUMN_BIT:
+            return zcs_column_put_bit(column, false);
+        case ZCS_COLUMN_STR:
+            return zcs_column_put_bit(column, "");
+    }
+    return false;
+}
+
 static bool zcs_column_madvise(const struct zcs_column *column, int advice)
 {
     if (!column->mmapped || !column->size)
