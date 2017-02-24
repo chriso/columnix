@@ -7,12 +7,17 @@
 
 static const size_t zcs_row_group_column_initial_size = 8;
 
-struct zcs_row_group_column {
-    enum zcs_column_type type;
-    enum zcs_encoding_type encoding;
+struct zcs_row_group_physical_column {
     const struct zcs_column_index *index;
     struct zcs_column *column;
     struct zcs_lazy_column lazy_column;
+};
+
+struct zcs_row_group_column {
+    enum zcs_column_type type;
+    enum zcs_encoding_type encoding;
+    struct zcs_row_group_physical_column values;
+    struct zcs_row_group_physical_column nulls;
     bool lazy;
 };
 
@@ -22,11 +27,16 @@ struct zcs_row_group {
     size_t size;
 };
 
-struct zcs_row_group_cursor_column {
+struct zcs_row_group_cursor_physical_column {
     struct zcs_column_cursor *cursor;
     size_t position;
-    const void *values;
+    const void *batch;
     size_t count;
+};
+
+struct zcs_row_group_cursor_column {
+    struct zcs_row_group_cursor_physical_column values;
+    struct zcs_row_group_cursor_physical_column nulls;
 };
 
 struct zcs_row_group_cursor {
@@ -59,8 +69,12 @@ void zcs_row_group_free(struct zcs_row_group *row_group)
 {
     for (size_t i = 0; i < row_group->count; i++) {
         struct zcs_row_group_column *row_group_column = &row_group->columns[i];
-        if (row_group_column->lazy && row_group_column->column)
-            zcs_column_free(row_group_column->column);
+        if (row_group_column->lazy) {
+            if (row_group_column->values.column)
+                zcs_column_free(row_group_column->values.column);
+            if (row_group_column->nulls.column)
+                zcs_column_free(row_group_column->nulls.column);
+        }
     }
     free(row_group->columns);
     free(row_group);
@@ -94,29 +108,40 @@ static bool zcs_row_group_valid_column(struct zcs_row_group *row_group,
 }
 
 bool zcs_row_group_add_column(struct zcs_row_group *row_group,
-                              struct zcs_column *column)
+                              struct zcs_column *column,
+                              struct zcs_column *nulls)
 {
     if (!column)
         return false;
     const struct zcs_column_index *index = zcs_column_index(column);
     if (!zcs_row_group_valid_column(row_group, index))
         return false;
+    const struct zcs_column_index *null_index = zcs_column_index(nulls);
+    if (zcs_column_type(nulls) != ZCS_COLUMN_BIT ||
+        null_index->count != index->count)
+        return false;
     if (!zcs_row_group_ensure_column_size(row_group))
         return false;
     struct zcs_row_group_column *row_group_column =
         &row_group->columns[row_group->count++];
-    row_group_column->column = column;
     row_group_column->type = zcs_column_type(column);
     row_group_column->encoding = zcs_column_encoding(column);
-    row_group_column->index = index;
+    row_group_column->values.column = column;
+    row_group_column->values.index = index;
     row_group_column->lazy = false;
+    row_group_column->nulls.column = nulls;
+    row_group_column->nulls.index = zcs_column_index(nulls);
     return true;
 }
 
 bool zcs_row_group_add_lazy_column(struct zcs_row_group *row_group,
-                                   const struct zcs_lazy_column *column)
+                                   const struct zcs_lazy_column *column,
+                                   const struct zcs_lazy_column *nulls)
 {
     if (!zcs_row_group_valid_column(row_group, column->index))
+        return false;
+    if (nulls->type != ZCS_COLUMN_BIT ||
+        nulls->index->count != column->index->count)
         return false;
     if (!zcs_row_group_ensure_column_size(row_group))
         return false;
@@ -124,10 +149,13 @@ bool zcs_row_group_add_lazy_column(struct zcs_row_group *row_group,
         &row_group->columns[row_group->count++];
     row_group_column->type = column->type;
     row_group_column->encoding = column->encoding;
-    row_group_column->index = column->index;
-    row_group_column->column = NULL;
-    memcpy(&row_group_column->lazy_column, column, sizeof(*column));
+    row_group_column->values.index = column->index;
+    row_group_column->values.column = NULL;
+    memcpy(&row_group_column->values.lazy_column, column, sizeof(*column));
     row_group_column->lazy = true;
+    row_group_column->nulls.column = NULL;
+    row_group_column->nulls.index = nulls->index;
+    memcpy(&row_group_column->nulls.lazy_column, nulls, sizeof(*nulls));
     return true;
 }
 
@@ -163,7 +191,43 @@ const struct zcs_column_index *zcs_row_group_column_index(
     const struct zcs_row_group *row_group, size_t index)
 {
     assert(index < row_group->count);
-    return row_group->columns[index].index;
+    return row_group->columns[index].values.index;
+}
+
+const struct zcs_column_index *zcs_row_group_null_index(
+    const struct zcs_row_group *row_group, size_t index)
+{
+    assert(index < row_group->count);
+    return row_group->columns[index].nulls.index;
+}
+
+static bool zcs_row_group_lazy_column_init(
+    struct zcs_row_group_physical_column *row_group_column)
+{
+    struct zcs_lazy_column *lazy = &row_group_column->lazy_column;
+    struct zcs_column *column = NULL;
+    if (lazy->compression && lazy->size) {
+        void *dest;
+        column = zcs_column_new_compressed(lazy->type, lazy->encoding, &dest,
+                                           lazy->decompressed_size,
+                                           row_group_column->index);
+        if (!column)
+            goto error;
+        if (!zcs_decompress(lazy->compression, lazy->ptr, lazy->size, dest,
+                            lazy->decompressed_size))
+            goto error;
+    } else {
+        column = zcs_column_new_mmapped(lazy->type, lazy->encoding, lazy->ptr,
+                                        lazy->size, row_group_column->index);
+        if (!column)
+            goto error;
+    }
+    row_group_column->column = column;
+    return true;
+error:
+    if (column)
+        zcs_column_free(column);
+    return false;
 }
 
 const struct zcs_column *zcs_row_group_column(
@@ -171,36 +235,21 @@ const struct zcs_column *zcs_row_group_column(
 {
     assert(index < row_group->count);
     struct zcs_row_group_column *row_group_column = &row_group->columns[index];
-    if (row_group_column->lazy && !row_group_column->column) {
-        struct zcs_column *column;
-        if (row_group_column->lazy_column.compression &&
-            row_group_column->lazy_column.size) {
-            void *dest;
-            size_t dest_size = row_group_column->lazy_column.decompressed_size;
-            column = zcs_column_new_compressed(
-                row_group_column->type, row_group_column->encoding, &dest,
-                dest_size, row_group_column->index);
-            if (!column)
-                return NULL;
+    if (row_group_column->lazy && !row_group_column->values.column)
+        if (!zcs_row_group_lazy_column_init(&row_group_column->values))
+            return NULL;
+    return row_group_column->values.column;
+}
 
-            if (!zcs_decompress(row_group_column->lazy_column.compression,
-                                row_group_column->lazy_column.ptr,
-                                row_group_column->lazy_column.size, dest,
-                                dest_size)) {
-                zcs_column_free(column);
-                return NULL;
-            }
-        } else {
-            column = zcs_column_new_mmapped(
-                row_group_column->type, row_group_column->encoding,
-                row_group_column->lazy_column.ptr,
-                row_group_column->lazy_column.size, row_group_column->index);
-            if (!column)
-                return NULL;
-        }
-        row_group_column->column = column;
-    }
-    return row_group_column->column;
+const struct zcs_column *zcs_row_group_nulls(
+    const struct zcs_row_group *row_group, size_t index)
+{
+    assert(index < row_group->count);
+    struct zcs_row_group_column *row_group_column = &row_group->columns[index];
+    if (row_group_column->lazy && !row_group_column->nulls.column)
+        if (!zcs_row_group_lazy_column_init(&row_group_column->nulls))
+            return NULL;
+    return row_group_column->nulls.column;
 }
 
 struct zcs_row_group_cursor *zcs_row_group_cursor_new(
@@ -224,15 +273,22 @@ void zcs_row_group_cursor_free(struct zcs_row_group_cursor *cursor)
     free(cursor);
 }
 
+static void zcs_row_group_cursor_rewind_columns(
+    struct zcs_row_group_cursor_physical_column *column)
+{
+    if (column->cursor)
+        zcs_column_cursor_free(column->cursor);
+    column->cursor = NULL;
+    column->position = 0;
+}
+
 void zcs_row_group_cursor_rewind(struct zcs_row_group_cursor *cursor)
 {
     cursor->initialized = false;
     cursor->position = 0;
     for (size_t i = 0; i < cursor->column_count; i++) {
-        if (cursor->columns[i].cursor)
-            zcs_column_cursor_free(cursor->columns[i].cursor);
-        cursor->columns[i].cursor = NULL;
-        cursor->columns[i].position = 0;
+        zcs_row_group_cursor_rewind_columns(&cursor->columns[i].values);
+        zcs_row_group_cursor_rewind_columns(&cursor->columns[i].nulls);
     }
 }
 
@@ -254,89 +310,122 @@ size_t zcs_row_group_cursor_batch_count(
     return remaining < ZCS_BATCH_SIZE ? remaining : ZCS_BATCH_SIZE;
 }
 
-static bool zcs_row_group_cursor_lazy_init(struct zcs_row_group_cursor *cursor,
-                                           size_t column_index)
+static bool zcs_row_group_cursor_lazy_column_init(
+    struct zcs_row_group_cursor *cursor, size_t column_index)
 {
     if (column_index >= cursor->column_count)
         return false;
-    if (cursor->columns[column_index].cursor)
+    if (cursor->columns[column_index].values.cursor)
         return true;
     const struct zcs_column *column =
         zcs_row_group_column(cursor->row_group, column_index);
     if (!column)
         return false;
-    cursor->columns[column_index].cursor = zcs_column_cursor_new(column);
-    return cursor->columns[column_index].cursor != NULL;
+    cursor->columns[column_index].values.cursor = zcs_column_cursor_new(column);
+    return cursor->columns[column_index].values.cursor != NULL;
+}
+
+static bool zcs_row_group_cursor_lazy_nulls_init(
+    struct zcs_row_group_cursor *cursor, size_t column_index)
+{
+    if (column_index >= cursor->column_count)
+        return false;
+    if (cursor->columns[column_index].nulls.cursor)
+        return true;
+    const struct zcs_column *column =
+        zcs_row_group_nulls(cursor->row_group, column_index);
+    if (!column)
+        return false;
+    cursor->columns[column_index].nulls.cursor = zcs_column_cursor_new(column);
+    return cursor->columns[column_index].nulls.cursor != NULL;
+}
+
+const uint64_t *zcs_row_group_cursor_batch_nulls(
+    struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
+{
+    if (!zcs_row_group_cursor_lazy_nulls_init(cursor, column_index))
+        return NULL;
+    struct zcs_row_group_cursor_column *column = &cursor->columns[column_index];
+    if (column->nulls.position <= cursor->position) {
+        size_t skipped = zcs_column_cursor_skip_bit(
+            column->nulls.cursor, cursor->position - column->nulls.position);
+        column->nulls.position += skipped;
+        column->nulls.batch = zcs_column_cursor_next_batch_bit(
+            column->nulls.cursor, &column->nulls.count);
+        column->nulls.position += column->nulls.count;
+    }
+    *count = column->nulls.count;
+    return column->nulls.batch;
 }
 
 const uint64_t *zcs_row_group_cursor_batch_bit(
     struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
 {
-    if (!zcs_row_group_cursor_lazy_init(cursor, column_index))
+    if (!zcs_row_group_cursor_lazy_column_init(cursor, column_index))
         return NULL;
     struct zcs_row_group_cursor_column *column = &cursor->columns[column_index];
-    if (column->position <= cursor->position) {
+    if (column->values.position <= cursor->position) {
         size_t skipped = zcs_column_cursor_skip_bit(
-            column->cursor, cursor->position - column->position);
-        column->position += skipped;
-        column->values =
-            zcs_column_cursor_next_batch_bit(column->cursor, &column->count);
-        column->position += column->count;
+            column->values.cursor, cursor->position - column->values.position);
+        column->values.position += skipped;
+        column->values.batch = zcs_column_cursor_next_batch_bit(
+            column->values.cursor, &column->values.count);
+        column->values.position += column->values.count;
     }
-    *count = column->count;
-    return column->values;
+    *count = column->values.count;
+    return column->values.batch;
 }
 
 const int32_t *zcs_row_group_cursor_batch_i32(
     struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
 {
-    if (!zcs_row_group_cursor_lazy_init(cursor, column_index))
+    if (!zcs_row_group_cursor_lazy_column_init(cursor, column_index))
         return NULL;
     struct zcs_row_group_cursor_column *column = &cursor->columns[column_index];
-    if (column->position <= cursor->position) {
+    if (column->values.position <= cursor->position) {
         size_t skipped = zcs_column_cursor_skip_i32(
-            column->cursor, cursor->position - column->position);
-        column->position += skipped;
-        column->values =
-            zcs_column_cursor_next_batch_i32(column->cursor, &column->count);
-        column->position += column->count;
+            column->values.cursor, cursor->position - column->values.position);
+        column->values.position += skipped;
+        column->values.batch = zcs_column_cursor_next_batch_i32(
+            column->values.cursor, &column->values.count);
+        column->values.position += column->values.count;
     }
-    *count = column->count;
-    return column->values;
+    *count = column->values.count;
+    return column->values.batch;
 }
 
 const int64_t *zcs_row_group_cursor_batch_i64(
     struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
 {
-    if (!zcs_row_group_cursor_lazy_init(cursor, column_index))
+    if (!zcs_row_group_cursor_lazy_column_init(cursor, column_index))
         return NULL;
     struct zcs_row_group_cursor_column *column = &cursor->columns[column_index];
-    if (column->position <= cursor->position) {
+    if (column->values.position <= cursor->position) {
         size_t skipped = zcs_column_cursor_skip_i64(
-            column->cursor, cursor->position - column->position);
-        column->position += skipped;
-        column->values =
-            zcs_column_cursor_next_batch_i64(column->cursor, &column->count);
-        column->position += column->count;
+            column->values.cursor, cursor->position - column->values.position);
+        column->values.position += skipped;
+        column->values.batch = zcs_column_cursor_next_batch_i64(
+            column->values.cursor, &column->values.count);
+        column->values.position += column->values.count;
     }
-    *count = column->count;
-    return column->values;
+    *count = column->values.count;
+    return column->values.batch;
 }
 
 const struct zcs_string *zcs_row_group_cursor_batch_str(
     struct zcs_row_group_cursor *cursor, size_t column_index, size_t *count)
 {
-    if (!zcs_row_group_cursor_lazy_init(cursor, column_index))
+    if (!zcs_row_group_cursor_lazy_column_init(cursor, column_index))
         return NULL;
     struct zcs_row_group_cursor_column *column = &cursor->columns[column_index];
-    if (column->position <= cursor->position) {
+    if (column->values.position <= cursor->position) {
         size_t skipped = zcs_column_cursor_skip_str(
-            column->cursor, cursor->position - column->position);
-        column->position += skipped;
-        column->values =
-            zcs_column_cursor_next_batch_str(column->cursor, &column->count);
-        column->position += column->count;
+            column->values.cursor, cursor->position - column->values.position);
+        column->values.position += skipped;
+        column->values.batch = zcs_column_cursor_next_batch_str(
+            column->values.cursor, &column->values.count);
+        column->values.position += column->values.count;
     }
-    *count = column->count;
-    return column->values;
+    *count = column->values.count;
+    return column->values.batch;
 }

@@ -9,6 +9,7 @@
 
 enum zcs_predicate_type {
     ZCS_PREDICATE_TRUE,
+    ZCS_PREDICATE_NULL,
     ZCS_PREDICATE_EQ,
     ZCS_PREDICATE_LT,
     ZCS_PREDICATE_GT,
@@ -55,6 +56,16 @@ struct zcs_predicate *zcs_predicate_new_true()
     if (!predicate)
         return NULL;
     predicate->type = ZCS_PREDICATE_TRUE;
+    return predicate;
+}
+
+struct zcs_predicate *zcs_predicate_new_null(size_t column)
+{
+    struct zcs_predicate *predicate = zcs_predicate_new();
+    if (!predicate)
+        return NULL;
+    predicate->type = ZCS_PREDICATE_NULL;
+    predicate->column = column;
     return predicate;
 }
 
@@ -253,11 +264,13 @@ bool zcs_predicate_valid(const struct zcs_predicate *predicate,
         zcs_row_group_column_type(row_group, predicate->column);
     if (!zcs_predicate_is_operator(predicate) &&
         predicate->type != ZCS_PREDICATE_TRUE &&
+        predicate->type != ZCS_PREDICATE_NULL &&
         predicate->column_type != column_type)
         return false;
 
     switch (predicate->type) {
         case ZCS_PREDICATE_TRUE:
+        case ZCS_PREDICATE_NULL:
         case ZCS_PREDICATE_EQ:
             break;
         case ZCS_PREDICATE_LT:
@@ -530,6 +543,13 @@ bool zcs_predicate_match_rows(const struct zcs_predicate *predicate,
             *count = zcs_row_group_cursor_batch_count(cursor);
             mask = zcs_mask_cap(zcs_full_mask, *count);
             break;
+        case ZCS_PREDICATE_NULL: {
+            const uint64_t *nulls = zcs_row_group_cursor_batch_nulls(
+                cursor, predicate->column, count);
+            if (!nulls)
+                goto error;
+            mask = *count ? *nulls : 0;
+        } break;
         case ZCS_PREDICATE_EQ:
             if (!zcs_predicate_match_rows_eq(predicate, cursor, column_type,
                                              &mask, count))
@@ -604,6 +624,14 @@ enum zcs_predicate_match zcs_predicate_match_indexes(
         case ZCS_PREDICATE_TRUE:
             result = ZCS_PREDICATE_MATCH_ALL_ROWS;
             break;
+        case ZCS_PREDICATE_NULL: {
+            const struct zcs_column_index *index =
+                zcs_row_group_null_index(row_group, predicate->column);
+            if (index->min.bit && index->max.bit)
+                result = ZCS_PREDICATE_MATCH_ALL_ROWS;
+            else if (!index->min.bit && !index->max.bit)
+                result = ZCS_PREDICATE_MATCH_NO_ROWS;
+        } break;
         case ZCS_PREDICATE_EQ:
             result = zcs_predicate_match_index_eq(predicate, type, index);
             break;
@@ -671,6 +699,9 @@ static int zcs_predicate_cost(const struct zcs_predicate *predicate,
     int cost = 0;
     switch (predicate->type) {
         case ZCS_PREDICATE_TRUE:
+            break;
+        case ZCS_PREDICATE_NULL:
+            cost = zcs_column_cost(ZCS_COLUMN_BIT);
             break;
         case ZCS_PREDICATE_EQ:
         case ZCS_PREDICATE_LT:

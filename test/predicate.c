@@ -12,6 +12,7 @@ static const uint64_t all_rows = (1 << ROW_COUNT) - 1;
 struct zcs_predicate_fixture {
     struct zcs_row_group *row_group;
     struct zcs_column *columns[COLUMN_COUNT];
+    struct zcs_column *nulls[COLUMN_COUNT];
     struct zcs_row_group_cursor *cursor;
 };
 
@@ -33,18 +34,16 @@ static void *setup(const MunitParameter params[], void *data)
     fixture->row_group = zcs_row_group_new();
     assert_not_null(fixture->row_group);
 
-    fixture->columns[0] = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODING_NONE);
-    fixture->columns[1] = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODING_NONE);
-    fixture->columns[2] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
-    fixture->columns[3] = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODING_NONE);
+    enum zcs_column_type types[] = {
+        ZCS_COLUMN_I32, ZCS_COLUMN_I64, ZCS_COLUMN_BIT, ZCS_COLUMN_STR,
+        ZCS_COLUMN_I32, ZCS_COLUMN_I64, ZCS_COLUMN_BIT, ZCS_COLUMN_BIT};
 
-    fixture->columns[4] = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODING_NONE);
-    fixture->columns[5] = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODING_NONE);
-    fixture->columns[6] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
-    fixture->columns[7] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
-
-    for (size_t i = 0; i < COLUMN_COUNT; i++)
+    for (size_t i = 0; i < COLUMN_COUNT; i++) {
+        fixture->columns[i] = zcs_column_new(types[i], ZCS_ENCODING_NONE);
         assert_not_null(fixture->columns[i]);
+        fixture->nulls[i] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
+        assert_not_null(fixture->nulls[i]);
+    }
 
     char buffer[64];
     for (size_t i = 0; i < ROW_COUNT; i++) {
@@ -59,11 +58,17 @@ static void *setup(const MunitParameter params[], void *data)
 
         assert_true(zcs_column_put_bit(fixture->columns[6], false));
         assert_true(zcs_column_put_bit(fixture->columns[7], true));
+
+        assert_true(zcs_column_put_bit(fixture->nulls[0], i % 2 == 0));
+        assert_true(zcs_column_put_bit(fixture->nulls[1], i % 3 == 0));
+        assert_true(zcs_column_put_bit(fixture->nulls[2], true));
+        for (size_t j = 3; j < COLUMN_COUNT; j++)
+            assert_true(zcs_column_put_bit(fixture->nulls[j], false));
     }
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
-        assert_true(
-            zcs_row_group_add_column(fixture->row_group, fixture->columns[i]));
+        assert_true(zcs_row_group_add_column(
+            fixture->row_group, fixture->columns[i], fixture->nulls[i]));
 
     fixture->cursor = zcs_row_group_cursor_new(fixture->row_group);
     assert_not_null(fixture->cursor);
@@ -74,8 +79,10 @@ static void *setup(const MunitParameter params[], void *data)
 static void teardown(void *ptr)
 {
     struct zcs_predicate_fixture *fixture = ptr;
-    for (size_t i = 0; i < COLUMN_COUNT; i++)
+    for (size_t i = 0; i < COLUMN_COUNT; i++) {
         zcs_column_free(fixture->columns[i]);
+        zcs_column_free(fixture->nulls[i]);
+    }
     zcs_row_group_cursor_free(fixture->cursor);
     zcs_row_group_free(fixture->row_group);
     free(fixture);
@@ -125,8 +132,10 @@ static MunitResult test_valid(const MunitParameter params[], void *ptr)
     } test_cases[] = {
         {zcs_predicate_new_true(), true},
         {zcs_predicate_new_i32_eq(0, 100), true},
+        {zcs_predicate_new_null(0), true},
         {zcs_predicate_new_i32_eq(1, 100), false},   // type mismatch
         {zcs_predicate_new_i32_eq(20, 100), false},  // column doesn't exist
+        {zcs_predicate_new_null(20), false},         // column doesn't exist
         {zcs_predicate_new_and(2, zcs_predicate_new_true(),
                                zcs_predicate_new_true()),
          true},
@@ -416,6 +425,36 @@ static MunitResult test_str_match_rows(const MunitParameter params[],
     return test_rows(fixture, test_cases, sizeof(test_cases));
 }
 
+static MunitResult test_null_match_index(const MunitParameter params[],
+                                         void *fixture)
+{
+    struct zcs_predicate_index_test_case test_cases[] = {
+        {zcs_predicate_new_null(0), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_null(1), ZCS_PREDICATE_MATCH_UNKNOWN},
+        {zcs_predicate_new_null(2), ZCS_PREDICATE_MATCH_ALL_ROWS},
+        {zcs_predicate_negate(zcs_predicate_new_null(2)),
+         ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_new_null(3), ZCS_PREDICATE_MATCH_NO_ROWS},
+        {zcs_predicate_negate(zcs_predicate_new_null(3)),
+         ZCS_PREDICATE_MATCH_ALL_ROWS},
+    };
+
+    return test_indexes(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_null_match_rows(const MunitParameter params[],
+                                        void *fixture)
+{
+    struct zcs_predicate_row_test_case test_cases[] = {
+        {zcs_predicate_new_true(), all_rows},
+        {zcs_predicate_new_null(0), 0x155},  // 0b0101010101
+        {zcs_predicate_new_null(1), 0x249},  // 0b1001001001
+        {zcs_predicate_new_null(2), all_rows},
+        {zcs_predicate_new_null(3), 0}};
+
+    return test_rows(fixture, test_cases, sizeof(test_cases));
+}
+
 static MunitResult test_optimize(const MunitParameter params[], void *ptr)
 {
     struct zcs_predicate_fixture *fixture = ptr;
@@ -456,8 +495,6 @@ static MunitResult test_optimize(const MunitParameter params[], void *ptr)
     assert_ptr_equal(operands[0], p_bit);
     assert_ptr_equal(operands[1], p_i32);
 
-    // FIXME: check operands are now sorted by cost asc
-
     // noops:
     zcs_predicate_optimize(p_true, fixture->row_group);
     zcs_predicate_optimize(p_i32, fixture->row_group);
@@ -485,6 +522,10 @@ MunitTest predicate_tests[] = {
     {"/str-match-index", test_str_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/str-match-rows", test_str_match_rows, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/null-match-index", test_null_match_index, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/null-match-rows", test_null_match_rows, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/optimize", test_optimize, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};

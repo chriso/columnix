@@ -235,9 +235,9 @@ error:
     return NULL;
 }
 
-bool zcs_reader_query(struct zcs_reader *reader, int thread_count,
-                      void *data, void (*iter)(struct zcs_row_cursor *,
-                                               pthread_mutex_t *, void *))
+bool zcs_reader_query(struct zcs_reader *reader, int thread_count, void *data,
+                      void (*iter)(struct zcs_row_cursor *, pthread_mutex_t *,
+                                   void *))
 {
     if (thread_count <= 0)
         return false;
@@ -293,6 +293,14 @@ enum zcs_compression_type zcs_reader_column_compression(
     const struct zcs_reader *reader, size_t column)
 {
     return zcs_row_group_reader_column_compression(reader->reader, column);
+}
+
+bool zcs_reader_get_null(const struct zcs_reader *reader, size_t column_index,
+                         bool *value)
+{
+    if (!reader->row_cursor)
+        return false;
+    return zcs_row_cursor_get_null(reader->row_cursor, column_index, value);
 }
 
 bool zcs_reader_get_bit(const struct zcs_reader *reader, size_t column_index,
@@ -451,8 +459,12 @@ struct zcs_row_group *zcs_row_group_reader_get(
     for (size_t i = 0; i < reader->columns.count; i++) {
         const struct zcs_column_descriptor *descriptor =
             &reader->columns.descriptors[i];
-        const struct zcs_column_header *header = &columns_headers[i];
+        const struct zcs_column_header *header = &columns_headers[i * 2];
         if (header->offset + header->size > reader->file_size)
+            goto error;
+        const struct zcs_column_header *null_header =
+            &columns_headers[i * 2 + 1];
+        if (null_header->offset + null_header->size > reader->file_size)
             goto error;
 
         struct zcs_lazy_column column = {
@@ -462,10 +474,18 @@ struct zcs_row_group *zcs_row_group_reader_get(
             .index = &header->index,
             .ptr = zcs_row_group_reader_at(reader, header->offset),
             .size = header->size,
-            .decompressed_size = header->decompressed_size
-        };
+            .decompressed_size = header->decompressed_size};
 
-        if (!zcs_row_group_add_lazy_column(row_group, &column))
+        struct zcs_lazy_column nulls = {
+            .type = ZCS_COLUMN_BIT,
+            .encoding = ZCS_ENCODING_NONE,
+            .compression = null_header->compression,
+            .index = &null_header->index,
+            .ptr = zcs_row_group_reader_at(reader, null_header->offset),
+            .size = null_header->size,
+            .decompressed_size = null_header->decompressed_size};
+
+        if (!zcs_row_group_add_lazy_column(row_group, &column, &nulls))
             goto error;
     }
     return row_group;

@@ -36,6 +36,8 @@ bool zcs_column_put_i32(struct zcs_column *, int32_t);
 bool zcs_column_put_i64(struct zcs_column *, int64_t);
 bool zcs_column_put_str(struct zcs_column *, const char *);
 
+bool zcs_column_put_unit(struct zcs_column *);
+
 struct zcs_column_cursor *zcs_column_cursor_new(const struct zcs_column *);
 
 void zcs_column_cursor_free(struct zcs_column_cursor *);

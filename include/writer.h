@@ -17,6 +17,7 @@ bool zcs_writer_put_bit(struct zcs_writer *, size_t, bool);
 bool zcs_writer_put_i32(struct zcs_writer *, size_t, int32_t);
 bool zcs_writer_put_i64(struct zcs_writer *, size_t, int64_t);
 bool zcs_writer_put_str(struct zcs_writer *, size_t, const char *);
+bool zcs_writer_put_null(struct zcs_writer *, size_t);
 
 bool zcs_writer_finish(struct zcs_writer *, bool sync);
 
