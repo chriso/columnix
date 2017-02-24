@@ -36,6 +36,8 @@ enum zcs_encoding_type zcs_reader_column_encoding(const struct zcs_reader *,
 enum zcs_compression_type zcs_reader_column_compression(
     const struct zcs_reader *, size_t);
 
+bool zcs_reader_get_null(const struct zcs_reader *, size_t column_index,
+                         bool *value);
 bool zcs_reader_get_bit(const struct zcs_reader *, size_t column_index,
                         bool *value);
 bool zcs_reader_get_i32(const struct zcs_reader *, size_t column_index,

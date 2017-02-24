@@ -117,13 +117,11 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
     const struct zcs_column_index *index = zcs_column_index(column);
     if (!zcs_row_group_valid_column(row_group, index))
         return false;
-    if (nulls) {
-        if (zcs_column_type(nulls) != ZCS_COLUMN_BIT)
-            return false;
-        const struct zcs_column_index *null_index = zcs_column_index(nulls);
-        if (!zcs_row_group_valid_column(row_group, null_index))
-            return false;
-    }
+    if (zcs_column_type(nulls) != ZCS_COLUMN_BIT)
+        return false;
+    const struct zcs_column_index *null_index = zcs_column_index(nulls);
+    if (!zcs_row_group_valid_column(row_group, null_index))
+        return false;
     if (!zcs_row_group_ensure_column_size(row_group))
         return false;
     struct zcs_row_group_column *row_group_column =
@@ -133,13 +131,9 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
     row_group_column->values.column = column;
     row_group_column->values.index = index;
     row_group_column->lazy = false;
-    if (nulls) {
-        row_group_column->nullable = true;
-        row_group_column->nulls.column = nulls;
-        row_group_column->nulls.index = zcs_column_index(nulls);
-    } else {
-        row_group_column->nullable = false;
-    }
+    row_group_column->nulls.column = nulls;
+    row_group_column->nulls.index = zcs_column_index(nulls);
+    row_group_column->nullable = true;
     return true;
 }
 

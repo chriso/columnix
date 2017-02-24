@@ -304,14 +304,17 @@ static MunitResult test_empty_columns(const MunitParameter params[], void *ptr)
         assert_not_null(row_group);
         struct zcs_column *column = zcs_column_new(ZCS_COLUMN_I32, 0);
         assert_not_null(column);
+        struct zcs_column *nulls = zcs_column_new(ZCS_COLUMN_BIT, 0);
+        assert_not_null(nulls);
         assert_true(zcs_row_group_writer_add_column(writer, ZCS_COLUMN_I32, 0,
                                                     compression, level));
-        assert_true(zcs_row_group_add_column(row_group, column, NULL));
+        assert_true(zcs_row_group_add_column(row_group, column, nulls));
         assert_true(zcs_row_group_writer_put(writer, row_group));
         assert_true(zcs_row_group_writer_finish(writer, true));
         zcs_row_group_writer_free(writer);
         zcs_row_group_free(row_group);
         zcs_column_free(column);
+        zcs_column_free(nulls);
 
         // high-level reader
         struct zcs_reader *reader = zcs_reader_new(fixture->temp_file);

@@ -13,9 +13,14 @@
 #include "file.h"
 #include "writer.h"
 
+struct zcs_writer_physical_column {
+    struct zcs_column *values;
+    struct zcs_column *nulls;
+};
+
 struct zcs_writer {
     struct zcs_row_group_writer *writer;
-    struct zcs_column **columns;
+    struct zcs_writer_physical_column *columns;
     size_t row_group_size;
     size_t column_count;
     size_t position;
@@ -56,8 +61,10 @@ error:
 void zcs_writer_free(struct zcs_writer *writer)
 {
     if (writer->columns) {
-        for (size_t i = 0; i < writer->column_count; i++)
-            zcs_column_free(writer->columns[i]);
+        for (size_t i = 0; i < writer->column_count; i++) {
+            zcs_column_free(writer->columns[i].values);
+            zcs_column_free(writer->columns[i].nulls);
+        }
         free(writer->columns);
     }
     zcs_row_group_writer_free(writer->writer);
@@ -83,13 +90,16 @@ static bool zcs_writer_flush_row_group(struct zcs_writer *writer)
     if (!row_group)
         return false;
     for (size_t i = 0; i < writer->column_count; i++)
-        if (!zcs_row_group_add_column(row_group, writer->columns[i], NULL))
+        if (!zcs_row_group_add_column(row_group, writer->columns[i].values,
+                                      writer->columns[i].nulls))
             goto error;
     if (!zcs_row_group_writer_put(writer->writer, row_group))
         goto error;
     zcs_row_group_free(row_group);
-    for (size_t i = 0; i < writer->column_count; i++)
-        zcs_column_free(writer->columns[i]);
+    for (size_t i = 0; i < writer->column_count; i++) {
+        zcs_column_free(writer->columns[i].values);
+        zcs_column_free(writer->columns[i].nulls);
+    }
     free(writer->columns);
     writer->columns = NULL;
     writer->position = 0;
@@ -108,16 +118,23 @@ static bool zcs_writer_ensure_columns(struct zcs_writer *writer)
     for (size_t i = 0; i < writer->column_count; i++) {
         struct zcs_column_descriptor *descriptor =
             &writer->writer->columns.descriptors[i];
-        writer->columns[i] =
+        writer->columns[i].values =
             zcs_column_new(descriptor->type, descriptor->encoding);
-        if (!writer->columns[i])
+        if (!writer->columns[i].values)
+            goto error;
+        writer->columns[i].nulls =
+            zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
+        if (!writer->columns[i].nulls)
             goto error;
     }
     return true;
 error:
-    for (size_t i = 0; i < writer->column_count; i++)
-        if (writer->columns[i])
-            zcs_column_free(writer->columns[i]);
+    for (size_t i = 0; i < writer->column_count; i++) {
+        if (writer->columns[i].values)
+            zcs_column_free(writer->columns[i].values);
+        if (writer->columns[i].nulls)
+            zcs_column_free(writer->columns[i].nulls);
+    }
     free(writer->columns);
     writer->columns = NULL;
     return false;
@@ -141,7 +158,9 @@ bool zcs_writer_put_bit(struct zcs_writer *writer, size_t column_index,
 {
     if (!zcs_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_bit(writer->columns[column_index], value))
+    if (!zcs_column_put_bit(writer->columns[column_index].values, value))
+        return false;
+    if (!zcs_column_put_bit(writer->columns[column_index].nulls, false))
         return false;
     writer->position += (column_index == 0);
     return true;
@@ -152,7 +171,9 @@ bool zcs_writer_put_i32(struct zcs_writer *writer, size_t column_index,
 {
     if (!zcs_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_i32(writer->columns[column_index], value))
+    if (!zcs_column_put_i32(writer->columns[column_index].values, value))
+        return false;
+    if (!zcs_column_put_bit(writer->columns[column_index].nulls, false))
         return false;
     writer->position += (column_index == 0);
     return true;
@@ -163,7 +184,9 @@ bool zcs_writer_put_i64(struct zcs_writer *writer, size_t column_index,
 {
     if (!zcs_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_i64(writer->columns[column_index], value))
+    if (!zcs_column_put_i64(writer->columns[column_index].values, value))
+        return false;
+    if (!zcs_column_put_bit(writer->columns[column_index].nulls, false))
         return false;
     writer->position += (column_index == 0);
     return true;
@@ -174,7 +197,21 @@ bool zcs_writer_put_str(struct zcs_writer *writer, size_t column_index,
 {
     if (!zcs_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_str(writer->columns[column_index], value))
+    if (!zcs_column_put_str(writer->columns[column_index].values, value))
+        return false;
+    if (!zcs_column_put_bit(writer->columns[column_index].nulls, false))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
+bool zcs_writer_put_null(struct zcs_writer *writer, size_t column_index)
+{
+    if (!zcs_writer_put_check(writer, column_index))
+        return false;
+    if (!zcs_column_put_unit(writer->columns[column_index].values))
+        return false;
+    if (!zcs_column_put_bit(writer->columns[column_index].nulls, true))
         return false;
     writer->position += (column_index == 0);
     return true;

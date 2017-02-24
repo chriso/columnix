@@ -295,6 +295,14 @@ enum zcs_compression_type zcs_reader_column_compression(
     return zcs_row_group_reader_column_compression(reader->reader, column);
 }
 
+bool zcs_reader_get_null(const struct zcs_reader *reader, size_t column_index,
+                         bool *value)
+{
+    if (!reader->row_cursor)
+        return false;
+    return zcs_row_cursor_get_null(reader->row_cursor, column_index, value);
+}
+
 bool zcs_reader_get_bit(const struct zcs_reader *reader, size_t column_index,
                         bool *value)
 {
