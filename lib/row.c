@@ -108,6 +108,20 @@ size_t zcs_row_cursor_count(struct zcs_row_cursor *cursor)
     return count;
 }
 
+bool zcs_row_cursor_get_null(const struct zcs_row_cursor *cursor,
+                             size_t column_index, bool *value)
+{
+    assert(cursor->row_mask);
+    size_t count;
+    const uint64_t *nulls =
+        zcs_row_group_cursor_batch_nulls(cursor->cursor, column_index, &count);
+    uint64_t row_bit = (uint64_t)1 << cursor->position;
+    if (!count || !nulls)
+        return false;
+    *value = *nulls & row_bit;
+    return true;
+}
+
 bool zcs_row_cursor_get_bit(const struct zcs_row_cursor *cursor,
                             size_t column_index, bool *value)
 {

@@ -18,6 +18,8 @@ bool zcs_row_cursor_error(const struct zcs_row_cursor *);
 
 size_t zcs_row_cursor_count(struct zcs_row_cursor *);
 
+bool zcs_row_cursor_get_null(const struct zcs_row_cursor *, size_t column_index,
+                             bool *value);
 bool zcs_row_cursor_get_bit(const struct zcs_row_cursor *, size_t column_index,
                             bool *value);
 bool zcs_row_cursor_get_i32(const struct zcs_row_cursor *, size_t column_index,

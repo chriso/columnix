@@ -10,6 +10,7 @@
 struct zcs_row_fixture {
     struct zcs_row_group *row_group;
     struct zcs_column *columns[COLUMN_COUNT];
+    struct zcs_column *nulls[COLUMN_COUNT];
     struct zcs_row_cursor *cursor;
     struct zcs_predicate *predicate;
 };
@@ -22,13 +23,15 @@ static void *setup(const MunitParameter params[], void *data)
     fixture->row_group = zcs_row_group_new();
     assert_not_null(fixture->row_group);
 
-    fixture->columns[0] = zcs_column_new(ZCS_COLUMN_I32, ZCS_ENCODING_NONE);
-    fixture->columns[1] = zcs_column_new(ZCS_COLUMN_I64, ZCS_ENCODING_NONE);
-    fixture->columns[2] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
-    fixture->columns[3] = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODING_NONE);
+    enum zcs_column_type types[] = {ZCS_COLUMN_I32, ZCS_COLUMN_I64,
+                                    ZCS_COLUMN_BIT, ZCS_COLUMN_STR};
 
-    for (size_t i = 0; i < COLUMN_COUNT; i++)
+    for (size_t i = 0; i < COLUMN_COUNT; i++) {
+        fixture->columns[i] = zcs_column_new(types[i], ZCS_ENCODING_NONE);
         assert_not_null(fixture->columns[i]);
+        fixture->nulls[i] = zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
+        assert_not_null(fixture->nulls[i]);
+    }
 
     char buffer[64];
     for (size_t i = 0; i < ROW_COUNT; i++) {
@@ -37,11 +40,16 @@ static void *setup(const MunitParameter params[], void *data)
         assert_true(zcs_column_put_bit(fixture->columns[2], i % 3 == 0));
         sprintf(buffer, "zcs %zu", i);
         assert_true(zcs_column_put_str(fixture->columns[3], buffer));
+
+        assert_true(zcs_column_put_bit(fixture->nulls[0], i % 2 == 0));
+        assert_true(zcs_column_put_bit(fixture->nulls[1], i % 3 == 0));
+        assert_true(zcs_column_put_bit(fixture->nulls[2], true));
+        assert_true(zcs_column_put_bit(fixture->nulls[3], false));
     }
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
-        assert_true(zcs_row_group_add_column(fixture->row_group,
-                                             fixture->columns[i], NULL));
+        assert_true(zcs_row_group_add_column(
+            fixture->row_group, fixture->columns[i], fixture->nulls[i]));
 
     fixture->predicate = zcs_predicate_new_true();
     assert_not_null(fixture->predicate);
@@ -58,8 +66,10 @@ static void teardown(void *ptr)
     struct zcs_row_fixture *fixture = ptr;
     zcs_row_cursor_free(fixture->cursor);
     zcs_predicate_free(fixture->predicate);
-    for (size_t i = 0; i < COLUMN_COUNT; i++)
+    for (size_t i = 0; i < COLUMN_COUNT; i++) {
         zcs_column_free(fixture->columns[i]);
+        zcs_column_free(fixture->nulls[i]);
+    }
     zcs_row_group_free(fixture->row_group);
     free(fixture);
 }
@@ -80,6 +90,22 @@ static void test_cursor_position(struct zcs_row_cursor *cursor, size_t expected)
         assert_true(bit);
     else
         assert_false(bit);
+
+    bool null;
+    assert_true(zcs_row_cursor_get_null(cursor, 0, &null));
+    if (expected % 2 == 0)
+        assert_true(null);
+    else
+        assert_false(null);
+    assert_true(zcs_row_cursor_get_null(cursor, 1, &null));
+    if (expected % 3 == 0)
+        assert_true(null);
+    else
+        assert_false(null);
+    assert_true(zcs_row_cursor_get_null(cursor, 2, &null));
+    assert_true(null);
+    assert_true(zcs_row_cursor_get_null(cursor, 3, &null));
+    assert_false(null);
 
     const struct zcs_string *string;
     assert_true(zcs_row_cursor_get_str(cursor, 3, &string));
