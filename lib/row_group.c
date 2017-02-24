@@ -18,7 +18,6 @@ struct zcs_row_group_column {
     enum zcs_encoding_type encoding;
     struct zcs_row_group_physical_column values;
     struct zcs_row_group_physical_column nulls;
-    bool nullable;
     bool lazy;
 };
 
@@ -73,7 +72,7 @@ void zcs_row_group_free(struct zcs_row_group *row_group)
         if (row_group_column->lazy) {
             if (row_group_column->values.column)
                 zcs_column_free(row_group_column->values.column);
-            if (row_group_column->nullable && row_group_column->nulls.column)
+            if (row_group_column->nulls.column)
                 zcs_column_free(row_group_column->nulls.column);
         }
     }
@@ -133,7 +132,6 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
     row_group_column->lazy = false;
     row_group_column->nulls.column = nulls;
     row_group_column->nulls.index = zcs_column_index(nulls);
-    row_group_column->nullable = true;
     return true;
 }
 
@@ -143,12 +141,10 @@ bool zcs_row_group_add_lazy_column(struct zcs_row_group *row_group,
 {
     if (!zcs_row_group_valid_column(row_group, column->index))
         return false;
-    if (nulls) {
-        if (nulls->type != ZCS_COLUMN_BIT)
-            return false;
-        if (!zcs_row_group_valid_column(row_group, nulls->index))
-            return false;
-    }
+    if (nulls->type != ZCS_COLUMN_BIT)
+        return false;
+    if (!zcs_row_group_valid_column(row_group, nulls->index))
+        return false;
     if (!zcs_row_group_ensure_column_size(row_group))
         return false;
     struct zcs_row_group_column *row_group_column =
@@ -159,14 +155,9 @@ bool zcs_row_group_add_lazy_column(struct zcs_row_group *row_group,
     row_group_column->values.column = NULL;
     memcpy(&row_group_column->values.lazy_column, column, sizeof(*column));
     row_group_column->lazy = true;
-    if (nulls) {
-        row_group_column->nullable = true;
-        row_group_column->nulls.column = NULL;
-        row_group_column->nulls.index = nulls->index;
-        memcpy(&row_group_column->nulls.lazy_column, nulls, sizeof(*nulls));
-    } else {
-        row_group_column->nullable = false;
-    }
+    row_group_column->nulls.column = NULL;
+    row_group_column->nulls.index = nulls->index;
+    memcpy(&row_group_column->nulls.lazy_column, nulls, sizeof(*nulls));
     return true;
 }
 

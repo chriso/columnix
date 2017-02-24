@@ -13,6 +13,9 @@
 #include "file.h"
 #include "writer.h"
 
+#define ZCS_NULL_COMPRESSION_TYPE ZCS_COMPRESSION_NONE
+#define ZCS_NULL_COMPRESSION_LEVEL 0
+
 struct zcs_writer_physical_column {
     struct zcs_column *values;
     struct zcs_column *nulls;
@@ -350,6 +353,8 @@ static bool zcs_row_group_writer_put_column(
     header->size = column_size;
     if (!zcs_row_group_writer_write(writer, buffer, column_size))
         goto error;
+    if (compressed)
+        free(compressed);
     return true;
 error:
     if (compressed)
@@ -401,7 +406,7 @@ bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
 
     size_t row_group_offset = zcs_row_group_writer_offset(writer);
 
-    size_t headers_size = column_count * sizeof(struct zcs_column_header);
+    size_t headers_size = 2 * column_count * sizeof(struct zcs_column_header);
     struct zcs_column_header *headers = calloc(column_count, headers_size);
     if (!headers)
         goto error;
@@ -411,11 +416,16 @@ bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
         const struct zcs_column_descriptor *descriptor =
             &writer->columns.descriptors[i];
         const struct zcs_column *column = zcs_row_group_column(row_group, i);
-        if (!column)
+        const struct zcs_column *nulls = zcs_row_group_nulls(row_group, i);
+        if (!column || !nulls)
             goto error;
-        if (!zcs_row_group_writer_put_column(writer, column, &headers[i],
+        if (!zcs_row_group_writer_put_column(writer, column, &headers[i * 2],
                                              descriptor->compression,
                                              descriptor->level))
+            goto error;
+        if (!zcs_row_group_writer_put_column(writer, nulls, &headers[i * 2 + 1],
+                                             ZCS_NULL_COMPRESSION_TYPE,
+                                             ZCS_NULL_COMPRESSION_LEVEL))
             goto error;
     }
 

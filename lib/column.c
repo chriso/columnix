@@ -266,7 +266,7 @@ bool zcs_column_put_unit(struct zcs_column *column)
         case ZCS_COLUMN_BIT:
             return zcs_column_put_bit(column, false);
         case ZCS_COLUMN_STR:
-            return zcs_column_put_bit(column, "");
+            return zcs_column_put_str(column, "");
     }
     return false;
 }
