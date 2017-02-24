@@ -235,9 +235,9 @@ error:
     return NULL;
 }
 
-bool zcs_reader_query(struct zcs_reader *reader, int thread_count,
-                      void *data, void (*iter)(struct zcs_row_cursor *,
-                                               pthread_mutex_t *, void *))
+bool zcs_reader_query(struct zcs_reader *reader, int thread_count, void *data,
+                      void (*iter)(struct zcs_row_cursor *, pthread_mutex_t *,
+                                   void *))
 {
     if (thread_count <= 0)
         return false;
@@ -462,10 +462,9 @@ struct zcs_row_group *zcs_row_group_reader_get(
             .index = &header->index,
             .ptr = zcs_row_group_reader_at(reader, header->offset),
             .size = header->size,
-            .decompressed_size = header->decompressed_size
-        };
+            .decompressed_size = header->decompressed_size};
 
-        if (!zcs_row_group_add_lazy_column(row_group, &column))
+        if (!zcs_row_group_add_lazy_column(row_group, &column, NULL))
             goto error;
     }
     return row_group;

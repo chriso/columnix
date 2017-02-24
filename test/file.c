@@ -306,7 +306,7 @@ static MunitResult test_empty_columns(const MunitParameter params[], void *ptr)
         assert_not_null(column);
         assert_true(zcs_row_group_writer_add_column(writer, ZCS_COLUMN_I32, 0,
                                                     compression, level));
-        assert_true(zcs_row_group_add_column(row_group, column));
+        assert_true(zcs_row_group_add_column(row_group, column, NULL));
         assert_true(zcs_row_group_writer_put(writer, row_group));
         assert_true(zcs_row_group_writer_finish(writer, true));
         zcs_row_group_writer_free(writer);

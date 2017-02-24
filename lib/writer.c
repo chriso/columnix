@@ -83,7 +83,7 @@ static bool zcs_writer_flush_row_group(struct zcs_writer *writer)
     if (!row_group)
         return false;
     for (size_t i = 0; i < writer->column_count; i++)
-        if (!zcs_row_group_add_column(row_group, writer->columns[i]))
+        if (!zcs_row_group_add_column(row_group, writer->columns[i], NULL))
             goto error;
     if (!zcs_row_group_writer_put(writer->writer, row_group))
         goto error;

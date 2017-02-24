@@ -62,8 +62,8 @@ static void *setup(const MunitParameter params[], void *data)
     }
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
-        assert_true(
-            zcs_row_group_add_column(fixture->row_group, fixture->columns[i]));
+        assert_true(zcs_row_group_add_column(fixture->row_group,
+                                             fixture->columns[i], NULL));
 
     fixture->cursor = zcs_row_group_cursor_new(fixture->row_group);
     assert_not_null(fixture->cursor);
