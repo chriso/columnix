@@ -59,10 +59,10 @@ zcs_writer_add_column = libzcs.zcs_writer_add_column
 zcs_writer_add_column.argtypes = [c_void_p, c_int, c_int, c_int, c_int]
 
 zcs_writer_put_null = libzcs.zcs_writer_put_null
-zcs_writer_put_null.argtypes = [c_void_p, c_bool]
+zcs_writer_put_null.argtypes = [c_void_p, c_size_t]
 
 zcs_writer_put_bit = libzcs.zcs_writer_put_bit
-zcs_writer_put_bit.argtypes = [c_void_p, c_bool]
+zcs_writer_put_bit.argtypes = [c_void_p, c_size_t, c_bool]
 
 zcs_writer_put_i32 = libzcs.zcs_writer_put_i32
 zcs_writer_put_i32.argtypes = [c_void_p, c_size_t, c_int32]

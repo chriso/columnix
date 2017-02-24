@@ -116,10 +116,9 @@ bool zcs_row_group_add_column(struct zcs_row_group *row_group,
     const struct zcs_column_index *index = zcs_column_index(column);
     if (!zcs_row_group_valid_column(row_group, index))
         return false;
-    if (zcs_column_type(nulls) != ZCS_COLUMN_BIT)
-        return false;
     const struct zcs_column_index *null_index = zcs_column_index(nulls);
-    if (!zcs_row_group_valid_column(row_group, null_index))
+    if (zcs_column_type(nulls) != ZCS_COLUMN_BIT ||
+        null_index->count != index->count)
         return false;
     if (!zcs_row_group_ensure_column_size(row_group))
         return false;
@@ -141,9 +140,8 @@ bool zcs_row_group_add_lazy_column(struct zcs_row_group *row_group,
 {
     if (!zcs_row_group_valid_column(row_group, column->index))
         return false;
-    if (nulls->type != ZCS_COLUMN_BIT)
-        return false;
-    if (!zcs_row_group_valid_column(row_group, nulls->index))
+    if (nulls->type != ZCS_COLUMN_BIT ||
+        nulls->index->count != column->index->count)
         return false;
     if (!zcs_row_group_ensure_column_size(row_group))
         return false;
