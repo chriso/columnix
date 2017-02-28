@@ -6,8 +6,8 @@ CFLAGS += $(BASE_CFLAGS) -pthread
 PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
 
-JAVA_HOME = $(shell /usr/libexec/java_home)
-JAVA_OS = $(shell uname -s | tr A-Z a-z)
+JAVA_HOME := $(shell /usr/libexec/java_home)
+JAVA_OS := $(shell uname -s | tr A-Z a-z)
 CFLAGS += -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(JAVA_OS)
 
 ifeq ($(release), 1)
@@ -35,11 +35,11 @@ else
   LIB = lib/libzcs.so
 endif
 
-SRC = $(wildcard lib/*.c)
-OBJ = $(SRC:.c=.o)
+SRC := $(wildcard lib/*.c)
+OBJ := $(SRC:.c=.o)
 
-TEST_SRC = $(wildcard test/*.c)
-TEST_OBJ = $(TEST_SRC:.c=.o)
+TEST_SRC := $(wildcard test/*.c)
+TEST_OBJ := $(TEST_SRC:.c=.o)
 
 TESTS = test/runner
 
