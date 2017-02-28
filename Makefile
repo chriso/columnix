@@ -6,6 +6,10 @@ CFLAGS += $(BASE_CFLAGS) -pthread
 PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
 
+JAVA_HOME = $(shell /usr/libexec/java_home)
+JAVA_OS = $(shell uname -s | tr A-Z a-z)
+CFLAGS += -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(JAVA_OS)
+
 ifeq ($(release), 1)
   CFLAGS += -O3 -march=native -DZCS_AVX2
 endif
