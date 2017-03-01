@@ -9,11 +9,27 @@ void Java_zcs_jni_Reader_nativeFree(JNIEnv *, jobject, jlong);
 
 jlong Java_zcs_jni_Reader_nativeColumnCount(JNIEnv *, jobject, jlong);
 
+jlong Java_zcs_jni_Reader_nativeRowCount(JNIEnv *, jobject, jlong);
+
+void Java_zcs_jni_Reader_nativeRewind(JNIEnv *, jobject, jlong);
+
+jboolean Java_zcs_jni_Reader_nativeNext(JNIEnv *, jobject, jlong);
+
 jint Java_zcs_jni_Reader_nativeColumnType(JNIEnv *, jobject, jlong, jint);
 
 jint Java_zcs_jni_Reader_nativeColumnEncoding(JNIEnv *, jobject, jlong, jint);
 
 jint Java_zcs_jni_Reader_nativeColumnCompression(JNIEnv *, jobject, jlong,
                                                  jint);
+
+jboolean Java_zcs_jni_Reader_nativeIsNull(JNIEnv *, jobject, jlong, jint);
+
+jboolean Java_zcs_jni_Reader_nativeGetBoolean(JNIEnv *, jobject, jlong, jint);
+
+jint Java_zcs_jni_Reader_nativeGetInt(JNIEnv *, jobject, jlong, jint);
+
+jlong Java_zcs_jni_Reader_nativeGetLong(JNIEnv *, jobject, jlong, jint);
+
+jstring Java_zcs_jni_Reader_nativeGetString(JNIEnv *, jobject, jlong, jint);
 
 #endif
