@@ -1,5 +1,6 @@
 #include "java.h"
 #include "reader.h"
+#include "writer.h"
 
 static void zcs_java_throw(JNIEnv *env, const char *class, const char *msg)
 {
@@ -213,4 +214,117 @@ jstring Java_zcs_jni_Reader_nativeGetString(JNIEnv *env, jobject this,
         return NULL;
     }
     return (*env)->NewStringUTF(env, value->ptr);
+}
+
+jlong Java_zcs_jni_Writer_nativeNew(JNIEnv *, jobject, jstring, jlong);
+void Java_zcs_jni_Writer_nativeFree(JNIEnv *, jobject, jlong);
+void Java_zcs_jni_Writer_nativeFinish(JNIEnv *, jobject, jlong, jboolean);
+
+jlong Java_zcs_jni_Writer_nativeNew(JNIEnv *env, jobject this,
+                                    jstring java_path, jlong row_group_size)
+{
+    if (row_group_size <= 0) {
+        zcs_java_throw(env, "java/lang/IllegalArgumentException",
+                       "row group size <= 0");
+        return 0;
+    }
+    const char *path = zcs_java_string_new(env, java_path);
+    struct zcs_writer *writer = zcs_writer_new(path, row_group_size);
+    zcs_java_string_free(env, java_path, path);
+    if (!writer)
+        goto error;
+    return (jlong)writer;
+error:
+    zcs_java_throw(env, "java/lang/Exception", "zcs_writer_new()");
+    return 0;
+}
+
+static struct zcs_writer *zcs_java_writer_cast(JNIEnv *env, jlong ptr)
+{
+    struct zcs_writer *writer = (struct zcs_writer *)ptr;
+    if (!writer)
+        zcs_java_npe(env, "writer ptr");
+    return writer;
+}
+
+void Java_zcs_jni_Writer_nativeFree(JNIEnv *env, jobject this, jlong ptr)
+{
+    struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    zcs_writer_free(writer);
+}
+
+void Java_zcs_jni_Writer_nativeFinish(JNIEnv *env, jobject this, jlong ptr,
+                                      jboolean sync)
+{
+    struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    if (!zcs_writer_finish(writer, sync))
+        zcs_java_throw(env, "java/lang/Exception", "zcs_writer_finish()");
+}
+
+void Java_zcs_jni_Writer_nativeAddColumn(JNIEnv *env, jobject this, jlong ptr,
+                                         jint type, jint encoding,
+                                         jint compression, jint level)
+{
+    struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    if (!zcs_writer_add_column(writer, type, encoding, compression, level))
+        zcs_java_throw(env, "java/lang/Exception", "zcs_writer_add_column()");
+}
+
+void Java_zcs_jni_Writer_nativePutNull(JNIEnv *env, jobject this, jlong ptr,
+                                       jint index)
+{
+    struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    if (!zcs_writer_put_null(writer, index))
+        zcs_java_throw(env, "java/lang/Exception", "zcs_writer_put_null()");
+}
+
+void Java_zcs_jni_Writer_nativePutBoolean(JNIEnv *env, jobject this, jlong ptr,
+                                          jint index, jboolean value)
+{
+    struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    if (!zcs_writer_put_bit(writer, index, value))
+        zcs_java_throw(env, "java/lang/Exception", "zcs_writer_put_bit()");
+}
+
+void Java_zcs_jni_Writer_nativePutInt(JNIEnv *env, jobject this, jlong ptr,
+                                      jint index, jint value)
+{
+    struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    if (!zcs_writer_put_i32(writer, index, value))
+        zcs_java_throw(env, "java/lang/Exception", "zcs_writer_put_i32()");
+}
+
+void Java_zcs_jni_Writer_nativePutLong(JNIEnv *env, jobject this, jlong ptr,
+                                       jint index, jlong value)
+{
+    struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    if (!zcs_writer_put_i64(writer, index, value))
+        zcs_java_throw(env, "java/lang/Exception", "zcs_writer_put_i64()");
+}
+
+void Java_zcs_jni_Writer_nativePutString(JNIEnv *env, jobject this, jlong ptr,
+                                         jint index, jstring java_value)
+{
+    struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    const char *value = zcs_java_string_new(env, java_value);
+    bool ok = zcs_writer_put_str(writer, index, value);
+    zcs_java_string_free(env, java_value, value);
+    if (!ok)
+        zcs_java_throw(env, "java/lang/Exception", "zcs_writer_put_str()");
 }
