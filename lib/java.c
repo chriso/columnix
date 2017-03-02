@@ -322,9 +322,14 @@ void Java_zcs_jni_Writer_nativePutString(JNIEnv *env, jobject this, jlong ptr,
     struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
     if (!writer)
         return;
-    const char *value = zcs_java_string_new(env, java_value);
-    bool ok = zcs_writer_put_str(writer, index, value);
-    zcs_java_string_free(env, java_value, value);
+    bool ok;
+    if (!java_value) {
+        ok = zcs_writer_put_null(writer, index);
+    } else {
+        const char *value = zcs_java_string_new(env, java_value);
+        ok = zcs_writer_put_str(writer, index, value);
+        zcs_java_string_free(env, java_value, value);
+    }
     if (!ok)
         zcs_java_throw(env, "java/lang/Exception", "zcs_writer_put_str()");
 }
