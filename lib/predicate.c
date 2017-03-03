@@ -206,8 +206,11 @@ static struct zcs_predicate *zcs_predicate_new_operator(size_t count,
     predicate->operands = malloc(count * sizeof(struct zcs_predicate *));
     if (!predicate->operands)
         goto error;
-    for (size_t i = 0; i < count; i++)
+    for (size_t i = 0; i < count; i++) {
         predicate->operands[i] = va_arg(operands, struct zcs_predicate *);
+        if (!predicate->operands[i])
+            goto error;
+    }
     return predicate;
 error:
     zcs_predicate_free(predicate);
