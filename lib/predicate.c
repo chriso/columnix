@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
 #include <assert.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -219,9 +218,15 @@ struct zcs_predicate *zcs_predicate_new_and(size_t count, ...)
 {
     va_list operands;
     va_start(operands, count);
+    struct zcs_predicate *predicate = zcs_predicate_new_vand(count, operands);
+    va_end(operands);
+    return predicate;
+}
+
+struct zcs_predicate *zcs_predicate_new_vand(size_t count, va_list operands)
+{
     struct zcs_predicate *predicate =
         zcs_predicate_new_operator(count, operands);
-    va_end(operands);
     if (!predicate)
         return NULL;
     predicate->type = ZCS_PREDICATE_AND;
@@ -232,9 +237,15 @@ struct zcs_predicate *zcs_predicate_new_or(size_t count, ...)
 {
     va_list operands;
     va_start(operands, count);
+    struct zcs_predicate *predicate = zcs_predicate_new_vor(count, operands);
+    va_end(operands);
+    return predicate;
+}
+
+struct zcs_predicate *zcs_predicate_new_vor(size_t count, va_list operands)
+{
     struct zcs_predicate *predicate =
         zcs_predicate_new_operator(count, operands);
-    va_end(operands);
     if (!predicate)
         return NULL;
     predicate->type = ZCS_PREDICATE_OR;

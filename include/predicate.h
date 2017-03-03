@@ -1,6 +1,8 @@
 #ifndef ZCS_PREDICATE_H_
 #define ZCS_PREDICATE_H_
 
+#include <stdarg.h>
+
 #include "match.h"
 #include "row_group.h"
 
@@ -31,7 +33,9 @@ struct zcs_predicate *zcs_predicate_new_str_contains(size_t, const char *, bool,
                                                      enum zcs_str_location);
 
 struct zcs_predicate *zcs_predicate_new_and(size_t, ...);
+struct zcs_predicate *zcs_predicate_new_vand(size_t, va_list);
 struct zcs_predicate *zcs_predicate_new_or(size_t, ...);
+struct zcs_predicate *zcs_predicate_new_vor(size_t, va_list);
 
 bool zcs_predicate_valid(const struct zcs_predicate *,
                          const struct zcs_row_group *);
