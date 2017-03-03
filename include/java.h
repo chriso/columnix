@@ -5,7 +5,7 @@
 
 jlong Java_zcs_jni_Reader_nativeNew(JNIEnv *, jobject, jstring);
 void Java_zcs_jni_Reader_nativeFree(JNIEnv *, jobject, jlong);
-jlong Java_zcs_jni_Reader_nativeColumnCount(JNIEnv *, jobject, jlong);
+jint Java_zcs_jni_Reader_nativeColumnCount(JNIEnv *, jobject, jlong);
 jlong Java_zcs_jni_Reader_nativeRowCount(JNIEnv *, jobject, jlong);
 void Java_zcs_jni_Reader_nativeRewind(JNIEnv *, jobject, jlong);
 jboolean Java_zcs_jni_Reader_nativeNext(JNIEnv *, jobject, jlong);

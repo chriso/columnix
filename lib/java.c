@@ -53,8 +53,7 @@ void Java_zcs_jni_Reader_nativeFree(JNIEnv *env, jobject this, jlong ptr)
     zcs_reader_free(reader);
 }
 
-jlong Java_zcs_jni_Reader_nativeColumnCount(JNIEnv *env, jobject this,
-                                            jlong ptr)
+jint Java_zcs_jni_Reader_nativeColumnCount(JNIEnv *env, jobject this, jlong ptr)
 {
     struct zcs_reader *reader = zcs_java_reader_cast(env, ptr);
     if (!reader)
