@@ -4,6 +4,7 @@
 #include <jni.h>
 
 jlong Java_zcs_jni_Reader_nativeNew(JNIEnv *, jobject, jstring);
+jlong Java_zcs_jni_Reader_nativeNewMatching(JNIEnv *, jobject, jstring, jlong);
 void Java_zcs_jni_Reader_nativeFree(JNIEnv *, jobject, jlong);
 jint Java_zcs_jni_Reader_nativeColumnCount(JNIEnv *, jobject, jlong);
 jlong Java_zcs_jni_Reader_nativeRowCount(JNIEnv *, jobject, jlong);
@@ -31,5 +32,10 @@ void Java_zcs_jni_Writer_nativePutInt(JNIEnv *, jobject, jlong, jint, jint);
 void Java_zcs_jni_Writer_nativePutLong(JNIEnv *, jobject, jlong, jint, jlong);
 void Java_zcs_jni_Writer_nativePutString(JNIEnv *, jobject, jlong, jint,
                                          jstring);
+
+jlong Java_zcs_jni_predicates_Predicate_nativeNegate(JNIEnv *, jobject, jlong);
+void Java_zcs_jni_predicates_Predicate_nativeFree(JNIEnv *, jobject, jlong);
+jlong Java_zcs_jni_predicates_Equals_nativeLongEquals(JNIEnv *, jobject, jint,
+                                                      jlong);
 
 #endif

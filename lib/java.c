@@ -23,6 +23,14 @@ static void zcs_java_string_free(JNIEnv *env, jstring string, const char *ptr)
     (*env)->ReleaseStringUTFChars(env, string, ptr);
 }
 
+static struct zcs_predicate *zcs_java_predicate_cast(JNIEnv *env, jlong ptr)
+{
+    struct zcs_predicate *predicate = (struct zcs_predicate *)ptr;
+    if (!predicate)
+        zcs_java_npe(env, "predicate ptr");
+    return predicate;
+}
+
 jlong Java_zcs_jni_Reader_nativeNew(JNIEnv *env, jobject this,
                                     jstring java_path)
 {
@@ -34,6 +42,23 @@ jlong Java_zcs_jni_Reader_nativeNew(JNIEnv *env, jobject this,
     return (jlong)reader;
 error:
     zcs_java_throw(env, "java/lang/Exception", "zcs_reader_new()");
+    return 0;
+}
+
+jlong Java_zcs_jni_Reader_nativeNewMatching(JNIEnv *env, jobject this,
+                                            jstring java_path, jlong ptr)
+{
+    struct zcs_predicate *predicate = zcs_java_predicate_cast(env, ptr);
+    if (!predicate)
+        return 0;
+    const char *path = zcs_java_string_new(env, java_path);
+    struct zcs_reader *reader = zcs_reader_new_matching(path, predicate);
+    zcs_java_string_free(env, java_path, path);
+    if (!reader)
+        goto error;
+    return (jlong)reader;
+error:
+    zcs_java_throw(env, "java/lang/Exception", "zcs_reader_new_matching()");
     return 0;
 }
 
@@ -331,4 +356,36 @@ void Java_zcs_jni_Writer_nativePutString(JNIEnv *env, jobject this, jlong ptr,
     }
     if (!ok)
         zcs_java_throw(env, "java/lang/Exception", "zcs_writer_put_str()");
+}
+
+static jlong zcs_java_predicate_ptr(JNIEnv *env,
+                                    const struct zcs_predicate *ptr)
+{
+    if (!ptr)
+        zcs_java_throw(env, "java/lang/OutOfMemoryError", "");
+    return (jlong)ptr;
+}
+
+jlong Java_zcs_jni_predicates_Predicate_nativeNegate(JNIEnv *env, jobject this,
+                                                     jlong ptr)
+{
+    struct zcs_predicate *predicate = zcs_java_predicate_cast(env, ptr);
+    if (!predicate)
+        return 0;
+    return zcs_java_predicate_ptr(env, zcs_predicate_negate(predicate));
+}
+
+void Java_zcs_jni_predicates_Predicate_nativeFree(JNIEnv *env, jobject this,
+                                                  jlong ptr)
+{
+    struct zcs_predicate *predicate = zcs_java_predicate_cast(env, ptr);
+    if (!predicate)
+        return;
+    zcs_predicate_free(predicate);
+}
+
+jlong Java_zcs_jni_predicates_Equals_nativeLongEquals(JNIEnv *env, jobject this,
+                                                      jint column, jlong value)
+{
+    return zcs_java_predicate_ptr(env, zcs_predicate_new_i64_eq(column, value));
 }
