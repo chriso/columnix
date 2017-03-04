@@ -8,12 +8,12 @@ INCLUDEDIR ?= $(PREFIX)/include
 
 SRC_FILES = column.c compress.c match.c predicate.c reader.c row.c row_group.c writer.c
 
-ifeq ($(java), 1)
+#ifeq ($(java), 1)
   JAVA_HOME := $(shell /usr/libexec/java_home)
   JAVA_OS := $(shell uname -s | tr A-Z a-z)
   CFLAGS += -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(JAVA_OS)
   SRC_FILES += java.c
-endif
+#endif
 
 ifeq ($(release), 1)
   CFLAGS += -O3 -march=native -DZCS_AVX2
