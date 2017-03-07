@@ -33,9 +33,9 @@ void Java_zcs_jni_Writer_nativePutLong(JNIEnv *, jobject, jlong, jint, jlong);
 void Java_zcs_jni_Writer_nativePutString(JNIEnv *, jobject, jlong, jint,
                                          jstring);
 
-jlong Java_zcs_jni_predicates_Predicate_nativeNegate(JNIEnv *, jobject, jlong);
-void Java_zcs_jni_predicates_Predicate_nativeFree(JNIEnv *, jobject, jlong);
-jlong Java_zcs_jni_predicates_Equals_nativeLongEquals(JNIEnv *, jobject, jint,
-                                                      jlong);
+jlong Java_zcs_jni_Predicate_00024_nativeNegate(JNIEnv *, jobject, jlong);
+void Java_zcs_jni_Predicate_00024_nativeFree(JNIEnv *, jobject, jlong);
+jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *, jobject, jint,
+                                                    jlong);
 
 #endif

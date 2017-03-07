@@ -366,8 +366,8 @@ static jlong zcs_java_predicate_ptr(JNIEnv *env,
     return (jlong)ptr;
 }
 
-jlong Java_zcs_jni_predicates_Predicate_nativeNegate(JNIEnv *env, jobject this,
-                                                     jlong ptr)
+jlong Java_zcs_jni_Predicate_00024_nativeNegate(JNIEnv *env, jobject this,
+                                                jlong ptr)
 {
     struct zcs_predicate *predicate = zcs_java_predicate_cast(env, ptr);
     if (!predicate)
@@ -375,8 +375,8 @@ jlong Java_zcs_jni_predicates_Predicate_nativeNegate(JNIEnv *env, jobject this,
     return zcs_java_predicate_ptr(env, zcs_predicate_negate(predicate));
 }
 
-void Java_zcs_jni_predicates_Predicate_nativeFree(JNIEnv *env, jobject this,
-                                                  jlong ptr)
+void Java_zcs_jni_Predicate_00024_nativeFree(JNIEnv *env, jobject this,
+                                             jlong ptr)
 {
     struct zcs_predicate *predicate = zcs_java_predicate_cast(env, ptr);
     if (!predicate)
@@ -384,8 +384,8 @@ void Java_zcs_jni_predicates_Predicate_nativeFree(JNIEnv *env, jobject this,
     zcs_predicate_free(predicate);
 }
 
-jlong Java_zcs_jni_predicates_Equals_nativeLongEquals(JNIEnv *env, jobject this,
-                                                      jint column, jlong value)
+jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *env, jobject this,
+                                                    jint column, jlong value)
 {
     return zcs_java_predicate_ptr(env, zcs_predicate_new_i64_eq(column, value));
 }
