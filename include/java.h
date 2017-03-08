@@ -46,4 +46,15 @@ jlong Java_zcs_jni_Predicate_00024_nativeLongGreaterThan(JNIEnv *, jobject,
 jlong Java_zcs_jni_Predicate_00024_nativeLongLessThan(JNIEnv *, jobject, jint,
                                                       jlong);
 
+jlong Java_zcs_jni_Predicate_00024_nativeStringEquals(JNIEnv *, jobject, jint,
+                                                      jstring, jboolean);
+jlong Java_zcs_jni_Predicate_00024_nativeStringGreaterThan(JNIEnv *, jobject,
+                                                           jint, jstring,
+                                                           jboolean);
+jlong Java_zcs_jni_Predicate_00024_nativeStringLessThan(JNIEnv *, jobject, jint,
+                                                        jstring, jboolean);
+jlong Java_zcs_jni_Predicate_00024_nativeStringContains(JNIEnv *, jobject, jint,
+                                                        jstring, jint,
+                                                        jboolean);
+
 #endif

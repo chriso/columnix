@@ -394,6 +394,34 @@ void Java_zcs_jni_Predicate_00024_nativeFree(JNIEnv *env, jobject this,
     zcs_predicate_free(predicate);
 }
 
+jlong Java_zcs_jni_Predicate_00024_nativeAnd(JNIEnv *env, jobject this,
+                                             jlongArray array)
+{
+    size_t count = (*env)->GetArrayLength(env, array);
+    assert(sizeof(jlong) == sizeof(struct zcs_predicate *));
+    jlong *operands = (*env)->GetLongArrayElements(env, array, NULL);
+    if (!operands)
+        return 0;
+    struct zcs_predicate *predicate =
+        zcs_predicate_new_aand(count, (struct zcs_predicate **)operands);
+    (*env)->ReleaseLongArrayElements(env, array, operands, JNI_ABORT);
+    return zcs_java_predicate_ptr(env, predicate);
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeOr(JNIEnv *env, jobject this,
+                                            jlongArray array)
+{
+    size_t count = (*env)->GetArrayLength(env, array);
+    assert(sizeof(jlong) == sizeof(struct zcs_predicate *));
+    jlong *operands = (*env)->GetLongArrayElements(env, array, NULL);
+    if (!operands)
+        return 0;
+    struct zcs_predicate *predicate =
+        zcs_predicate_new_aor(count, (struct zcs_predicate **)operands);
+    (*env)->ReleaseLongArrayElements(env, array, operands, JNI_ABORT);
+    return zcs_java_predicate_ptr(env, predicate);
+}
+
 jlong Java_zcs_jni_Predicate_00024_nativeNull(JNIEnv *env, jobject this,
                                               jint column)
 {
@@ -420,30 +448,57 @@ jlong Java_zcs_jni_Predicate_00024_nativeLongLessThan(JNIEnv *env, jobject this,
     return zcs_java_predicate_ptr(env, zcs_predicate_new_i64_lt(column, value));
 }
 
-jlong Java_zcs_jni_Predicate_00024_nativeAnd(JNIEnv *env, jobject this,
-                                             jlongArray array)
+jlong Java_zcs_jni_Predicate_00024_nativeStringEquals(JNIEnv *env, jobject this,
+                                                      jint column,
+                                                      jstring java_string,
+                                                      jboolean caseSensitive)
 {
-    size_t count = (*env)->GetArrayLength(env, array);
-    assert(sizeof(jlong) == sizeof(struct zcs_predicate *));
-    jlong *operands = (*env)->GetLongArrayElements(env, array, NULL);
-    if (!operands)
+    const char *string = zcs_java_string_new(env, java_string);
+    if (!string)
         return 0;
     struct zcs_predicate *predicate =
-        zcs_predicate_new_aand(count, (struct zcs_predicate **)operands);
-    (*env)->ReleaseLongArrayElements(env, array, operands, JNI_ABORT);
+        zcs_predicate_new_str_eq(column, string, caseSensitive);
+    zcs_java_string_free(env, java_string, string);
     return zcs_java_predicate_ptr(env, predicate);
 }
 
-jlong Java_zcs_jni_Predicate_00024_nativeOr(JNIEnv *env, jobject this,
-                                            jlongArray array)
+jlong Java_zcs_jni_Predicate_00024_nativeStringGreaterThan(
+    JNIEnv *env, jobject this, jint column, jstring java_string,
+    jboolean caseSensitive)
 {
-    size_t count = (*env)->GetArrayLength(env, array);
-    assert(sizeof(jlong) == sizeof(struct zcs_predicate *));
-    jlong *operands = (*env)->GetLongArrayElements(env, array, NULL);
-    if (!operands)
+    const char *string = zcs_java_string_new(env, java_string);
+    if (!string)
         return 0;
     struct zcs_predicate *predicate =
-        zcs_predicate_new_aor(count, (struct zcs_predicate **)operands);
-    (*env)->ReleaseLongArrayElements(env, array, operands, JNI_ABORT);
+        zcs_predicate_new_str_gt(column, string, caseSensitive);
+    zcs_java_string_free(env, java_string, string);
+    return zcs_java_predicate_ptr(env, predicate);
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeStringLessThan(JNIEnv *env,
+                                                        jobject this,
+                                                        jint column,
+                                                        jstring java_string,
+                                                        jboolean caseSensitive)
+{
+    const char *string = zcs_java_string_new(env, java_string);
+    if (!string)
+        return 0;
+    struct zcs_predicate *predicate =
+        zcs_predicate_new_str_lt(column, string, caseSensitive);
+    zcs_java_string_free(env, java_string, string);
+    return zcs_java_predicate_ptr(env, predicate);
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeStringContains(
+    JNIEnv *env, jobject this, jint column, jstring java_string, jint location,
+    jboolean caseSensitive)
+{
+    const char *string = zcs_java_string_new(env, java_string);
+    if (!string)
+        return 0;
+    struct zcs_predicate *predicate =
+        zcs_predicate_new_str_contains(column, string, caseSensitive, location);
+    zcs_java_string_free(env, java_string, string);
     return zcs_java_predicate_ptr(env, predicate);
 }
