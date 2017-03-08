@@ -39,6 +39,16 @@ jlong Java_zcs_jni_Predicate_00024_nativeAnd(JNIEnv *, jobject, jlongArray);
 jlong Java_zcs_jni_Predicate_00024_nativeOr(JNIEnv *, jobject, jlongArray);
 jlong Java_zcs_jni_Predicate_00024_nativeNull(JNIEnv *, jobject, jint);
 
+jlong Java_zcs_jni_Predicate_00024_nativeBooleanEquals(JNIEnv *, jobject, jint,
+                                                       jboolean);
+
+jlong Java_zcs_jni_Predicate_00024_nativeIntEquals(JNIEnv *, jobject, jint,
+                                                   jint);
+jlong Java_zcs_jni_Predicate_00024_nativeIntGreaterThan(JNIEnv *, jobject, jint,
+                                                        jint);
+jlong Java_zcs_jni_Predicate_00024_nativeIntLessThan(JNIEnv *, jobject, jint,
+                                                     jint);
+
 jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *, jobject, jint,
                                                     jlong);
 jlong Java_zcs_jni_Predicate_00024_nativeLongGreaterThan(JNIEnv *, jobject,

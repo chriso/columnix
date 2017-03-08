@@ -428,6 +428,33 @@ jlong Java_zcs_jni_Predicate_00024_nativeNull(JNIEnv *env, jobject this,
     return zcs_java_predicate_ptr(env, zcs_predicate_new_null(column));
 }
 
+jlong Java_zcs_jni_Predicate_00024_nativeBooleanEquals(JNIEnv *env,
+                                                       jobject this,
+                                                       jint column,
+                                                       jboolean value)
+{
+    return zcs_java_predicate_ptr(env, zcs_predicate_new_bit_eq(column, value));
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeIntEquals(JNIEnv *env, jobject this,
+                                                   jint column, jint value)
+{
+    return zcs_java_predicate_ptr(env, zcs_predicate_new_i32_eq(column, value));
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeIntGreaterThan(JNIEnv *env,
+                                                        jobject this,
+                                                        jint column, jint value)
+{
+    return zcs_java_predicate_ptr(env, zcs_predicate_new_i32_gt(column, value));
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeIntLessThan(JNIEnv *env, jobject this,
+                                                     jint column, jint value)
+{
+    return zcs_java_predicate_ptr(env, zcs_predicate_new_i32_lt(column, value));
+}
+
 jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *env, jobject this,
                                                     jint column, jlong value)
 {
