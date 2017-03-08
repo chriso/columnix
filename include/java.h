@@ -38,4 +38,7 @@ void Java_zcs_jni_Predicate_00024_nativeFree(JNIEnv *, jobject, jlong);
 jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *, jobject, jint,
                                                     jlong);
 
+jlong Java_zcs_jni_Predicate_00024_nativeAnd(JNIEnv *, jobject, jlongArray);
+jlong Java_zcs_jni_Predicate_00024_nativeOr(JNIEnv *, jobject, jlongArray);
+
 #endif

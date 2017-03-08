@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "java.h"
 #include "reader.h"
 #include "writer.h"
@@ -370,7 +372,7 @@ static jlong zcs_java_predicate_ptr(JNIEnv *env,
                                     const struct zcs_predicate *ptr)
 {
     if (!ptr)
-        zcs_java_throw(env, "java/lang/OutOfMemoryError", "");
+        zcs_java_throw(env, "java/lang/Exception", "bad predicate or OOM");
     return (jlong)ptr;
 }
 
@@ -396,4 +398,32 @@ jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *env, jobject this,
                                                     jint column, jlong value)
 {
     return zcs_java_predicate_ptr(env, zcs_predicate_new_i64_eq(column, value));
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeAnd(JNIEnv *env, jobject this,
+                                             jlongArray array)
+{
+    size_t count = (*env)->GetArrayLength(env, array);
+    assert(sizeof(jlong) == sizeof(struct zcs_predicate *));
+    jlong *operands = (*env)->GetLongArrayElements(env, array, NULL);
+    if (!operands)
+        return 0;
+    struct zcs_predicate *predicate =
+        zcs_predicate_new_aand(count, (struct zcs_predicate **)operands);
+    (*env)->ReleaseLongArrayElements(env, array, operands, JNI_ABORT);
+    return zcs_java_predicate_ptr(env, predicate);
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeOr(JNIEnv *env, jobject this,
+                                            jlongArray array)
+{
+    size_t count = (*env)->GetArrayLength(env, array);
+    assert(sizeof(jlong) == sizeof(struct zcs_predicate *));
+    jlong *operands = (*env)->GetLongArrayElements(env, array, NULL);
+    if (!operands)
+        return 0;
+    struct zcs_predicate *predicate =
+        zcs_predicate_new_aor(count, (struct zcs_predicate **)operands);
+    (*env)->ReleaseLongArrayElements(env, array, operands, JNI_ABORT);
+    return zcs_java_predicate_ptr(env, predicate);
 }
