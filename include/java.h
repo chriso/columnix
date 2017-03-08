@@ -35,10 +35,15 @@ void Java_zcs_jni_Writer_nativePutString(JNIEnv *, jobject, jlong, jint,
 
 jlong Java_zcs_jni_Predicate_00024_nativeNegate(JNIEnv *, jobject, jlong);
 void Java_zcs_jni_Predicate_00024_nativeFree(JNIEnv *, jobject, jlong);
-jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *, jobject, jint,
-                                                    jlong);
-
 jlong Java_zcs_jni_Predicate_00024_nativeAnd(JNIEnv *, jobject, jlongArray);
 jlong Java_zcs_jni_Predicate_00024_nativeOr(JNIEnv *, jobject, jlongArray);
+jlong Java_zcs_jni_Predicate_00024_nativeNull(JNIEnv *, jobject, jint);
+
+jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *, jobject, jint,
+                                                    jlong);
+jlong Java_zcs_jni_Predicate_00024_nativeLongGreaterThan(JNIEnv *, jobject,
+                                                         jint, jlong);
+jlong Java_zcs_jni_Predicate_00024_nativeLongLessThan(JNIEnv *, jobject, jint,
+                                                      jlong);
 
 #endif

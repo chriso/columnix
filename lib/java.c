@@ -394,10 +394,30 @@ void Java_zcs_jni_Predicate_00024_nativeFree(JNIEnv *env, jobject this,
     zcs_predicate_free(predicate);
 }
 
+jlong Java_zcs_jni_Predicate_00024_nativeNull(JNIEnv *env, jobject this,
+                                              jint column)
+{
+    return zcs_java_predicate_ptr(env, zcs_predicate_new_null(column));
+}
+
 jlong Java_zcs_jni_Predicate_00024_nativeLongEquals(JNIEnv *env, jobject this,
                                                     jint column, jlong value)
 {
     return zcs_java_predicate_ptr(env, zcs_predicate_new_i64_eq(column, value));
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeLongGreaterThan(JNIEnv *env,
+                                                         jobject this,
+                                                         jint column,
+                                                         jlong value)
+{
+    return zcs_java_predicate_ptr(env, zcs_predicate_new_i64_gt(column, value));
+}
+
+jlong Java_zcs_jni_Predicate_00024_nativeLongLessThan(JNIEnv *env, jobject this,
+                                                      jint column, jlong value)
+{
+    return zcs_java_predicate_ptr(env, zcs_predicate_new_i64_lt(column, value));
 }
 
 jlong Java_zcs_jni_Predicate_00024_nativeAnd(JNIEnv *env, jobject this,
