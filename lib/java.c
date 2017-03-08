@@ -35,6 +35,8 @@ jlong Java_zcs_jni_Reader_nativeNew(JNIEnv *env, jobject this,
                                     jstring java_path)
 {
     const char *path = zcs_java_string_new(env, java_path);
+    if (!path)
+        return 0;
     struct zcs_reader *reader = zcs_reader_new(path);
     zcs_java_string_free(env, java_path, path);
     if (!reader)
@@ -52,6 +54,8 @@ jlong Java_zcs_jni_Reader_nativeNewMatching(JNIEnv *env, jobject this,
     if (!predicate)
         return 0;
     const char *path = zcs_java_string_new(env, java_path);
+    if (!path)
+        return 0;
     struct zcs_reader *reader = zcs_reader_new_matching(path, predicate);
     zcs_java_string_free(env, java_path, path);
     if (!reader)
@@ -253,6 +257,8 @@ jlong Java_zcs_jni_Writer_nativeNew(JNIEnv *env, jobject this,
         return 0;
     }
     const char *path = zcs_java_string_new(env, java_path);
+    if (!path)
+        return 0;
     struct zcs_writer *writer = zcs_writer_new(path, row_group_size);
     zcs_java_string_free(env, java_path, path);
     if (!writer)
@@ -351,6 +357,8 @@ void Java_zcs_jni_Writer_nativePutString(JNIEnv *env, jobject this, jlong ptr,
         ok = zcs_writer_put_null(writer, index);
     } else {
         const char *value = zcs_java_string_new(env, java_value);
+        if (!value)
+            return;
         ok = zcs_writer_put_str(writer, index, value);
         zcs_java_string_free(env, java_value, value);
     }
