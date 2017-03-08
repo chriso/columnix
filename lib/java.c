@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 
 #include "java.h"
 #include "reader.h"
@@ -244,6 +245,27 @@ jstring Java_zcs_jni_Reader_nativeGetString(JNIEnv *env, jobject this,
         return NULL;
     }
     return (*env)->NewStringUTF(env, value->ptr);
+}
+
+jbyteArray Java_zcs_jni_Reader_nativeGetStringBytes(JNIEnv *env, jobject this,
+                                                    jlong ptr, jint index)
+{
+    struct zcs_reader *reader = zcs_java_reader_cast(env, ptr);
+    if (!reader)
+        return NULL;
+    if (!zcs_java_reader_check_column_bounds(env, reader, index))
+        return NULL;
+    const struct zcs_string *value;
+    if (!zcs_reader_get_str(reader, index, &value)) {
+        zcs_java_throw(env, "java/lang/Exception", "zcs_reader_get_str()");
+        return NULL;
+    }
+    jbyteArray bytes = (*env)->NewByteArray(env, value->len);
+    if (!bytes)
+        return NULL;
+    (*env)->SetByteArrayRegion(env, bytes, 0, value->len,
+                               (const jbyte *)value->ptr);
+    return bytes;
 }
 
 jlong Java_zcs_jni_Writer_nativeNew(JNIEnv *, jobject, jstring, jlong);

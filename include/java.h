@@ -19,6 +19,8 @@ jboolean Java_zcs_jni_Reader_nativeGetBoolean(JNIEnv *, jobject, jlong, jint);
 jint Java_zcs_jni_Reader_nativeGetInt(JNIEnv *, jobject, jlong, jint);
 jlong Java_zcs_jni_Reader_nativeGetLong(JNIEnv *, jobject, jlong, jint);
 jstring Java_zcs_jni_Reader_nativeGetString(JNIEnv *, jobject, jlong, jint);
+jbyteArray Java_zcs_jni_Reader_nativeGetStringBytes(JNIEnv *, jobject, jlong,
+                                                    jint);
 
 jlong Java_zcs_jni_Writer_nativeNew(JNIEnv *, jobject, jstring, jlong);
 void Java_zcs_jni_Writer_nativeFree(JNIEnv *, jobject, jlong);
