@@ -34,8 +34,10 @@ struct zcs_predicate *zcs_predicate_new_str_contains(size_t, const char *, bool,
 
 struct zcs_predicate *zcs_predicate_new_and(size_t, ...);
 struct zcs_predicate *zcs_predicate_new_vand(size_t, va_list);
+struct zcs_predicate *zcs_predicate_new_aand(size_t, struct zcs_predicate **);
 struct zcs_predicate *zcs_predicate_new_or(size_t, ...);
 struct zcs_predicate *zcs_predicate_new_vor(size_t, va_list);
+struct zcs_predicate *zcs_predicate_new_aor(size_t, struct zcs_predicate **);
 
 bool zcs_predicate_valid(const struct zcs_predicate *,
                          const struct zcs_row_group *);

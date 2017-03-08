@@ -194,8 +194,8 @@ struct zcs_predicate *zcs_predicate_new_str_contains(
     return predicate;
 }
 
-static struct zcs_predicate *zcs_predicate_new_operator(size_t count,
-                                                        va_list operands)
+static struct zcs_predicate *zcs_predicate_new_operator(
+    enum zcs_predicate_type type, size_t count, va_list operands)
 {
     if (!count)
         return NULL;
@@ -203,11 +203,36 @@ static struct zcs_predicate *zcs_predicate_new_operator(size_t count,
     if (!predicate)
         return NULL;
     predicate->operand_count = count;
+    predicate->type = type;
     predicate->operands = malloc(count * sizeof(struct zcs_predicate *));
     if (!predicate->operands)
         goto error;
     for (size_t i = 0; i < count; i++) {
         predicate->operands[i] = va_arg(operands, struct zcs_predicate *);
+        if (!predicate->operands[i])
+            goto error;
+    }
+    return predicate;
+error:
+    zcs_predicate_free(predicate);
+    return NULL;
+}
+
+static struct zcs_predicate *zcs_predicate_new_operator_array(
+    enum zcs_predicate_type type, size_t count, struct zcs_predicate **operands)
+{
+    if (!count)
+        return NULL;
+    struct zcs_predicate *predicate = zcs_predicate_new();
+    if (!predicate)
+        return NULL;
+    predicate->operand_count = count;
+    predicate->type = type;
+    predicate->operands = malloc(count * sizeof(struct zcs_predicate *));
+    if (!predicate->operands)
+        goto error;
+    for (size_t i = 0; i < count; i++) {
+        predicate->operands[i] = operands[i];
         if (!predicate->operands[i])
             goto error;
     }
@@ -228,12 +253,13 @@ struct zcs_predicate *zcs_predicate_new_and(size_t count, ...)
 
 struct zcs_predicate *zcs_predicate_new_vand(size_t count, va_list operands)
 {
-    struct zcs_predicate *predicate =
-        zcs_predicate_new_operator(count, operands);
-    if (!predicate)
-        return NULL;
-    predicate->type = ZCS_PREDICATE_AND;
-    return predicate;
+    return zcs_predicate_new_operator(ZCS_PREDICATE_AND, count, operands);
+}
+
+struct zcs_predicate *zcs_predicate_new_aand(size_t count,
+                                             struct zcs_predicate **operands)
+{
+    return zcs_predicate_new_operator_array(ZCS_PREDICATE_AND, count, operands);
 }
 
 struct zcs_predicate *zcs_predicate_new_or(size_t count, ...)
@@ -247,12 +273,13 @@ struct zcs_predicate *zcs_predicate_new_or(size_t count, ...)
 
 struct zcs_predicate *zcs_predicate_new_vor(size_t count, va_list operands)
 {
-    struct zcs_predicate *predicate =
-        zcs_predicate_new_operator(count, operands);
-    if (!predicate)
-        return NULL;
-    predicate->type = ZCS_PREDICATE_OR;
-    return predicate;
+    return zcs_predicate_new_operator(ZCS_PREDICATE_OR, count, operands);
+}
+
+struct zcs_predicate *zcs_predicate_new_aor(size_t count,
+                                            struct zcs_predicate **operands)
+{
+    return zcs_predicate_new_operator_array(ZCS_PREDICATE_OR, count, operands);
 }
 
 struct zcs_predicate *zcs_predicate_negate(struct zcs_predicate *predicate)
