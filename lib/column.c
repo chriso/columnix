@@ -137,6 +137,11 @@ const struct zcs_column_index *zcs_column_index(const struct zcs_column *column)
     return &column->index;
 }
 
+size_t zcs_column_count(const struct zcs_column *column)
+{
+    return column->index.count;
+}
+
 __attribute__((noinline)) static bool zcs_column_resize(
     struct zcs_column *column, size_t alloc_size)
 {
@@ -420,4 +425,16 @@ const struct zcs_string *zcs_column_cursor_next_batch_str(
     }
     *available = i;
     return (const struct zcs_string *)cursor->buffer;
+}
+
+const struct zcs_string *zcs_column_cursor_get_str(
+    const struct zcs_column_cursor *cursor)
+{
+    assert(cursor->column->type == ZCS_COLUMN_STR);
+    if (!zcs_column_cursor_valid(cursor))
+        return NULL;
+    struct zcs_string *string = (struct zcs_string *)cursor->buffer;
+    string->ptr = cursor->position;
+    string->len = strlen(cursor->position);
+    return string;
 }

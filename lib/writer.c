@@ -31,6 +31,7 @@ struct zcs_writer {
 
 struct zcs_row_group_writer {
     FILE *file;
+    struct zcs_column *strings;
     struct {
         struct zcs_column_descriptor *descriptors;
         size_t count;
@@ -74,11 +75,12 @@ void zcs_writer_free(struct zcs_writer *writer)
     free(writer);
 }
 
-bool zcs_writer_add_column(struct zcs_writer *writer, enum zcs_column_type type,
+bool zcs_writer_add_column(struct zcs_writer *writer, const char *name,
+                           enum zcs_column_type type,
                            enum zcs_encoding_type encoding,
                            enum zcs_compression_type compression, int level)
 {
-    if (!zcs_row_group_writer_add_column(writer->writer, type, encoding,
+    if (!zcs_row_group_writer_add_column(writer->writer, name, type, encoding,
                                          compression, level))
         return false;
     writer->column_count++;
@@ -232,16 +234,22 @@ struct zcs_row_group_writer *zcs_row_group_writer_new(const char *path)
     struct zcs_row_group_writer *writer = calloc(1, sizeof(*writer));
     if (!writer)
         return NULL;
+    writer->strings = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODING_NONE);
+    if (!writer->strings)
+        goto error;
     writer->file = fopen(path, "wb");
     if (!writer->file)
         goto error;
     return writer;
 error:
+    if (writer->strings)
+        zcs_column_free(writer->strings);
     free(writer);
     return NULL;
 }
 
 bool zcs_row_group_writer_add_column(struct zcs_row_group_writer *writer,
+                                     const char *name,
                                      enum zcs_column_type type,
                                      enum zcs_encoding_type encoding,
                                      enum zcs_compression_type compression,
@@ -267,8 +275,17 @@ bool zcs_row_group_writer_add_column(struct zcs_row_group_writer *writer,
         writer->columns.size = new_size;
     }
 
+    if (!zcs_column_put_str(writer->strings, name))
+        return false;
+
+    size_t string_count = zcs_column_count(writer->strings);
+    assert(string_count);
+
+
     struct zcs_column_descriptor *descriptor =
         &writer->columns.descriptors[writer->columns.count++];
+    memset(descriptor, 0, sizeof(*descriptor));
+    descriptor->name = string_count - 1;
     descriptor->type = type;
     descriptor->encoding = encoding;
     descriptor->compression = compression;
@@ -459,6 +476,12 @@ bool zcs_row_group_writer_finish(struct zcs_row_group_writer *writer, bool sync)
 
     size_t offset = zcs_row_group_writer_offset(writer);
 
+    // write strings
+    size_t strings_size;
+    const void *strings = zcs_column_export(writer->strings, &strings_size);
+    if (!zcs_row_group_writer_write(writer, strings, strings_size))
+        goto error;
+
     // write row group headers
     size_t row_group_headers_size =
         writer->row_groups.count * sizeof(struct zcs_row_group_header);
@@ -474,8 +497,10 @@ bool zcs_row_group_writer_finish(struct zcs_row_group_writer *writer, bool sync)
         goto error;
 
     // write the footer
-    struct zcs_footer footer = {writer->row_groups.count, writer->columns.count,
-                                writer->row_count, ZCS_FILE_MAGIC};
+    struct zcs_footer footer = {offset, strings_size,
+                                writer->row_groups.count,
+                                writer->columns.count, writer->row_count,
+                                ZCS_FILE_MAGIC};
     if (!zcs_row_group_writer_write(writer, &footer, sizeof(footer)))
         goto error;
 
@@ -504,6 +529,7 @@ error:
 
 void zcs_row_group_writer_free(struct zcs_row_group_writer *writer)
 {
+    zcs_column_free(writer->strings);
     if (writer->columns.descriptors)
         free(writer->columns.descriptors);
     if (writer->row_groups.headers)

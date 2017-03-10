@@ -31,6 +31,8 @@ enum zcs_encoding_type zcs_column_encoding(const struct zcs_column *);
 
 const struct zcs_column_index *zcs_column_index(const struct zcs_column *);
 
+size_t zcs_column_count(const struct zcs_column *);
+
 bool zcs_column_put_bit(struct zcs_column *, bool);
 bool zcs_column_put_i32(struct zcs_column *, int32_t);
 bool zcs_column_put_i64(struct zcs_column *, int64_t);
@@ -59,5 +61,8 @@ size_t zcs_column_cursor_skip_bit(struct zcs_column_cursor *, size_t);
 size_t zcs_column_cursor_skip_i32(struct zcs_column_cursor *, size_t);
 size_t zcs_column_cursor_skip_i64(struct zcs_column_cursor *, size_t);
 size_t zcs_column_cursor_skip_str(struct zcs_column_cursor *, size_t);
+
+const struct zcs_string *zcs_column_cursor_get_str(
+    const struct zcs_column_cursor *);
 
 #endif
