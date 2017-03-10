@@ -31,6 +31,7 @@ struct zcs_writer {
 
 struct zcs_row_group_writer {
     FILE *file;
+    struct zcs_column *strings;
     struct {
         struct zcs_column_descriptor *descriptors;
         size_t count;
@@ -232,11 +233,16 @@ struct zcs_row_group_writer *zcs_row_group_writer_new(const char *path)
     struct zcs_row_group_writer *writer = calloc(1, sizeof(*writer));
     if (!writer)
         return NULL;
+    writer->strings = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODING_NONE);
+    if (!writer->strings)
+        goto error;
     writer->file = fopen(path, "wb");
     if (!writer->file)
         goto error;
     return writer;
 error:
+    if (writer->strings)
+        zcs_column_free(writer->strings);
     free(writer);
     return NULL;
 }
@@ -504,6 +510,7 @@ error:
 
 void zcs_row_group_writer_free(struct zcs_row_group_writer *writer)
 {
+    zcs_column_free(writer->strings);
     if (writer->columns.descriptors)
         free(writer->columns.descriptors);
     if (writer->row_groups.headers)
