@@ -465,6 +465,12 @@ bool zcs_row_group_writer_finish(struct zcs_row_group_writer *writer, bool sync)
 
     size_t offset = zcs_row_group_writer_offset(writer);
 
+    // write strings
+    size_t strings_size;
+    const void *strings = zcs_column_export(writer->strings, &strings_size);
+    if (!zcs_row_group_writer_write(writer, strings, strings_size))
+        goto error;
+
     // write row group headers
     size_t row_group_headers_size =
         writer->row_groups.count * sizeof(struct zcs_row_group_header);
@@ -480,8 +486,9 @@ bool zcs_row_group_writer_finish(struct zcs_row_group_writer *writer, bool sync)
         goto error;
 
     // write the footer
-    struct zcs_footer footer = {writer->row_groups.count, writer->columns.count,
-                                writer->row_count, ZCS_FILE_MAGIC};
+    struct zcs_footer footer = {strings_size, writer->row_groups.count,
+                                writer->columns.count, writer->row_count,
+                                ZCS_FILE_MAGIC};
     if (!zcs_row_group_writer_write(writer, &footer, sizeof(footer)))
         goto error;
 

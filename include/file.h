@@ -12,6 +12,7 @@ struct zcs_header {
 };
 
 struct zcs_footer {
+    uint64_t strings_size;
     uint32_t row_group_count;
     uint32_t column_count;
     uint64_t row_count;

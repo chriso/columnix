@@ -28,6 +28,7 @@ struct zcs_row_group_reader {
     void *mmap_ptr;
     size_t file_size;
     size_t row_count;
+    struct zcs_column *strings;
     struct {
         const struct zcs_column_descriptor *descriptors;
         size_t count;
@@ -374,14 +375,23 @@ struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
     if (footer->magic != ZCS_FILE_MAGIC)
         goto error;
 
-    // check the file contains the row group headers and column descriptors
+    // check the file contains the row group headers, column descriptors and
+    // string repository
     size_t row_group_headers_size =
         footer->row_group_count * sizeof(struct zcs_row_group_header);
     size_t descriptors_size =
         footer->column_count * sizeof(struct zcs_column_descriptor);
     size_t headers_size =
         row_group_headers_size + descriptors_size + sizeof(struct zcs_footer);
-    if (file_size < headers_size)
+    if (file_size < headers_size + footer->strings_size)
+        goto error;
+
+    // load strings
+    const void *strings = zcs_row_group_reader_at(
+        reader, file_size - headers_size - footer->strings_size);
+    reader->strings = zcs_column_new_mmapped(
+        ZCS_COLUMN_STR, ZCS_ENCODING_NONE, strings, footer->strings_size, NULL);
+    if (!reader->strings)
         goto error;
 
     // cache counts and header locations
@@ -399,6 +409,8 @@ error:
         munmap(reader->mmap_ptr, reader->file_size);
     if (reader->file)
         fclose(reader->file);
+    if (reader->strings)
+        zcs_column_free(reader->strings);
     free(reader);
     return NULL;
 }
@@ -499,5 +511,6 @@ void zcs_row_group_reader_free(struct zcs_row_group_reader *reader)
     if (reader->mmap_ptr)
         munmap(reader->mmap_ptr, reader->file_size);
     fclose(reader->file);
+    zcs_column_free(reader->strings);
     free(reader);
 }
