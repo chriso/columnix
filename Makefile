@@ -1,3 +1,5 @@
+PROJECT = zcs
+
 LDLIBS = -llz4 -lzstd
 
 BASE_CFLAGS = -std=c99 -Wall -pedantic -Iinclude -g
@@ -21,11 +23,11 @@ ifeq ($(coverage), 1)
 endif
 
 ifeq ($(shell uname -s), Darwin)
-  LIB = lib/libzcs.dylib
+  LIB = lib/lib$(PROJECT).dylib
 else
   CFLAGS += -fPIC
   LDFLAGS += -pthread
-  LIB = lib/libzcs.so
+  LIB = lib/lib$(PROJECT).so
 endif
 
 SRC = $(wildcard lib/*.c)
@@ -55,7 +57,7 @@ check: $(TESTS)
 	@./$(TESTS) $(grep)
 
 clean:
-	rm -f $(TESTS) lib/libzcs.* */*.o lib/*.gcno lib/*.gcda *.gcov coverage*.html
+	rm -f $(TESTS) lib/lib$(PROJECT).* */*.o lib/*.gcno lib/*.gcda *.gcov coverage*.html
 
 coverage: clean
 	$(MAKE) check coverage=1
@@ -67,12 +69,12 @@ format:
 
 install: $(LIB)
 	install -m 755 $(LIB) $(PREFIX)/$(LIB)
-	install -d $(INCLUDEDIR)/zcs
-	install -m 644 $(wildcard include/*.h) $(INCLUDEDIR)/zcs
+	install -d $(INCLUDEDIR)/$(PROJECT)
+	install -m 644 $(wildcard include/*.h) $(INCLUDEDIR)/$(PROJECT)
 
 uninstall:
-	rm -f $(PREFIX)/$(LIB) $(INCLUDEDIR)/zcs/*.h
-	rmdir $(INCLUDEDIR)/zcs
+	rm -f $(PREFIX)/$(LIB) $(INCLUDEDIR)/$(PROJECT)/*.h
+	rmdir $(INCLUDEDIR)/$(PROJECT)
 
 valgrind: $(TESTS)
 	valgrind --leak-check=full $(TESTS) --no-fork
