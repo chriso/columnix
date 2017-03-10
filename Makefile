@@ -16,10 +16,7 @@ SRC_FILES = column.c compress.c match.c predicate.c reader.c row.c row_group.c w
 #endif
 
 ifeq ($(release), 1)
-  CFLAGS += -O3 -march=native -DZCS_AVX2
-endif
-ifeq ($(pcmpistrm), 1)
-  CFLAGS += -DZCS_PCMPISTRM
+  CFLAGS += -O3 -march=native -DZCS_AVX2 -DZCS_PCMPISTRM
 endif
 
 ifeq ($(asan), 1)
