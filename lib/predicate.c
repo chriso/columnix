@@ -41,7 +41,8 @@ void zcs_predicate_free(struct zcs_predicate *predicate)
 {
     if (predicate->operands) {
         for (size_t i = 0; i < predicate->operand_count; i++)
-            zcs_predicate_free(predicate->operands[i]);
+            if (predicate->operands[i])
+                zcs_predicate_free(predicate->operands[i]);
         free(predicate->operands);
     }
     if (predicate->string)
@@ -208,7 +209,7 @@ static struct zcs_predicate *zcs_predicate_new_operator(
         return NULL;
     predicate->operand_count = count;
     predicate->type = type;
-    predicate->operands = malloc(count * sizeof(struct zcs_predicate *));
+    predicate->operands = calloc(count, sizeof(struct zcs_predicate *));
     if (!predicate->operands)
         goto error;
     for (size_t i = 0; i < count; i++) {
@@ -232,7 +233,7 @@ static struct zcs_predicate *zcs_predicate_new_operator_array(
         return NULL;
     predicate->operand_count = count;
     predicate->type = type;
-    predicate->operands = malloc(count * sizeof(struct zcs_predicate *));
+    predicate->operands = calloc(count, sizeof(struct zcs_predicate *));
     if (!predicate->operands)
         goto error;
     for (size_t i = 0; i < count; i++) {
