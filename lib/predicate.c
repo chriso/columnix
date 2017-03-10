@@ -149,7 +149,11 @@ static struct zcs_predicate *zcs_predicate_new_str(size_t column,
     predicate->type = type;
     predicate->column_type = ZCS_COLUMN_STR;
     size_t length = strlen(value);
+#if ZCS_PCMPISTRM
+    predicate->string = calloc(1, length + 1 + 16);
+#else
     predicate->string = malloc(length + 1);
+#endif
     if (!predicate->string)
         goto error;
     memcpy(predicate->string, value, length + 1);

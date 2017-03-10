@@ -7,10 +7,7 @@ PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
 
 ifeq ($(release), 1)
-  CFLAGS += -O3 -march=native -DZCS_AVX2
-endif
-ifeq ($(pcmpistrm), 1)
-  CFLAGS += -DZCS_PCMPISTRM
+  CFLAGS += -O3 -march=native -DZCS_AVX2 -DZCS_PCMPISTRM
 endif
 
 ifeq ($(asan), 1)

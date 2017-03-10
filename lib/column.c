@@ -38,7 +38,12 @@ static struct zcs_column *zcs_column_new_size(
     if (!column)
         return NULL;
     if (size) {
+#if ZCS_PCMPISTRM
+        size += 16;
+        column->buffer.mutable = calloc(1, size);
+#else
         column->buffer.mutable = malloc(size);
+#endif
         if (!column->buffer.mutable)
             goto error;
         column->size = size;
@@ -147,6 +152,9 @@ __attribute__((noinline)) static bool zcs_column_resize(
 {
     size_t size = column->size;
     size_t required_size = column->offset + alloc_size;
+#if ZCS_PCMPISTRM
+    required_size += 16;
+#endif
     while (size < required_size) {
         assert(size * 2 > size);
         size *= 2;
@@ -154,6 +162,10 @@ __attribute__((noinline)) static bool zcs_column_resize(
     void *buffer = realloc(column->buffer.mutable, size);
     if (!buffer)
         return false;
+#if ZCS_PCMPISTRM
+    memset((void *)((uintptr_t)buffer + column->offset), 0,
+           size - column->offset);
+#endif
     column->buffer.mutable = buffer;
     column->size = size;
     return true;
