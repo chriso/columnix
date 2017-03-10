@@ -28,6 +28,8 @@ bool zcs_reader_query(struct zcs_reader *, int thread_count, void *data,
                       void (*iter)(struct zcs_row_cursor *, pthread_mutex_t *,
                                    void *));
 
+const char *zcs_reader_column_name(const struct zcs_reader *, size_t);
+
 enum zcs_column_type zcs_reader_column_type(const struct zcs_reader *, size_t);
 
 enum zcs_encoding_type zcs_reader_column_encoding(const struct zcs_reader *,
@@ -57,6 +59,9 @@ size_t zcs_row_group_reader_row_count(const struct zcs_row_group_reader *);
 
 size_t zcs_row_group_reader_row_group_count(
     const struct zcs_row_group_reader *);
+
+const char *zcs_row_group_reader_column_name(
+    struct zcs_row_group_reader *, size_t);
 
 enum zcs_column_type zcs_row_group_reader_column_type(
     const struct zcs_row_group_reader *, size_t);

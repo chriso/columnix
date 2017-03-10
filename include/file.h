@@ -12,6 +12,7 @@ struct zcs_header {
 };
 
 struct zcs_footer {
+    uint64_t strings_offset;
     uint64_t strings_size;
     uint32_t row_group_count;
     uint32_t column_count;
@@ -20,10 +21,12 @@ struct zcs_footer {
 };
 
 struct zcs_column_descriptor {
+    uint32_t name;
     uint32_t type;
     uint32_t encoding;
     uint32_t compression;
     int32_t level;
+    uint32_t __padding;
 };
 
 struct zcs_row_group_header {

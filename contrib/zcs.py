@@ -5,9 +5,9 @@ Example write (Python):
 
     from zcs import Writer, Column, I64, I32, STR, LZ4, ZSTD
 
-    columns = [Column(I64, compression=LZ4),
-               Column(STR, compression=ZSTD),
-               Column(I32)]
+    columns = [Column(I64, "timestamp", compression=LZ4),
+               Column(STR, "email", compression=ZSTD),
+               Column(I32, "id")]
 
     rows = [(1400000000000, "foo@bar.com", 23),
             (1400000001000, "foo@bar.com", 45),
@@ -56,7 +56,8 @@ zcs_writer_free = libzcs.zcs_writer_free
 zcs_writer_free.argtypes = [c_void_p]
 
 zcs_writer_add_column = libzcs.zcs_writer_add_column
-zcs_writer_add_column.argtypes = [c_void_p, c_int, c_int, c_int, c_int]
+zcs_writer_add_column.argtypes = [c_void_p, c_char_p, c_int, c_int, c_int,
+                                  c_int]
 
 zcs_writer_put_null = libzcs.zcs_writer_put_null
 zcs_writer_put_null.argtypes = [c_void_p, c_size_t]
@@ -87,8 +88,9 @@ ZSTD = 3
 
 
 class Column(object):
-    def __init__(self, type, encoding=None, compression=None, level=1):
+    def __init__(self, type, name, encoding=None, compression=None, level=1):
         self.type = type
+        self.name = name
         self.encoding = encoding or 0
         self.compression = compression or 0
         self.level = level
@@ -111,7 +113,7 @@ class Writer(object):
         if not self.writer:
             raise RuntimeError("failed to create writer for %s" % self.path)
         for column in self.columns:
-            if not zcs_writer_add_column(self.writer, column.type,
+            if not zcs_writer_add_column(self.writer, column.name, column.type,
                                          column.encoding, column.compression,
                                          column.level):
                 raise RuntimeError("failed to add column")
