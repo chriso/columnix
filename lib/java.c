@@ -134,6 +134,23 @@ static bool zcs_java_reader_check_column_bounds(JNIEnv *env,
     return true;
 }
 
+jstring Java_zcs_jni_Reader_nativeColumnName(JNIEnv *env, jobject this,
+                                             jlong ptr, jint index)
+{
+    struct zcs_reader *reader = zcs_java_reader_cast(env, ptr);
+    if (!reader)
+        return 0;
+    if (!zcs_java_reader_check_column_bounds(env, reader, index))
+        return 0;
+
+    const char *name = zcs_reader_column_name(reader, index);
+    if (!name) {
+        zcs_java_npe(env, "column name");
+        return 0;
+    }
+    return (*env)->NewStringUTF(env, name);
+}
+
 jint Java_zcs_jni_Reader_nativeColumnType(JNIEnv *env, jobject this, jlong ptr,
                                           jint index)
 {
@@ -320,14 +337,20 @@ void Java_zcs_jni_Writer_nativeFinish(JNIEnv *env, jobject this, jlong ptr,
 }
 
 void Java_zcs_jni_Writer_nativeAddColumn(JNIEnv *env, jobject this, jlong ptr,
-                                         jint type, jint encoding,
-                                         jint compression, jint level)
+                                         jstring java_name, jint type,
+                                         jint encoding, jint compression,
+                                         jint level)
 {
     struct zcs_writer *writer = zcs_java_writer_cast(env, ptr);
     if (!writer)
         return;
-    if (!zcs_writer_add_column(writer, type, encoding, compression, level))
+    const char *name = zcs_java_string_new(env, java_name);
+    if (!name)
+        return;
+    if (!zcs_writer_add_column(writer, name, type, encoding, compression,
+                               level))
         zcs_java_throw(env, "java/lang/Exception", "zcs_writer_add_column()");
+    zcs_java_string_free(env, java_name, name);
 }
 
 void Java_zcs_jni_Writer_nativePutNull(JNIEnv *env, jobject this, jlong ptr,

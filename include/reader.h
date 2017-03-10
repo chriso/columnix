@@ -60,8 +60,8 @@ size_t zcs_row_group_reader_row_count(const struct zcs_row_group_reader *);
 size_t zcs_row_group_reader_row_group_count(
     const struct zcs_row_group_reader *);
 
-const char *zcs_row_group_reader_column_name(
-    struct zcs_row_group_reader *, size_t);
+const char *zcs_row_group_reader_column_name(struct zcs_row_group_reader *,
+                                             size_t);
 
 enum zcs_column_type zcs_row_group_reader_column_type(
     const struct zcs_row_group_reader *, size_t);

@@ -396,8 +396,8 @@ struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
     // load strings
     if (footer->strings_offset + footer->strings_size > file_size)
         goto error;
-    const void *strings = zcs_row_group_reader_at(
-        reader, footer->strings_offset);
+    const void *strings =
+        zcs_row_group_reader_at(reader, footer->strings_offset);
     reader->strings = zcs_column_new_mmapped(
         ZCS_COLUMN_STR, ZCS_ENCODING_NONE, strings, footer->strings_size, NULL);
     if (!reader->strings)
@@ -450,7 +450,8 @@ const char *zcs_row_group_reader_string(struct zcs_row_group_reader *reader,
                                         size_t index)
 {
     zcs_column_cursor_rewind(reader->strings_cursor);
-    if (index && index != zcs_column_cursor_skip_str(reader->strings_cursor, index))
+    if (index &&
+        index != zcs_column_cursor_skip_str(reader->strings_cursor, index))
         return NULL;
     if (!zcs_column_cursor_valid(reader->strings_cursor))
         return NULL;
@@ -464,8 +465,8 @@ const char *zcs_row_group_reader_column_name(
 {
     if (column >= reader->columns.count)
         return NULL;
-    return zcs_row_group_reader_string(reader,
-        reader->columns.descriptors[column].name);
+    return zcs_row_group_reader_string(
+        reader, reader->columns.descriptors[column].name);
 }
 
 enum zcs_column_type zcs_row_group_reader_column_type(

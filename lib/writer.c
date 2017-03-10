@@ -281,7 +281,6 @@ bool zcs_row_group_writer_add_column(struct zcs_row_group_writer *writer,
     size_t string_count = zcs_column_count(writer->strings);
     assert(string_count);
 
-
     struct zcs_column_descriptor *descriptor =
         &writer->columns.descriptors[writer->columns.count++];
     memset(descriptor, 0, sizeof(*descriptor));
@@ -497,9 +496,11 @@ bool zcs_row_group_writer_finish(struct zcs_row_group_writer *writer, bool sync)
         goto error;
 
     // write the footer
-    struct zcs_footer footer = {offset, strings_size,
+    struct zcs_footer footer = {offset,
+                                strings_size,
                                 writer->row_groups.count,
-                                writer->columns.count, writer->row_count,
+                                writer->columns.count,
+                                writer->row_count,
                                 ZCS_FILE_MAGIC};
     if (!zcs_row_group_writer_write(writer, &footer, sizeof(footer)))
         goto error;

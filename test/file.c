@@ -242,8 +242,8 @@ static MunitResult test_no_row_groups(const MunitParameter params[], void *ptr)
     assert_not_null(writer);
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
-        assert_true(zcs_row_group_writer_add_column(writer, "foo", ZCS_COLUMN_I32, 0,
-                                                    ZCS_COMPRESSION_NONE, 0));
+        assert_true(zcs_row_group_writer_add_column(
+            writer, "foo", ZCS_COLUMN_I32, 0, ZCS_COMPRESSION_NONE, 0));
 
     assert_true(zcs_row_group_writer_finish(writer, true));
 
@@ -330,9 +330,8 @@ static MunitResult test_empty_columns(const MunitParameter params[], void *ptr)
         assert_not_null(column);
         struct zcs_column *nulls = zcs_column_new(ZCS_COLUMN_BIT, 0);
         assert_not_null(nulls);
-        assert_true(zcs_row_group_writer_add_column(writer, "foo",
-                                                    ZCS_COLUMN_I32, 0,
-                                                    compression, level));
+        assert_true(zcs_row_group_writer_add_column(
+            writer, "foo", ZCS_COLUMN_I32, 0, compression, level));
         assert_true(zcs_row_group_add_column(row_group, column, nulls));
         assert_true(zcs_row_group_writer_put(writer, row_group));
         assert_true(zcs_row_group_writer_finish(writer, true));
