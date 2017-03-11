@@ -11,7 +11,15 @@ INCLUDEDIR ?= $(PREFIX)/include
 ifeq ($(debug), 1)
   CFLAGS += -Og
 else
-  CFLAGS += -O3 -march=native -DCX_AVX2 -DCX_PCMPISTRM
+  CFLAGS += -O3 -march=native
+  CPU_FEATURES := $(shell ./contrib/cpu-features.sh)
+  ifneq (,$(findstring AVX2,$(CPU_FEATURES)))
+    CFLAGS += -DCX_AVX2 -DCX_PCMPISTRM
+  else ifneq (,$(findstring AVX,$(CPU_FEATURES)))
+    CFLAGS += -DCX_AVX -DCX_PCMPISTRM
+  else ifneq (,$(findstring SSE4_2,$(CPU_FEATURES)))
+    CFLAGS += -DCX_PCMPISTRM
+  endif
 endif
 
 ifeq ($(asan), 1)
