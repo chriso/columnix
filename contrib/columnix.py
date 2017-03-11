@@ -1,5 +1,5 @@
 """
-Python bindings for libcx.
+Python bindings for columnix.
 
 Example write (Python):
 
@@ -23,7 +23,7 @@ Example read (C):
     #include <assert.h>
     #include <inttypes.h>
     #include <stdio.h>
-    #include <cx/reader.h>
+    #include <columnix/reader.h>
 
     int main()
     {
@@ -46,35 +46,34 @@ Example read (C):
 from ctypes import cdll, util
 from ctypes import c_char_p, c_size_t, c_void_p, c_int, c_int32, c_int64, c_bool
 
-libcx = cdll.LoadLibrary(util.find_library("cx"))
+lib = cdll.LoadLibrary(util.find_library("columnix"))
 
-cx_writer_new = libcx.cx_writer_new
+cx_writer_new = lib.cx_writer_new
 cx_writer_new.argtypes = [c_char_p, c_size_t]
 cx_writer_new.restype = c_void_p
 
-cx_writer_free = libcx.cx_writer_free
+cx_writer_free = lib.cx_writer_free
 cx_writer_free.argtypes = [c_void_p]
 
-cx_writer_add_column = libcx.cx_writer_add_column
-cx_writer_add_column.argtypes = [c_void_p, c_char_p, c_int, c_int, c_int,
-                                  c_int]
+cx_writer_add_column = lib.cx_writer_add_column
+cx_writer_add_column.argtypes = [c_void_p, c_char_p, c_int, c_int, c_int, c_int]
 
-cx_writer_put_null = libcx.cx_writer_put_null
+cx_writer_put_null = lib.cx_writer_put_null
 cx_writer_put_null.argtypes = [c_void_p, c_size_t]
 
-cx_writer_put_bit = libcx.cx_writer_put_bit
+cx_writer_put_bit = lib.cx_writer_put_bit
 cx_writer_put_bit.argtypes = [c_void_p, c_size_t, c_bool]
 
-cx_writer_put_i32 = libcx.cx_writer_put_i32
+cx_writer_put_i32 = lib.cx_writer_put_i32
 cx_writer_put_i32.argtypes = [c_void_p, c_size_t, c_int32]
 
-cx_writer_put_i64 = libcx.cx_writer_put_i64
+cx_writer_put_i64 = lib.cx_writer_put_i64
 cx_writer_put_i64.argtypes = [c_void_p, c_size_t, c_int64]
 
-cx_writer_put_str = libcx.cx_writer_put_str
+cx_writer_put_str = lib.cx_writer_put_str
 cx_writer_put_str.argtypes = [c_void_p, c_size_t, c_char_p]
 
-cx_writer_finish = libcx.cx_writer_finish
+cx_writer_finish = lib.cx_writer_finish
 cx_writer_finish.argtypes = [c_void_p, c_bool]
 
 BIT = 0

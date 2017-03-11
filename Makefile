@@ -1,4 +1,4 @@
-PROJECT = cx
+PROJECT = columnix
 
 LDLIBS = -llz4 -lzstd
 
