@@ -40,6 +40,7 @@ static struct cx_column *cx_column_new_size(enum cx_column_type type,
         return NULL;
     if (size) {
 #if CX_PCMPISTRM
+        // ensure there are at least 16 initialized bytes after each item
         size += 16;
         column->buffer.mutable = calloc(1, size);
 #else
@@ -154,6 +155,7 @@ __attribute__((noinline)) static bool cx_column_resize(struct cx_column *column,
     size_t size = column->size;
     size_t required_size = column->offset + alloc_size;
 #if CX_PCMPISTRM
+    // ensure there are at least 16 initialized bytes after each item
     required_size += 16;
 #endif
     while (size < required_size) {
