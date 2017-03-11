@@ -12,73 +12,73 @@
 #include "reader.h"
 #include "row.h"
 
-struct zcs_reader {
-    struct zcs_row_group_reader *reader;
-    struct zcs_predicate *predicate;
-    struct zcs_row_group *row_group;
-    struct zcs_row_cursor *row_cursor;
+struct cx_reader {
+    struct cx_row_group_reader *reader;
+    struct cx_predicate *predicate;
+    struct cx_row_group *row_group;
+    struct cx_row_cursor *row_cursor;
     size_t row_group_count;
     size_t position;
     bool match_all_rows;
     bool error;
 };
 
-struct zcs_row_group_reader {
+struct cx_row_group_reader {
     FILE *file;
     void *mmap_ptr;
     size_t file_size;
     size_t row_count;
-    struct zcs_column *strings;
-    struct zcs_column_cursor *strings_cursor;
+    struct cx_column *strings;
+    struct cx_column_cursor *strings_cursor;
     struct {
-        const struct zcs_column_descriptor *descriptors;
+        const struct cx_column_descriptor *descriptors;
         size_t count;
     } columns;
     struct {
-        const struct zcs_row_group_header *headers;
+        const struct cx_row_group_header *headers;
         size_t count;
     } row_groups;
 };
 
-struct zcs_reader_query_context {
-    struct zcs_row_group_reader *reader;
-    struct zcs_predicate *predicate;
+struct cx_reader_query_context {
+    struct cx_row_group_reader *reader;
+    struct cx_predicate *predicate;
     size_t position;
     size_t row_group_count;
-    void (*iter)(struct zcs_row_cursor *, pthread_mutex_t *, void *);
+    void (*iter)(struct cx_row_cursor *, pthread_mutex_t *, void *);
     void *data;
     bool error;
     pthread_mutex_t mutex;
 };
 
-static struct zcs_reader *zcs_reader_new_impl(const char *path,
-                                              struct zcs_predicate *predicate,
-                                              bool match_all_rows)
+static struct cx_reader *cx_reader_new_impl(const char *path,
+                                            struct cx_predicate *predicate,
+                                            bool match_all_rows)
 {
     if (!predicate)
         return NULL;
-    struct zcs_reader *reader = calloc(1, sizeof(*reader));
+    struct cx_reader *reader = calloc(1, sizeof(*reader));
     if (!reader)
         return NULL;
-    reader->reader = zcs_row_group_reader_new(path);
+    reader->reader = cx_row_group_reader_new(path);
     if (!reader->reader)
         goto error;
     reader->predicate = predicate;
     reader->match_all_rows = match_all_rows;
     reader->row_group_count =
-        zcs_row_group_reader_row_group_count(reader->reader);
+        cx_row_group_reader_row_group_count(reader->reader);
     // validate and optimize the predicate
     if (reader->row_group_count && !match_all_rows) {
-        struct zcs_row_group *row_group =
-            zcs_row_group_reader_get(reader->reader, 0);
+        struct cx_row_group *row_group =
+            cx_row_group_reader_get(reader->reader, 0);
         if (!row_group)
             goto error;
-        if (!zcs_predicate_valid(predicate, row_group)) {
-            zcs_row_group_free(row_group);
+        if (!cx_predicate_valid(predicate, row_group)) {
+            cx_row_group_free(row_group);
             goto error;
         }
-        zcs_predicate_optimize(predicate, row_group);
-        zcs_row_group_free(row_group);
+        cx_predicate_optimize(predicate, row_group);
+        cx_row_group_free(row_group);
     }
     return reader;
 error:
@@ -86,87 +86,87 @@ error:
     return NULL;
 }
 
-struct zcs_reader *zcs_reader_new(const char *path)
+struct cx_reader *cx_reader_new(const char *path)
 {
-    return zcs_reader_new_impl(path, zcs_predicate_new_true(), true);
+    return cx_reader_new_impl(path, cx_predicate_new_true(), true);
 }
 
-struct zcs_reader *zcs_reader_new_matching(const char *path,
-                                           struct zcs_predicate *predicate)
+struct cx_reader *cx_reader_new_matching(const char *path,
+                                         struct cx_predicate *predicate)
 {
-    return zcs_reader_new_impl(path, predicate, false);
+    return cx_reader_new_impl(path, predicate, false);
 }
 
-void zcs_reader_free(struct zcs_reader *reader)
+void cx_reader_free(struct cx_reader *reader)
 {
     if (reader->row_cursor)
-        zcs_row_cursor_free(reader->row_cursor);
+        cx_row_cursor_free(reader->row_cursor);
     if (reader->row_group)
-        zcs_row_group_free(reader->row_group);
-    zcs_predicate_free(reader->predicate);
-    zcs_row_group_reader_free(reader->reader);
+        cx_row_group_free(reader->row_group);
+    cx_predicate_free(reader->predicate);
+    cx_row_group_reader_free(reader->reader);
     free(reader);
 }
 
-void zcs_reader_rewind(struct zcs_reader *reader)
+void cx_reader_rewind(struct cx_reader *reader)
 {
     if (reader->row_cursor)
-        zcs_row_cursor_free(reader->row_cursor);
+        cx_row_cursor_free(reader->row_cursor);
     if (reader->row_group)
-        zcs_row_group_free(reader->row_group);
+        cx_row_group_free(reader->row_group);
     reader->row_cursor = NULL;
     reader->row_group = NULL;
     reader->position = 0;
     reader->error = false;
 }
 
-static bool zcs_reader_load_cursor(struct zcs_reader *reader)
+static bool cx_reader_load_cursor(struct cx_reader *reader)
 {
     reader->row_group =
-        zcs_row_group_reader_get(reader->reader, reader->position);
+        cx_row_group_reader_get(reader->reader, reader->position);
     if (!reader->row_group)
         goto error;
     reader->row_cursor =
-        zcs_row_cursor_new(reader->row_group, reader->predicate);
+        cx_row_cursor_new(reader->row_group, reader->predicate);
     if (!reader->row_cursor)
         goto error;
     return true;
 error:
     if (reader->row_group)
-        zcs_row_group_free(reader->row_group);
+        cx_row_group_free(reader->row_group);
     reader->row_group = NULL;
     return false;
 }
 
-static bool zcs_reader_valid(const struct zcs_reader *reader)
+static bool cx_reader_valid(const struct cx_reader *reader)
 {
     return reader->position < reader->row_group_count;
 }
 
-static void zcs_reader_advance(struct zcs_reader *reader)
+static void cx_reader_advance(struct cx_reader *reader)
 {
     if (reader->row_cursor) {
-        zcs_row_cursor_free(reader->row_cursor);
+        cx_row_cursor_free(reader->row_cursor);
         reader->row_cursor = NULL;
     }
     if (reader->row_group) {
-        zcs_row_group_free(reader->row_group);
+        cx_row_group_free(reader->row_group);
         reader->row_group = NULL;
     }
     reader->position++;
 }
 
-bool zcs_reader_next(struct zcs_reader *reader)
+bool cx_reader_next(struct cx_reader *reader)
 {
     if (reader->error)
         return false;
-    for (; zcs_reader_valid(reader); zcs_reader_advance(reader)) {
+    for (; cx_reader_valid(reader); cx_reader_advance(reader)) {
         if (!reader->row_cursor)
-            if (!zcs_reader_load_cursor(reader))
+            if (!cx_reader_load_cursor(reader))
                 goto error;
-        if (zcs_row_cursor_next(reader->row_cursor))
+        if (cx_row_cursor_next(reader->row_cursor))
             return true;
-        if (zcs_row_cursor_error(reader->row_cursor))
+        if (cx_row_cursor_error(reader->row_cursor))
             goto error;
     }
     return false;
@@ -175,23 +175,23 @@ error:
     return false;
 }
 
-bool zcs_reader_error(const struct zcs_reader *reader)
+bool cx_reader_error(const struct cx_reader *reader)
 {
     return reader->error;
 }
 
-size_t zcs_reader_row_count(struct zcs_reader *reader)
+size_t cx_reader_row_count(struct cx_reader *reader)
 {
-    size_t total_row_count = zcs_row_group_reader_row_count(reader->reader);
+    size_t total_row_count = cx_row_group_reader_row_count(reader->reader);
     if (reader->match_all_rows || !total_row_count)
         return total_row_count;
-    zcs_reader_rewind(reader);
+    cx_reader_rewind(reader);
     size_t count = 0;
-    for (; zcs_reader_valid(reader); zcs_reader_advance(reader)) {
-        if (!zcs_reader_load_cursor(reader))
+    for (; cx_reader_valid(reader); cx_reader_advance(reader)) {
+        if (!cx_reader_load_cursor(reader))
             goto error;
-        count += zcs_row_cursor_count(reader->row_cursor);
-        if (zcs_row_cursor_error(reader->row_cursor))
+        count += cx_row_cursor_count(reader->row_cursor);
+        if (cx_row_cursor_error(reader->row_cursor))
             goto error;
     }
     return count;
@@ -200,53 +200,53 @@ error:
     return 0;
 }
 
-static void *zcs_reader_query_thread(void *ptr)
+static void *cx_reader_query_thread(void *ptr)
 {
-    struct zcs_reader_query_context *context = ptr;
-    struct zcs_row_group *row_group = NULL;
-    struct zcs_row_cursor *cursor = NULL;
+    struct cx_reader_query_context *context = ptr;
+    struct cx_row_group *row_group = NULL;
+    struct cx_row_cursor *cursor = NULL;
     for (;;) {
         pthread_mutex_lock(&context->mutex);
         size_t position = context->position++;
         pthread_mutex_unlock(&context->mutex);
         if (position >= context->row_group_count)
             break;
-        row_group = zcs_row_group_reader_get(context->reader, position);
+        row_group = cx_row_group_reader_get(context->reader, position);
         if (!row_group)
             goto error;
-        cursor = zcs_row_cursor_new(row_group, context->predicate);
+        cursor = cx_row_cursor_new(row_group, context->predicate);
         if (!cursor)
             goto error;
         context->iter(cursor, &context->mutex, context->data);
-        if (zcs_row_cursor_error(cursor))
+        if (cx_row_cursor_error(cursor))
             goto error;
-        zcs_row_group_free(row_group);
-        zcs_row_cursor_free(cursor);
+        cx_row_group_free(row_group);
+        cx_row_cursor_free(cursor);
         row_group = NULL;
         cursor = NULL;
     }
     return NULL;
 error:
     if (row_group)
-        zcs_row_group_free(row_group);
+        cx_row_group_free(row_group);
     if (cursor)
-        zcs_row_cursor_free(cursor);
+        cx_row_cursor_free(cursor);
     pthread_mutex_lock(&context->mutex);
     context->error = true;
     pthread_mutex_unlock(&context->mutex);
     return NULL;
 }
 
-bool zcs_reader_query(struct zcs_reader *reader, int thread_count, void *data,
-                      void (*iter)(struct zcs_row_cursor *, pthread_mutex_t *,
-                                   void *))
+bool cx_reader_query(struct cx_reader *reader, int thread_count, void *data,
+                     void (*iter)(struct cx_row_cursor *, pthread_mutex_t *,
+                                  void *))
 {
     if (thread_count <= 0)
         return false;
     if (!reader->row_group_count)
         return true;
     pthread_t *threads = NULL;
-    struct zcs_reader_query_context query_context = {
+    struct cx_reader_query_context query_context = {
         .reader = reader->reader,
         .predicate = reader->predicate,
         .position = 0,
@@ -260,7 +260,7 @@ bool zcs_reader_query(struct zcs_reader *reader, int thread_count, void *data,
     if (!threads)
         goto error;
     for (int i = 0; i < thread_count; i++)
-        if (pthread_create(&threads[i], NULL, zcs_reader_query_thread,
+        if (pthread_create(&threads[i], NULL, cx_reader_query_thread,
                            &query_context))
             goto error;
     for (int i = 0; i < thread_count; i++)
@@ -274,84 +274,83 @@ error:
     return false;
 }
 
-size_t zcs_reader_column_count(const struct zcs_reader *reader)
+size_t cx_reader_column_count(const struct cx_reader *reader)
 {
-    return zcs_row_group_reader_column_count(reader->reader);
+    return cx_row_group_reader_column_count(reader->reader);
 }
 
-const char *zcs_reader_column_name(const struct zcs_reader *reader,
-                                   size_t column)
+const char *cx_reader_column_name(const struct cx_reader *reader, size_t column)
 {
-    return zcs_row_group_reader_column_name(reader->reader, column);
+    return cx_row_group_reader_column_name(reader->reader, column);
 }
 
-enum zcs_column_type zcs_reader_column_type(const struct zcs_reader *reader,
-                                            size_t column)
+enum cx_column_type cx_reader_column_type(const struct cx_reader *reader,
+                                          size_t column)
 {
-    return zcs_row_group_reader_column_type(reader->reader, column);
+    return cx_row_group_reader_column_type(reader->reader, column);
 }
 
-enum zcs_encoding_type zcs_reader_column_encoding(
-    const struct zcs_reader *reader, size_t column)
+enum cx_encoding_type cx_reader_column_encoding(const struct cx_reader *reader,
+                                                size_t column)
 {
-    return zcs_row_group_reader_column_encoding(reader->reader, column);
+    return cx_row_group_reader_column_encoding(reader->reader, column);
 }
 
-enum zcs_compression_type zcs_reader_column_compression(
-    const struct zcs_reader *reader, size_t column)
+enum cx_compression_type cx_reader_column_compression(
+    const struct cx_reader *reader, size_t column)
 {
-    return zcs_row_group_reader_column_compression(reader->reader, column);
+    return cx_row_group_reader_column_compression(reader->reader, column);
 }
 
-bool zcs_reader_get_null(const struct zcs_reader *reader, size_t column_index,
-                         bool *value)
-{
-    if (!reader->row_cursor)
-        return false;
-    return zcs_row_cursor_get_null(reader->row_cursor, column_index, value);
-}
-
-bool zcs_reader_get_bit(const struct zcs_reader *reader, size_t column_index,
+bool cx_reader_get_null(const struct cx_reader *reader, size_t column_index,
                         bool *value)
 {
     if (!reader->row_cursor)
         return false;
-    return zcs_row_cursor_get_bit(reader->row_cursor, column_index, value);
+    return cx_row_cursor_get_null(reader->row_cursor, column_index, value);
 }
 
-bool zcs_reader_get_i32(const struct zcs_reader *reader, size_t column_index,
-                        int32_t *value)
+bool cx_reader_get_bit(const struct cx_reader *reader, size_t column_index,
+                       bool *value)
 {
     if (!reader->row_cursor)
         return false;
-    return zcs_row_cursor_get_i32(reader->row_cursor, column_index, value);
+    return cx_row_cursor_get_bit(reader->row_cursor, column_index, value);
 }
 
-bool zcs_reader_get_i64(const struct zcs_reader *reader, size_t column_index,
-                        int64_t *value)
+bool cx_reader_get_i32(const struct cx_reader *reader, size_t column_index,
+                       int32_t *value)
 {
     if (!reader->row_cursor)
         return false;
-    return zcs_row_cursor_get_i64(reader->row_cursor, column_index, value);
+    return cx_row_cursor_get_i32(reader->row_cursor, column_index, value);
 }
 
-bool zcs_reader_get_str(const struct zcs_reader *reader, size_t column_index,
-                        const struct zcs_string **value)
+bool cx_reader_get_i64(const struct cx_reader *reader, size_t column_index,
+                       int64_t *value)
 {
     if (!reader->row_cursor)
         return false;
-    return zcs_row_cursor_get_str(reader->row_cursor, column_index, value);
+    return cx_row_cursor_get_i64(reader->row_cursor, column_index, value);
 }
 
-static const void *zcs_row_group_reader_at(
-    const struct zcs_row_group_reader *reader, size_t offset)
+bool cx_reader_get_str(const struct cx_reader *reader, size_t column_index,
+                       const struct cx_string **value)
+{
+    if (!reader->row_cursor)
+        return false;
+    return cx_row_cursor_get_str(reader->row_cursor, column_index, value);
+}
+
+static const void *cx_row_group_reader_at(
+    const struct cx_row_group_reader *reader, size_t offset)
 {
     return (const void *)((uintptr_t)reader->mmap_ptr + offset);
 }
 
-struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
+struct cx_row_group_reader *cx_row_group_reader_new(const char *path)
 {
-    struct zcs_row_group_reader *reader = calloc(1, sizeof(*reader));
+    struct cx_row_group_reader *reader = calloc(1, sizeof(*reader));
     if (!reader)
         return NULL;
     reader->file = fopen(path, "rb");
@@ -375,34 +374,34 @@ struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
     reader->mmap_ptr = mmap_ptr;
 
     // check the footer
-    if (file_size < sizeof(struct zcs_footer))
+    if (file_size < sizeof(struct cx_footer))
         goto error;
-    const struct zcs_footer *footer =
-        zcs_row_group_reader_at(reader, file_size - sizeof(struct zcs_footer));
-    if (footer->magic != ZCS_FILE_MAGIC)
+    const struct cx_footer *footer =
+        cx_row_group_reader_at(reader, file_size - sizeof(struct cx_footer));
+    if (footer->magic != CX_FILE_MAGIC)
         goto error;
 
     // check the file contains the row group headers, column descriptors and
     // string repository
     size_t row_group_headers_size =
-        footer->row_group_count * sizeof(struct zcs_row_group_header);
+        footer->row_group_count * sizeof(struct cx_row_group_header);
     size_t descriptors_size =
-        footer->column_count * sizeof(struct zcs_column_descriptor);
+        footer->column_count * sizeof(struct cx_column_descriptor);
     size_t headers_size =
-        row_group_headers_size + descriptors_size + sizeof(struct zcs_footer);
+        row_group_headers_size + descriptors_size + sizeof(struct cx_footer);
     if (file_size < headers_size)
         goto error;
 
     // load strings
     if (footer->strings_offset + footer->strings_size > file_size)
         goto error;
-    const void *strings = zcs_row_group_reader_at(
-        reader, footer->strings_offset);
-    reader->strings = zcs_column_new_mmapped(
-        ZCS_COLUMN_STR, ZCS_ENCODING_NONE, strings, footer->strings_size, NULL);
+    const void *strings =
+        cx_row_group_reader_at(reader, footer->strings_offset);
+    reader->strings = cx_column_new_mmapped(
+        CX_COLUMN_STR, CX_ENCODING_NONE, strings, footer->strings_size, NULL);
     if (!reader->strings)
         goto error;
-    reader->strings_cursor = zcs_column_cursor_new(reader->strings);
+    reader->strings_cursor = cx_column_cursor_new(reader->strings);
     if (!reader->strings_cursor)
         goto error;
 
@@ -410,10 +409,10 @@ struct zcs_row_group_reader *zcs_row_group_reader_new(const char *path)
     reader->row_count = footer->row_count;
     reader->columns.count = footer->column_count;
     reader->row_groups.count = footer->row_group_count;
-    reader->columns.descriptors = zcs_row_group_reader_at(
-        reader, file_size - sizeof(struct zcs_footer) - descriptors_size);
+    reader->columns.descriptors = cx_row_group_reader_at(
+        reader, file_size - sizeof(struct cx_footer) - descriptors_size);
     reader->row_groups.headers =
-        zcs_row_group_reader_at(reader, file_size - headers_size);
+        cx_row_group_reader_at(reader, file_size - headers_size);
 
     return reader;
 error:
@@ -422,132 +421,133 @@ error:
     if (reader->file)
         fclose(reader->file);
     if (reader->strings_cursor)
-        zcs_column_cursor_free(reader->strings_cursor);
+        cx_column_cursor_free(reader->strings_cursor);
     if (reader->strings)
-        zcs_column_free(reader->strings);
+        cx_column_free(reader->strings);
     free(reader);
     return NULL;
 }
 
-size_t zcs_row_group_reader_column_count(
-    const struct zcs_row_group_reader *reader)
+size_t cx_row_group_reader_column_count(
+    const struct cx_row_group_reader *reader)
 {
     return reader->columns.count;
 }
 
-size_t zcs_row_group_reader_row_count(const struct zcs_row_group_reader *reader)
+size_t cx_row_group_reader_row_count(const struct cx_row_group_reader *reader)
 {
     return reader->row_count;
 }
 
-size_t zcs_row_group_reader_row_group_count(
-    const struct zcs_row_group_reader *reader)
+size_t cx_row_group_reader_row_group_count(
+    const struct cx_row_group_reader *reader)
 {
     return reader->row_groups.count;
 }
 
-const char *zcs_row_group_reader_string(struct zcs_row_group_reader *reader,
-                                        size_t index)
+const char *cx_row_group_reader_string(struct cx_row_group_reader *reader,
+                                       size_t index)
 {
-    zcs_column_cursor_rewind(reader->strings_cursor);
-    if (index && index != zcs_column_cursor_skip_str(reader->strings_cursor, index))
+    cx_column_cursor_rewind(reader->strings_cursor);
+    if (index &&
+        index != cx_column_cursor_skip_str(reader->strings_cursor, index))
         return NULL;
-    if (!zcs_column_cursor_valid(reader->strings_cursor))
+    if (!cx_column_cursor_valid(reader->strings_cursor))
         return NULL;
-    const struct zcs_string *string =
-        zcs_column_cursor_get_str(reader->strings_cursor);
+    const struct cx_string *string =
+        cx_column_cursor_get_str(reader->strings_cursor);
     return string->ptr;
 }
 
-const char *zcs_row_group_reader_column_name(
-    struct zcs_row_group_reader *reader, size_t column)
+const char *cx_row_group_reader_column_name(struct cx_row_group_reader *reader,
+                                            size_t column)
 {
     if (column >= reader->columns.count)
         return NULL;
-    return zcs_row_group_reader_string(reader,
-        reader->columns.descriptors[column].name);
+    return cx_row_group_reader_string(reader,
+                                      reader->columns.descriptors[column].name);
 }
 
-enum zcs_column_type zcs_row_group_reader_column_type(
-    const struct zcs_row_group_reader *reader, size_t column)
+enum cx_column_type cx_row_group_reader_column_type(
+    const struct cx_row_group_reader *reader, size_t column)
 {
     assert(column < reader->columns.count);
     return reader->columns.descriptors[column].type;
 }
 
-enum zcs_encoding_type zcs_row_group_reader_column_encoding(
-    const struct zcs_row_group_reader *reader, size_t column)
+enum cx_encoding_type cx_row_group_reader_column_encoding(
+    const struct cx_row_group_reader *reader, size_t column)
 {
     assert(column < reader->columns.count);
     return reader->columns.descriptors[column].encoding;
 }
 
-enum zcs_compression_type zcs_row_group_reader_column_compression(
-    const struct zcs_row_group_reader *reader, size_t column)
+enum cx_compression_type cx_row_group_reader_column_compression(
+    const struct cx_row_group_reader *reader, size_t column)
 {
     assert(column < reader->columns.count);
     return reader->columns.descriptors[column].compression;
 }
 
-struct zcs_row_group *zcs_row_group_reader_get(
-    const struct zcs_row_group_reader *reader, size_t index)
+struct cx_row_group *cx_row_group_reader_get(
+    const struct cx_row_group_reader *reader, size_t index)
 {
-    const struct zcs_row_group_header *row_group_header =
+    const struct cx_row_group_header *row_group_header =
         &reader->row_groups.headers[index];
     size_t headers_size =
-        reader->columns.count * sizeof(struct zcs_column_header);
+        reader->columns.count * sizeof(struct cx_column_header);
     size_t headers_offset = row_group_header->offset + row_group_header->size;
     if (headers_offset + headers_size > reader->file_size)
         return NULL;
-    const struct zcs_column_header *columns_headers =
-        zcs_row_group_reader_at(reader, headers_offset);
-    struct zcs_row_group *row_group = zcs_row_group_new();
+    const struct cx_column_header *columns_headers =
+        cx_row_group_reader_at(reader, headers_offset);
+    struct cx_row_group *row_group = cx_row_group_new();
     if (!row_group)
         return NULL;
     for (size_t i = 0; i < reader->columns.count; i++) {
-        const struct zcs_column_descriptor *descriptor =
+        const struct cx_column_descriptor *descriptor =
             &reader->columns.descriptors[i];
-        const struct zcs_column_header *header = &columns_headers[i * 2];
+        const struct cx_column_header *header = &columns_headers[i * 2];
         if (header->offset + header->size > reader->file_size)
             goto error;
-        const struct zcs_column_header *null_header =
+        const struct cx_column_header *null_header =
             &columns_headers[i * 2 + 1];
         if (null_header->offset + null_header->size > reader->file_size)
             goto error;
 
-        struct zcs_lazy_column column = {
+        struct cx_lazy_column column = {
             .type = descriptor->type,
             .encoding = descriptor->encoding,
             .compression = header->compression,
             .index = &header->index,
-            .ptr = zcs_row_group_reader_at(reader, header->offset),
+            .ptr = cx_row_group_reader_at(reader, header->offset),
             .size = header->size,
             .decompressed_size = header->decompressed_size};
 
-        struct zcs_lazy_column nulls = {
-            .type = ZCS_COLUMN_BIT,
-            .encoding = ZCS_ENCODING_NONE,
+        struct cx_lazy_column nulls = {
+            .type = CX_COLUMN_BIT,
+            .encoding = CX_ENCODING_NONE,
             .compression = null_header->compression,
             .index = &null_header->index,
-            .ptr = zcs_row_group_reader_at(reader, null_header->offset),
+            .ptr = cx_row_group_reader_at(reader, null_header->offset),
             .size = null_header->size,
             .decompressed_size = null_header->decompressed_size};
 
-        if (!zcs_row_group_add_lazy_column(row_group, &column, &nulls))
+        if (!cx_row_group_add_lazy_column(row_group, &column, &nulls))
             goto error;
     }
     return row_group;
 error:
-    zcs_row_group_free(row_group);
+    cx_row_group_free(row_group);
     return NULL;
 }
 
-void zcs_row_group_reader_free(struct zcs_row_group_reader *reader)
+void cx_row_group_reader_free(struct cx_row_group_reader *reader)
 {
     if (reader->mmap_ptr)
         munmap(reader->mmap_ptr, reader->file_size);
     fclose(reader->file);
-    zcs_column_cursor_free(reader->strings_cursor);
-    zcs_column_free(reader->strings);
+    cx_column_cursor_free(reader->strings_cursor);
+    cx_column_free(reader->strings);
     free(reader);
 }

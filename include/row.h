@@ -1,32 +1,32 @@
-#ifndef ZCS_ROW_
-#define ZCS_ROW_
+#ifndef CX_ROW_
+#define CX_ROW_
 
 #include "predicate.h"
 
-struct zcs_row_cursor;
+struct cx_row_cursor;
 
-struct zcs_row_cursor *zcs_row_cursor_new(struct zcs_row_group *,
-                                          const struct zcs_predicate *);
+struct cx_row_cursor *cx_row_cursor_new(struct cx_row_group *,
+                                        const struct cx_predicate *);
 
-void zcs_row_cursor_free(struct zcs_row_cursor *);
+void cx_row_cursor_free(struct cx_row_cursor *);
 
-void zcs_row_cursor_rewind(struct zcs_row_cursor *);
+void cx_row_cursor_rewind(struct cx_row_cursor *);
 
-bool zcs_row_cursor_next(struct zcs_row_cursor *);
+bool cx_row_cursor_next(struct cx_row_cursor *);
 
-bool zcs_row_cursor_error(const struct zcs_row_cursor *);
+bool cx_row_cursor_error(const struct cx_row_cursor *);
 
-size_t zcs_row_cursor_count(struct zcs_row_cursor *);
+size_t cx_row_cursor_count(struct cx_row_cursor *);
 
-bool zcs_row_cursor_get_null(const struct zcs_row_cursor *, size_t column_index,
-                             bool *value);
-bool zcs_row_cursor_get_bit(const struct zcs_row_cursor *, size_t column_index,
+bool cx_row_cursor_get_null(const struct cx_row_cursor *, size_t column_index,
                             bool *value);
-bool zcs_row_cursor_get_i32(const struct zcs_row_cursor *, size_t column_index,
-                            int32_t *value);
-bool zcs_row_cursor_get_i64(const struct zcs_row_cursor *, size_t column_index,
-                            int64_t *value);
-bool zcs_row_cursor_get_str(const struct zcs_row_cursor *, size_t column_index,
-                            const struct zcs_string **value);
+bool cx_row_cursor_get_bit(const struct cx_row_cursor *, size_t column_index,
+                           bool *value);
+bool cx_row_cursor_get_i32(const struct cx_row_cursor *, size_t column_index,
+                           int32_t *value);
+bool cx_row_cursor_get_i64(const struct cx_row_cursor *, size_t column_index,
+                           int64_t *value);
+bool cx_row_cursor_get_str(const struct cx_row_cursor *, size_t column_index,
+                           const struct cx_string **value);
 
 #endif

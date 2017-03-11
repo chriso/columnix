@@ -13,32 +13,32 @@
 #include "file.h"
 #include "writer.h"
 
-#define ZCS_NULL_COMPRESSION_TYPE ZCS_COMPRESSION_LZ4
-#define ZCS_NULL_COMPRESSION_LEVEL 0
+#define CX_NULL_COMPRESSION_TYPE CX_COMPRESSION_LZ4
+#define CX_NULL_COMPRESSION_LEVEL 0
 
-struct zcs_writer_physical_column {
-    struct zcs_column *values;
-    struct zcs_column *nulls;
+struct cx_writer_physical_column {
+    struct cx_column *values;
+    struct cx_column *nulls;
 };
 
-struct zcs_writer {
-    struct zcs_row_group_writer *writer;
-    struct zcs_writer_physical_column *columns;
+struct cx_writer {
+    struct cx_row_group_writer *writer;
+    struct cx_writer_physical_column *columns;
     size_t row_group_size;
     size_t column_count;
     size_t position;
 };
 
-struct zcs_row_group_writer {
+struct cx_row_group_writer {
     FILE *file;
-    struct zcs_column *strings;
+    struct cx_column *strings;
     struct {
-        struct zcs_column_descriptor *descriptors;
+        struct cx_column_descriptor *descriptors;
         size_t count;
         size_t size;
     } columns;
     struct {
-        struct zcs_row_group_header *headers;
+        struct cx_row_group_header *headers;
         size_t count;
         size_t size;
     } row_groups;
@@ -47,12 +47,12 @@ struct zcs_row_group_writer {
     bool footer_written;
 };
 
-struct zcs_writer *zcs_writer_new(const char *path, size_t row_group_size)
+struct cx_writer *cx_writer_new(const char *path, size_t row_group_size)
 {
-    struct zcs_writer *writer = calloc(1, sizeof(*writer));
+    struct cx_writer *writer = calloc(1, sizeof(*writer));
     if (!writer)
         return NULL;
-    writer->writer = zcs_row_group_writer_new(path);
+    writer->writer = cx_row_group_writer_new(path);
     if (!writer->writer)
         goto error;
     writer->row_group_size = row_group_size;
@@ -62,73 +62,73 @@ error:
     return NULL;
 }
 
-void zcs_writer_free(struct zcs_writer *writer)
+void cx_writer_free(struct cx_writer *writer)
 {
     if (writer->columns) {
         for (size_t i = 0; i < writer->column_count; i++) {
-            zcs_column_free(writer->columns[i].values);
-            zcs_column_free(writer->columns[i].nulls);
+            cx_column_free(writer->columns[i].values);
+            cx_column_free(writer->columns[i].nulls);
         }
         free(writer->columns);
     }
-    zcs_row_group_writer_free(writer->writer);
+    cx_row_group_writer_free(writer->writer);
     free(writer);
 }
 
-bool zcs_writer_add_column(struct zcs_writer *writer, const char *name,
-                           enum zcs_column_type type,
-                           enum zcs_encoding_type encoding,
-                           enum zcs_compression_type compression, int level)
+bool cx_writer_add_column(struct cx_writer *writer, const char *name,
+                          enum cx_column_type type,
+                          enum cx_encoding_type encoding,
+                          enum cx_compression_type compression, int level)
 {
-    if (!zcs_row_group_writer_add_column(writer->writer, name, type, encoding,
-                                         compression, level))
+    if (!cx_row_group_writer_add_column(writer->writer, name, type, encoding,
+                                        compression, level))
         return false;
     writer->column_count++;
     return true;
 }
 
-static bool zcs_writer_flush_row_group(struct zcs_writer *writer)
+static bool cx_writer_flush_row_group(struct cx_writer *writer)
 {
     if (!writer->columns)
         return true;
-    struct zcs_row_group *row_group = zcs_row_group_new();
+    struct cx_row_group *row_group = cx_row_group_new();
     if (!row_group)
         return false;
     for (size_t i = 0; i < writer->column_count; i++)
-        if (!zcs_row_group_add_column(row_group, writer->columns[i].values,
-                                      writer->columns[i].nulls))
+        if (!cx_row_group_add_column(row_group, writer->columns[i].values,
+                                     writer->columns[i].nulls))
             goto error;
-    if (!zcs_row_group_writer_put(writer->writer, row_group))
+    if (!cx_row_group_writer_put(writer->writer, row_group))
         goto error;
-    zcs_row_group_free(row_group);
+    cx_row_group_free(row_group);
     for (size_t i = 0; i < writer->column_count; i++) {
-        zcs_column_free(writer->columns[i].values);
-        zcs_column_free(writer->columns[i].nulls);
+        cx_column_free(writer->columns[i].values);
+        cx_column_free(writer->columns[i].nulls);
     }
     free(writer->columns);
     writer->columns = NULL;
     writer->position = 0;
     return true;
 error:
-    zcs_row_group_free(row_group);
+    cx_row_group_free(row_group);
     return false;
 }
 
-static bool zcs_writer_ensure_columns(struct zcs_writer *writer)
+static bool cx_writer_ensure_columns(struct cx_writer *writer)
 {
     assert(!writer->columns && writer->column_count);
     writer->columns = calloc(writer->column_count, sizeof(*writer->columns));
     if (!writer->columns)
         return false;
     for (size_t i = 0; i < writer->column_count; i++) {
-        struct zcs_column_descriptor *descriptor =
+        struct cx_column_descriptor *descriptor =
             &writer->writer->columns.descriptors[i];
         writer->columns[i].values =
-            zcs_column_new(descriptor->type, descriptor->encoding);
+            cx_column_new(descriptor->type, descriptor->encoding);
         if (!writer->columns[i].values)
             goto error;
         writer->columns[i].nulls =
-            zcs_column_new(ZCS_COLUMN_BIT, ZCS_ENCODING_NONE);
+            cx_column_new(CX_COLUMN_BIT, CX_ENCODING_NONE);
         if (!writer->columns[i].nulls)
             goto error;
     }
@@ -136,105 +136,105 @@ static bool zcs_writer_ensure_columns(struct zcs_writer *writer)
 error:
     for (size_t i = 0; i < writer->column_count; i++) {
         if (writer->columns[i].values)
-            zcs_column_free(writer->columns[i].values);
+            cx_column_free(writer->columns[i].values);
         if (writer->columns[i].nulls)
-            zcs_column_free(writer->columns[i].nulls);
+            cx_column_free(writer->columns[i].nulls);
     }
     free(writer->columns);
     writer->columns = NULL;
     return false;
 }
 
-static bool zcs_writer_put_check(struct zcs_writer *writer, size_t column_index)
+static bool cx_writer_put_check(struct cx_writer *writer, size_t column_index)
 {
     if (column_index >= writer->column_count)
         return false;
     if (column_index == 0 && writer->position == writer->row_group_size)
-        if (!zcs_writer_flush_row_group(writer))
+        if (!cx_writer_flush_row_group(writer))
             return false;
     if (!writer->columns)
-        if (!zcs_writer_ensure_columns(writer))
+        if (!cx_writer_ensure_columns(writer))
             return false;
     return true;
 }
 
-bool zcs_writer_put_bit(struct zcs_writer *writer, size_t column_index,
-                        bool value)
+bool cx_writer_put_bit(struct cx_writer *writer, size_t column_index,
+                       bool value)
 {
-    if (!zcs_writer_put_check(writer, column_index))
+    if (!cx_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_bit(writer->columns[column_index].values, value))
+    if (!cx_column_put_bit(writer->columns[column_index].values, value))
         return false;
-    if (!zcs_column_put_bit(writer->columns[column_index].nulls, false))
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, false))
         return false;
     writer->position += (column_index == 0);
     return true;
 }
 
-bool zcs_writer_put_i32(struct zcs_writer *writer, size_t column_index,
-                        int32_t value)
+bool cx_writer_put_i32(struct cx_writer *writer, size_t column_index,
+                       int32_t value)
 {
-    if (!zcs_writer_put_check(writer, column_index))
+    if (!cx_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_i32(writer->columns[column_index].values, value))
+    if (!cx_column_put_i32(writer->columns[column_index].values, value))
         return false;
-    if (!zcs_column_put_bit(writer->columns[column_index].nulls, false))
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, false))
         return false;
     writer->position += (column_index == 0);
     return true;
 }
 
-bool zcs_writer_put_i64(struct zcs_writer *writer, size_t column_index,
-                        int64_t value)
+bool cx_writer_put_i64(struct cx_writer *writer, size_t column_index,
+                       int64_t value)
 {
-    if (!zcs_writer_put_check(writer, column_index))
+    if (!cx_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_i64(writer->columns[column_index].values, value))
+    if (!cx_column_put_i64(writer->columns[column_index].values, value))
         return false;
-    if (!zcs_column_put_bit(writer->columns[column_index].nulls, false))
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, false))
         return false;
     writer->position += (column_index == 0);
     return true;
 }
 
-bool zcs_writer_put_str(struct zcs_writer *writer, size_t column_index,
-                        const char *value)
+bool cx_writer_put_str(struct cx_writer *writer, size_t column_index,
+                       const char *value)
 {
-    if (!zcs_writer_put_check(writer, column_index))
+    if (!cx_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_str(writer->columns[column_index].values, value))
+    if (!cx_column_put_str(writer->columns[column_index].values, value))
         return false;
-    if (!zcs_column_put_bit(writer->columns[column_index].nulls, false))
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, false))
         return false;
     writer->position += (column_index == 0);
     return true;
 }
 
-bool zcs_writer_put_null(struct zcs_writer *writer, size_t column_index)
+bool cx_writer_put_null(struct cx_writer *writer, size_t column_index)
 {
-    if (!zcs_writer_put_check(writer, column_index))
+    if (!cx_writer_put_check(writer, column_index))
         return false;
-    if (!zcs_column_put_unit(writer->columns[column_index].values))
+    if (!cx_column_put_unit(writer->columns[column_index].values))
         return false;
-    if (!zcs_column_put_bit(writer->columns[column_index].nulls, true))
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, true))
         return false;
     writer->position += (column_index == 0);
     return true;
 }
 
-bool zcs_writer_finish(struct zcs_writer *writer, bool sync)
+bool cx_writer_finish(struct cx_writer *writer, bool sync)
 {
-    if (!zcs_writer_flush_row_group(writer))
+    if (!cx_writer_flush_row_group(writer))
         return false;
-    return zcs_row_group_writer_finish(writer->writer, sync);
+    return cx_row_group_writer_finish(writer->writer, sync);
 }
 
-struct zcs_row_group_writer *zcs_row_group_writer_new(const char *path)
+struct cx_row_group_writer *cx_row_group_writer_new(const char *path)
 {
-    struct zcs_row_group_writer *writer = calloc(1, sizeof(*writer));
+    struct cx_row_group_writer *writer = calloc(1, sizeof(*writer));
     if (!writer)
         return NULL;
-    writer->strings = zcs_column_new(ZCS_COLUMN_STR, ZCS_ENCODING_NONE);
+    writer->strings = cx_column_new(CX_COLUMN_STR, CX_ENCODING_NONE);
     if (!writer->strings)
         goto error;
     writer->file = fopen(path, "wb");
@@ -243,17 +243,16 @@ struct zcs_row_group_writer *zcs_row_group_writer_new(const char *path)
     return writer;
 error:
     if (writer->strings)
-        zcs_column_free(writer->strings);
+        cx_column_free(writer->strings);
     free(writer);
     return NULL;
 }
 
-bool zcs_row_group_writer_add_column(struct zcs_row_group_writer *writer,
-                                     const char *name,
-                                     enum zcs_column_type type,
-                                     enum zcs_encoding_type encoding,
-                                     enum zcs_compression_type compression,
-                                     int level)
+bool cx_row_group_writer_add_column(struct cx_row_group_writer *writer,
+                                    const char *name, enum cx_column_type type,
+                                    enum cx_encoding_type encoding,
+                                    enum cx_compression_type compression,
+                                    int level)
 {
     if (writer->header_written)
         return false;
@@ -267,7 +266,7 @@ bool zcs_row_group_writer_add_column(struct zcs_row_group_writer *writer,
     } else if (writer->columns.count == writer->columns.size) {
         size_t new_size = writer->columns.size * 2;
         assert(new_size && new_size > writer->columns.size);
-        struct zcs_column_descriptor *descriptors = realloc(
+        struct cx_column_descriptor *descriptors = realloc(
             writer->columns.descriptors, new_size * sizeof(*descriptors));
         if (!descriptors)
             return false;
@@ -275,14 +274,13 @@ bool zcs_row_group_writer_add_column(struct zcs_row_group_writer *writer,
         writer->columns.size = new_size;
     }
 
-    if (!zcs_column_put_str(writer->strings, name))
+    if (!cx_column_put_str(writer->strings, name))
         return false;
 
-    size_t string_count = zcs_column_count(writer->strings);
+    size_t string_count = cx_column_count(writer->strings);
     assert(string_count);
 
-
-    struct zcs_column_descriptor *descriptor =
+    struct cx_column_descriptor *descriptor =
         &writer->columns.descriptors[writer->columns.count++];
     memset(descriptor, 0, sizeof(*descriptor));
     descriptor->name = string_count - 1;
@@ -294,44 +292,44 @@ bool zcs_row_group_writer_add_column(struct zcs_row_group_writer *writer,
     return true;
 }
 
-static size_t zcs_write_align(size_t offset)
+static size_t cx_write_align(size_t offset)
 {
-    size_t mod = offset % ZCS_WRITE_ALIGN;
-    return mod ? offset - mod + ZCS_WRITE_ALIGN : offset;
+    size_t mod = offset % CX_WRITE_ALIGN;
+    return mod ? offset - mod + CX_WRITE_ALIGN : offset;
 }
 
-static size_t zcs_row_group_writer_offset(
-    const struct zcs_row_group_writer *writer)
+static size_t cx_row_group_writer_offset(
+    const struct cx_row_group_writer *writer)
 {
     return ftello(writer->file);
 }
 
-static bool zcs_row_group_writer_seek(const struct zcs_row_group_writer *writer,
-                                      size_t offset)
+static bool cx_row_group_writer_seek(const struct cx_row_group_writer *writer,
+                                     size_t offset)
 {
     return fseeko(writer->file, offset, SEEK_SET) == 0;
 }
 
-static bool zcs_row_group_writer_write(
-    const struct zcs_row_group_writer *writer, const void *buf, size_t size)
+static bool cx_row_group_writer_write(const struct cx_row_group_writer *writer,
+                                      const void *buf, size_t size)
 {
     if (!size)
         return true;
-    size_t offset = zcs_row_group_writer_offset(writer);
-    size_t aligned_offset = zcs_write_align(offset);
+    size_t offset = cx_row_group_writer_offset(writer);
+    size_t aligned_offset = cx_write_align(offset);
     if (offset != aligned_offset &&
-        !zcs_row_group_writer_seek(writer, aligned_offset))
+        !cx_row_group_writer_seek(writer, aligned_offset))
         return false;
     return fwrite(buf, size, 1, writer->file) == 1;
 }
 
-static bool zcs_row_group_writer_ensure_header(
-    struct zcs_row_group_writer *writer)
+static bool cx_row_group_writer_ensure_header(
+    struct cx_row_group_writer *writer)
 {
     if (writer->header_written)
         return true;
-    struct zcs_header header = {ZCS_FILE_MAGIC};
-    if (!zcs_row_group_writer_write(writer, &header, sizeof(header)))
+    struct cx_header header = {CX_FILE_MAGIC};
+    if (!cx_row_group_writer_write(writer, &header, sizeof(header)))
         goto error;
     writer->header_written = true;
     return true;
@@ -340,27 +338,28 @@ error:
     return false;
 }
 
-static bool zcs_row_group_writer_put_column(
-    struct zcs_row_group_writer *writer, const struct zcs_column *column,
-    struct zcs_column_header *header, enum zcs_compression_type compression,
-    int compression_level)
+static bool cx_row_group_writer_put_column(struct cx_row_group_writer *writer,
+                                           const struct cx_column *column,
+                                           struct cx_column_header *header,
+                                           enum cx_compression_type compression,
+                                           int compression_level)
 {
     size_t column_size;
-    const void *buffer = zcs_column_export(column, &column_size);
+    const void *buffer = cx_column_export(column, &column_size);
     header->decompressed_size = column_size;
-    header->offset = zcs_write_align(zcs_row_group_writer_offset(writer));
-    const struct zcs_column_index *index = zcs_column_index(column);
+    header->offset = cx_write_align(cx_row_group_writer_offset(writer));
+    const struct cx_column_index *index = cx_column_index(column);
     memcpy(&header->index, index, sizeof(*index));
     size_t compressed_size = 0;
     void *compressed = NULL;
     if (compression && column_size) {
-        compressed = zcs_compress(compression, compression_level, buffer,
-                                  column_size, &compressed_size);
+        compressed = cx_compress(compression, compression_level, buffer,
+                                 column_size, &compressed_size);
         if (!compressed)
             goto error;
         // fallback if the compression leads to an increase in size
         if (compressed_size >= column_size) {
-            header->compression = ZCS_COMPRESSION_NONE;
+            header->compression = CX_COMPRESSION_NONE;
         } else {
             header->compression = compression;
             buffer = compressed;
@@ -368,7 +367,7 @@ static bool zcs_row_group_writer_put_column(
         }
     }
     header->size = column_size;
-    if (!zcs_row_group_writer_write(writer, buffer, column_size))
+    if (!cx_row_group_writer_write(writer, buffer, column_size))
         goto error;
     if (compressed)
         free(compressed);
@@ -379,23 +378,23 @@ error:
     return false;
 }
 
-bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
-                              struct zcs_row_group *row_group)
+bool cx_row_group_writer_put(struct cx_row_group_writer *writer,
+                             struct cx_row_group *row_group)
 {
     if (writer->footer_written)
         return false;
 
     // check column types match
-    size_t column_count = zcs_row_group_column_count(row_group);
+    size_t column_count = cx_row_group_column_count(row_group);
     if (column_count != writer->columns.count)
         return false;
     if (!column_count)
         return true;  // noop
     for (size_t i = 0; i < column_count; i++) {
-        struct zcs_column_descriptor *descriptor =
+        struct cx_column_descriptor *descriptor =
             &writer->columns.descriptors[i];
-        if (descriptor->type != zcs_row_group_column_type(row_group, i) ||
-            descriptor->encoding != zcs_row_group_column_encoding(row_group, i))
+        if (descriptor->type != cx_row_group_column_type(row_group, i) ||
+            descriptor->encoding != cx_row_group_column_encoding(row_group, i))
             return false;
     }
 
@@ -409,7 +408,7 @@ bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
     } else if (writer->row_groups.count == writer->row_groups.size) {
         size_t new_size = writer->row_groups.size * 2;
         assert(new_size && new_size > writer->row_groups.size);
-        struct zcs_row_group_header *headers =
+        struct cx_row_group_header *headers =
             realloc(writer->row_groups.headers, new_size * sizeof(*headers));
         if (!headers)
             return false;
@@ -418,95 +417,97 @@ bool zcs_row_group_writer_put(struct zcs_row_group_writer *writer,
     }
 
     // write the header if it hasn't already been written
-    if (!zcs_row_group_writer_ensure_header(writer))
+    if (!cx_row_group_writer_ensure_header(writer))
         return false;
 
-    size_t row_group_offset = zcs_row_group_writer_offset(writer);
+    size_t row_group_offset = cx_row_group_writer_offset(writer);
 
-    size_t headers_size = 2 * column_count * sizeof(struct zcs_column_header);
-    struct zcs_column_header *headers = calloc(column_count, headers_size);
+    size_t headers_size = 2 * column_count * sizeof(struct cx_column_header);
+    struct cx_column_header *headers = calloc(column_count, headers_size);
     if (!headers)
         goto error;
 
     // write columns
     for (size_t i = 0; i < column_count; i++) {
-        const struct zcs_column_descriptor *descriptor =
+        const struct cx_column_descriptor *descriptor =
             &writer->columns.descriptors[i];
-        const struct zcs_column *column = zcs_row_group_column(row_group, i);
-        const struct zcs_column *nulls = zcs_row_group_nulls(row_group, i);
+        const struct cx_column *column = cx_row_group_column(row_group, i);
+        const struct cx_column *nulls = cx_row_group_nulls(row_group, i);
         if (!column || !nulls)
             goto error;
-        if (!zcs_row_group_writer_put_column(writer, column, &headers[i * 2],
-                                             descriptor->compression,
-                                             descriptor->level))
+        if (!cx_row_group_writer_put_column(writer, column, &headers[i * 2],
+                                            descriptor->compression,
+                                            descriptor->level))
             goto error;
-        if (!zcs_row_group_writer_put_column(writer, nulls, &headers[i * 2 + 1],
-                                             ZCS_NULL_COMPRESSION_TYPE,
-                                             ZCS_NULL_COMPRESSION_LEVEL))
+        if (!cx_row_group_writer_put_column(writer, nulls, &headers[i * 2 + 1],
+                                            CX_NULL_COMPRESSION_TYPE,
+                                            CX_NULL_COMPRESSION_LEVEL))
             goto error;
     }
 
     // update the row group header
-    struct zcs_row_group_header *row_group_header =
+    struct cx_row_group_header *row_group_header =
         &writer->row_groups.headers[writer->row_groups.count++];
     row_group_header->size =
-        zcs_write_align(zcs_row_group_writer_offset(writer)) - row_group_offset;
+        cx_write_align(cx_row_group_writer_offset(writer)) - row_group_offset;
     row_group_header->offset = row_group_offset;
 
     // write column headers
-    if (!zcs_row_group_writer_write(writer, headers, headers_size))
+    if (!cx_row_group_writer_write(writer, headers, headers_size))
         goto error;
 
-    writer->row_count += zcs_row_group_row_count(row_group);
+    writer->row_count += cx_row_group_row_count(row_group);
 
     free(headers);
     return true;
 error:
-    zcs_row_group_writer_seek(writer, row_group_offset);
+    cx_row_group_writer_seek(writer, row_group_offset);
     free(headers);
     return false;
 }
 
-bool zcs_row_group_writer_finish(struct zcs_row_group_writer *writer, bool sync)
+bool cx_row_group_writer_finish(struct cx_row_group_writer *writer, bool sync)
 {
     if (writer->footer_written)
         return true;
-    if (!zcs_row_group_writer_ensure_header(writer))
+    if (!cx_row_group_writer_ensure_header(writer))
         return false;
 
-    size_t offset = zcs_row_group_writer_offset(writer);
+    size_t offset = cx_row_group_writer_offset(writer);
 
     // write strings
     size_t strings_size;
-    const void *strings = zcs_column_export(writer->strings, &strings_size);
-    if (!zcs_row_group_writer_write(writer, strings, strings_size))
+    const void *strings = cx_column_export(writer->strings, &strings_size);
+    if (!cx_row_group_writer_write(writer, strings, strings_size))
         goto error;
 
     // write row group headers
     size_t row_group_headers_size =
-        writer->row_groups.count * sizeof(struct zcs_row_group_header);
-    if (!zcs_row_group_writer_write(writer, writer->row_groups.headers,
-                                    row_group_headers_size))
+        writer->row_groups.count * sizeof(struct cx_row_group_header);
+    if (!cx_row_group_writer_write(writer, writer->row_groups.headers,
+                                   row_group_headers_size))
         goto error;
 
     // write column headers
     size_t column_descriptors_size =
-        writer->columns.count * sizeof(struct zcs_column_descriptor);
-    if (!zcs_row_group_writer_write(writer, writer->columns.descriptors,
-                                    column_descriptors_size))
+        writer->columns.count * sizeof(struct cx_column_descriptor);
+    if (!cx_row_group_writer_write(writer, writer->columns.descriptors,
+                                   column_descriptors_size))
         goto error;
 
     // write the footer
-    struct zcs_footer footer = {offset, strings_size,
-                                writer->row_groups.count,
-                                writer->columns.count, writer->row_count,
-                                ZCS_FILE_MAGIC};
-    if (!zcs_row_group_writer_write(writer, &footer, sizeof(footer)))
+    struct cx_footer footer = {offset,
+                               strings_size,
+                               writer->row_groups.count,
+                               writer->columns.count,
+                               writer->row_count,
+                               CX_FILE_MAGIC};
+    if (!cx_row_group_writer_write(writer, &footer, sizeof(footer)))
         goto error;
 
     // set the file size
     int fd = fileno(writer->file);
-    if (ftruncate(fd, zcs_row_group_writer_offset(writer)))
+    if (ftruncate(fd, cx_row_group_writer_offset(writer)))
         goto error;
 
     // sync the file
@@ -523,13 +524,13 @@ bool zcs_row_group_writer_finish(struct zcs_row_group_writer *writer, bool sync)
     writer->footer_written = true;
     return true;
 error:
-    zcs_row_group_writer_seek(writer, offset);
+    cx_row_group_writer_seek(writer, offset);
     return false;
 }
 
-void zcs_row_group_writer_free(struct zcs_row_group_writer *writer)
+void cx_row_group_writer_free(struct cx_row_group_writer *writer)
 {
-    zcs_column_free(writer->strings);
+    cx_column_free(writer->strings);
     if (writer->columns.descriptors)
         free(writer->columns.descriptors);
     if (writer->row_groups.headers)

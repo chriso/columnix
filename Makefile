@@ -1,4 +1,4 @@
-PROJECT = zcs
+PROJECT = cx
 
 LDLIBS = -llz4 -lzstd
 
@@ -9,7 +9,7 @@ PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
 
 ifeq ($(release), 1)
-  CFLAGS += -O3 -march=native -DZCS_AVX2 -DZCS_PCMPISTRM
+  CFLAGS += -O3 -march=native -DCX_AVX2 -DCX_PCMPISTRM
 endif
 
 ifeq ($(asan), 1)

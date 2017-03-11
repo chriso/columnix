@@ -2,9 +2,9 @@
 #include <string.h>
 #include <unistd.h>
 
-static char *zcs_temp_file_new()
+static char *cx_temp_file_new()
 {
-    char tmp_path[] = "/tmp/zcs_temp_file.XXXXXX";
+    char tmp_path[] = "/tmp/cx_temp_file.XXXXXX";
     int fd = mkstemp(tmp_path);
     if (fd < 0)
         return NULL;
@@ -19,7 +19,7 @@ error:
     return NULL;
 }
 
-static void zcs_temp_file_free(char *path)
+static void cx_temp_file_free(char *path)
 {
     unlink(path);
     free(path);
