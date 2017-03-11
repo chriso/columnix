@@ -4,7 +4,7 @@
 
 #include "helpers.h"
 
-#define COLUMN_COUNT 8
+#define COLUMN_COUNT 10
 #define ROW_COUNT 10
 
 static const uint64_t all_rows = (1 << ROW_COUNT) - 1;
@@ -36,7 +36,8 @@ static void *setup(const MunitParameter params[], void *data)
 
     enum cx_column_type types[] = {CX_COLUMN_I32, CX_COLUMN_I64, CX_COLUMN_BIT,
                                    CX_COLUMN_STR, CX_COLUMN_I32, CX_COLUMN_I64,
-                                   CX_COLUMN_BIT, CX_COLUMN_BIT};
+                                   CX_COLUMN_BIT, CX_COLUMN_BIT, CX_COLUMN_I32,
+                                   CX_COLUMN_I32};
 
     for (size_t i = 0; i < COLUMN_COUNT; i++) {
         fixture->columns[i] = cx_column_new(types[i], CX_ENCODING_NONE);
@@ -58,6 +59,9 @@ static void *setup(const MunitParameter params[], void *data)
 
         assert_true(cx_column_put_bit(fixture->columns[6], false));
         assert_true(cx_column_put_bit(fixture->columns[7], true));
+
+        assert_true(cx_column_put_i32(fixture->columns[8], -10));
+        assert_true(cx_column_put_i32(fixture->columns[9], (i & 0x1) ? -1 : 1));
 
         assert_true(cx_column_put_bit(fixture->nulls[0], i % 2 == 0));
         assert_true(cx_column_put_bit(fixture->nulls[1], i % 3 == 0));
@@ -432,6 +436,83 @@ static MunitResult test_null_match_rows(const MunitParameter params[],
     return test_rows(fixture, test_cases, sizeof(test_cases));
 }
 
+enum cx_predicate_match cx_custom_i32_polarity_match_index(
+    enum cx_column_type type, const struct cx_column_index *index, void *data)
+{
+    bool negative = *(bool *)data;
+    assert_int(type, ==, CX_COLUMN_I32);
+    if (index->max.i32 <= 0)
+        return negative ? CX_PREDICATE_MATCH_ALL_ROWS
+                        : CX_PREDICATE_MATCH_NO_ROWS;
+    if (index->min.i32 >= 0)
+        return negative ? CX_PREDICATE_MATCH_NO_ROWS
+                        : CX_PREDICATE_MATCH_ALL_ROWS;
+    return CX_PREDICATE_MATCH_UNKNOWN;
+}
+
+static MunitResult test_custom_match_index(const MunitParameter params[],
+                                           void *fixture)
+{
+    bool negative = true, positive = false;
+    cx_predicate_match_index_t match = cx_custom_i32_polarity_match_index;
+
+    struct cx_predicate_index_test_case test_cases[] = {
+        {cx_predicate_new_custom(0, CX_COLUMN_I32, NULL, match, 0, &negative),
+         CX_PREDICATE_MATCH_NO_ROWS},
+        {cx_predicate_new_custom(0, CX_COLUMN_I32, NULL, match, 0, &positive),
+         CX_PREDICATE_MATCH_ALL_ROWS},
+        {cx_predicate_new_custom(8, CX_COLUMN_I32, NULL, match, 0, &negative),
+         CX_PREDICATE_MATCH_ALL_ROWS},
+        {cx_predicate_new_custom(8, CX_COLUMN_I32, NULL, match, 0, &positive),
+         CX_PREDICATE_MATCH_NO_ROWS},
+        {cx_predicate_new_custom(9, CX_COLUMN_I32, NULL, match, 0, &negative),
+         CX_PREDICATE_MATCH_UNKNOWN},
+        {cx_predicate_new_custom(9, CX_COLUMN_I32, NULL, match, 0, &positive),
+         CX_PREDICATE_MATCH_UNKNOWN},
+    };
+
+    return test_indexes(fixture, test_cases, sizeof(test_cases));
+}
+
+bool cx_custom_i32_polarity_match_rows(enum cx_column_type type, size_t count,
+                                       const void *raw_values,
+                                       uint64_t *matches, void *data)
+{
+    assert_int(type, ==, CX_COLUMN_I32);
+    bool negative = *(bool *)data;
+    const int32_t *values = raw_values;
+    uint64_t mask = 0;
+    for (size_t i = 0; i < count; i++)
+        if (negative ^ (values[i] >= 0))
+            mask |= (uint64_t)1 << i;
+    *matches = mask;
+    return true;
+}
+
+static MunitResult test_custom_match_rows(const MunitParameter params[],
+                                          void *fixture)
+{
+    bool negative = true, positive = false;
+    cx_predicate_match_rows_t match = cx_custom_i32_polarity_match_rows;
+
+    struct cx_predicate_row_test_case test_cases[] = {
+        {cx_predicate_new_custom(0, CX_COLUMN_I32, match, NULL, 0, &negative),
+         0},
+        {cx_predicate_new_custom(0, CX_COLUMN_I32, match, NULL, 0, &positive),
+         all_rows},
+        {cx_predicate_new_custom(8, CX_COLUMN_I32, match, NULL, 0, &negative),
+         all_rows},
+        {cx_predicate_new_custom(8, CX_COLUMN_I32, match, NULL, 0, &positive),
+         0},
+        {cx_predicate_new_custom(9, CX_COLUMN_I32, match, NULL, 0, &negative),
+         0x2aa},  // 0b1010101010
+        {cx_predicate_new_custom(9, CX_COLUMN_I32, match, NULL, 0, &positive),
+         0x155},  // 0b0101010101
+    };
+
+    return test_rows(fixture, test_cases, sizeof(test_cases));
+}
+
 static MunitResult test_optimize(const MunitParameter params[], void *ptr)
 {
     struct cx_predicate_fixture *fixture = ptr;
@@ -450,8 +531,16 @@ static MunitResult test_optimize(const MunitParameter params[], void *ptr)
     struct cx_predicate *p_and = cx_predicate_new_and(2, p_i32, p_bit);
     assert_not_null(p_and);
 
-    struct cx_predicate *p_or =
-        cx_predicate_new_or(4, p_i64, p_str, p_true, p_and);
+    struct cx_predicate *p_custom_i32 =
+        cx_predicate_new_custom(0, CX_COLUMN_I32, NULL, NULL, -1, NULL);
+    assert_not_null(p_custom_i32);
+
+    struct cx_predicate *p_custom_high_cost =
+        cx_predicate_new_custom(0, CX_COLUMN_STR, NULL, NULL, 999, NULL);
+    assert_not_null(p_custom_high_cost);
+
+    struct cx_predicate *p_or = cx_predicate_new_or(
+        6, p_custom_i32, p_custom_high_cost, p_i64, p_str, p_true, p_and);
     assert_not_null(p_or);
 
     cx_predicate_optimize(p_or, fixture->row_group);
@@ -460,11 +549,13 @@ static MunitResult test_optimize(const MunitParameter params[], void *ptr)
     const struct cx_predicate **operands =
         cx_predicate_operands(p_or, &operand_count);
     assert_not_null(operands);
-    assert_size(operand_count, ==, 4);
+    assert_size(operand_count, ==, 6);
     assert_ptr_equal(operands[0], p_true);
-    assert_ptr_equal(operands[1], p_and);
-    assert_ptr_equal(operands[2], p_i64);
-    assert_ptr_equal(operands[3], p_str);
+    assert_ptr_equal(operands[1], p_custom_i32);
+    assert_ptr_equal(operands[2], p_and);
+    assert_ptr_equal(operands[3], p_i64);
+    assert_ptr_equal(operands[4], p_str);
+    assert_ptr_equal(operands[5], p_custom_high_cost);
 
     operands = cx_predicate_operands(p_and, &operand_count);
     assert_not_null(operands);
@@ -503,6 +594,10 @@ MunitTest predicate_tests[] = {
     {"/null-match-index", test_null_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/null-match-rows", test_null_match_rows, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/custom-match-index", test_custom_match_index, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/custom-match-rows", test_custom_match_rows, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/optimize", test_optimize, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};

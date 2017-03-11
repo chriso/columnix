@@ -15,7 +15,8 @@ enum cx_predicate_type {
     CX_PREDICATE_GT,
     CX_PREDICATE_CONTAINS,
     CX_PREDICATE_AND,
-    CX_PREDICATE_OR
+    CX_PREDICATE_OR,
+    CX_PREDICATE_CUSTOM
 };
 
 struct cx_predicate {
@@ -29,6 +30,12 @@ struct cx_predicate {
     enum cx_str_location location;
     bool case_sensitive;
     bool negate;
+    struct {
+        cx_predicate_match_rows_t match_rows;
+        cx_predicate_match_index_t match_index;
+        int cost;
+        void *data;
+    } custom;
 };
 
 static const uint64_t cx_full_mask = (uint64_t)-1;
@@ -196,6 +203,24 @@ struct cx_predicate *cx_predicate_new_str_contains(
     return predicate;
 }
 
+struct cx_predicate *cx_predicate_new_custom(
+    size_t column, enum cx_column_type type,
+    cx_predicate_match_rows_t match_rows,
+    cx_predicate_match_index_t match_index, int cost, void *data)
+{
+    struct cx_predicate *predicate = cx_predicate_new();
+    if (!predicate)
+        return NULL;
+    predicate->column = column;
+    predicate->type = CX_PREDICATE_CUSTOM;
+    predicate->column_type = type;
+    predicate->custom.match_rows = match_rows;
+    predicate->custom.match_index = match_index;
+    predicate->custom.data = data;
+    predicate->custom.cost = cost;
+    return predicate;
+}
+
 static struct cx_predicate *cx_predicate_new_operator(size_t count,
                                                       va_list operands)
 {
@@ -271,6 +296,7 @@ bool cx_predicate_valid(const struct cx_predicate *predicate,
         case CX_PREDICATE_TRUE:
         case CX_PREDICATE_NULL:
         case CX_PREDICATE_EQ:
+        case CX_PREDICATE_CUSTOM:
             break;
         case CX_PREDICATE_LT:
         case CX_PREDICATE_GT:
@@ -529,6 +555,39 @@ static enum cx_predicate_match cx_predicate_match_index_gt(
     return result;
 }
 
+static bool cx_predicate_match_rows_custom(const struct cx_predicate *predicate,
+                                           struct cx_row_group_cursor *cursor,
+                                           enum cx_column_type type,
+                                           uint64_t *matches, size_t *count)
+{
+    size_t column = predicate->column;
+    const void *values;
+    switch (type) {
+        case CX_COLUMN_BIT:
+            assert(predicate->column_type == CX_COLUMN_BIT);
+            values = cx_row_group_cursor_batch_bit(cursor, column, count);
+            break;
+        case CX_COLUMN_I32:
+            assert(predicate->column_type == CX_COLUMN_I32);
+            values = cx_row_group_cursor_batch_i32(cursor, column, count);
+            break;
+        case CX_COLUMN_I64:
+            assert(predicate->column_type == CX_COLUMN_I64);
+            values = cx_row_group_cursor_batch_i64(cursor, column, count);
+            break;
+        case CX_COLUMN_STR:
+            assert(predicate->column_type == CX_COLUMN_STR);
+            values = cx_row_group_cursor_batch_str(cursor, column, count);
+            break;
+    }
+    if (!values)
+        return false;
+    if (!predicate->custom.match_rows)
+        return true;
+    return predicate->custom.match_rows(type, *count, values, matches,
+                                        predicate->custom.data);
+}
+
 bool cx_predicate_match_rows(const struct cx_predicate *predicate,
                              const struct cx_row_group *row_group,
                              struct cx_row_group_cursor *cursor,
@@ -575,6 +634,11 @@ bool cx_predicate_match_rows(const struct cx_predicate *predicate,
                     *count, values, &predicate->value.str,
                     predicate->case_sensitive, predicate->location);
             }
+            break;
+        case CX_PREDICATE_CUSTOM:
+            if (!cx_predicate_match_rows_custom(predicate, cursor, column_type,
+                                                &mask, count))
+                goto error;
             break;
         case CX_PREDICATE_AND:
             mask = cx_full_mask;
@@ -666,6 +730,14 @@ enum cx_predicate_match cx_predicate_match_indexes(
                     result = operand_match;
             }
             break;
+        case CX_PREDICATE_CUSTOM:
+            if (predicate->custom.match_index) {
+                const struct cx_column_index *index =
+                    cx_row_group_column_index(row_group, predicate->column);
+                result = predicate->custom.match_index(type, index,
+                                                       predicate->custom.data);
+            }
+            break;
     }
     return predicate->negate ? -result : result;
 }
@@ -711,6 +783,13 @@ static int cx_predicate_cost(const struct cx_predicate *predicate,
         case CX_PREDICATE_OR:
             for (size_t i = 0; i < predicate->operand_count; i++)
                 cost += cx_predicate_cost(predicate->operands[i], row_group);
+            break;
+        case CX_PREDICATE_CUSTOM:
+            if (predicate->custom.cost >= 0)
+                cost = predicate->custom.cost;
+            else
+                cost = cx_column_cost(
+                    cx_row_group_column_type(row_group, predicate->column));
             break;
     }
     return cost;
