@@ -8,7 +8,9 @@ CFLAGS += $(BASE_CFLAGS) -pthread
 PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
 
-ifeq ($(release), 1)
+ifeq ($(debug), 1)
+  CFLAGS += -Og
+else
   CFLAGS += -O3 -march=native -DCX_AVX2 -DCX_PCMPISTRM
 endif
 
