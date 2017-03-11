@@ -1,9 +1,9 @@
 """
-Python bindings for libzcs.
+Python bindings for columnix.
 
 Example write (Python):
 
-    from zcs import Writer, Column, I64, I32, STR, LZ4, ZSTD
+    from cx import Writer, Column, I64, I32, STR, LZ4, ZSTD
 
     columns = [Column(I64, "timestamp", compression=LZ4),
                Column(STR, "email", compression=ZSTD),
@@ -13,7 +13,7 @@ Example write (Python):
             (1400000001000, "foo@bar.com", 45),
             (1400000002000, "baz@bar.com", 67)]
 
-    with Writer("example.zcs", columns, row_group_size=2) as writer:
+    with Writer("example.cx", columns, row_group_size=2) as writer:
         for row in rows:
             writer.put(row)
 
@@ -23,59 +23,58 @@ Example read (C):
     #include <assert.h>
     #include <inttypes.h>
     #include <stdio.h>
-    #include <zcs/reader.h>
+    #include <columnix/reader.h>
 
     int main()
     {
-        struct zcs_reader *reader = zcs_reader_new("example.zcs");
+        struct cx_reader *reader = cx_reader_new("example.cx");
         assert(reader);
         int64_t timestamp;
-        const struct zcs_string *email;
+        const struct cx_string *email;
         int32_t event;
-        while (zcs_reader_next(reader)) {
-            assert(zcs_reader_get_i64(reader, 0, &timestamp) &&
-                   zcs_reader_get_str(reader, 1, &email) &&
-                   zcs_reader_get_i32(reader, 2, &event));
+        while (cx_reader_next(reader)) {
+            assert(cx_reader_get_i64(reader, 0, &timestamp) &&
+                   cx_reader_get_str(reader, 1, &email) &&
+                   cx_reader_get_i32(reader, 2, &event));
             printf("{%" PRIi64 ", %s, %d}\n", timestamp, email->ptr, event);
         }
-        assert(!zcs_reader_error(reader));
-        zcs_reader_free(reader);
+        assert(!cx_reader_error(reader));
+        cx_reader_free(reader);
     }
 """
 
 from ctypes import cdll, util
 from ctypes import c_char_p, c_size_t, c_void_p, c_int, c_int32, c_int64, c_bool
 
-libzcs = cdll.LoadLibrary(util.find_library("zcs"))
+lib = cdll.LoadLibrary(util.find_library("columnix"))
 
-zcs_writer_new = libzcs.zcs_writer_new
-zcs_writer_new.argtypes = [c_char_p, c_size_t]
-zcs_writer_new.restype = c_void_p
+cx_writer_new = lib.cx_writer_new
+cx_writer_new.argtypes = [c_char_p, c_size_t]
+cx_writer_new.restype = c_void_p
 
-zcs_writer_free = libzcs.zcs_writer_free
-zcs_writer_free.argtypes = [c_void_p]
+cx_writer_free = lib.cx_writer_free
+cx_writer_free.argtypes = [c_void_p]
 
-zcs_writer_add_column = libzcs.zcs_writer_add_column
-zcs_writer_add_column.argtypes = [c_void_p, c_char_p, c_int, c_int, c_int,
-                                  c_int]
+cx_writer_add_column = lib.cx_writer_add_column
+cx_writer_add_column.argtypes = [c_void_p, c_char_p, c_int, c_int, c_int, c_int]
 
-zcs_writer_put_null = libzcs.zcs_writer_put_null
-zcs_writer_put_null.argtypes = [c_void_p, c_size_t]
+cx_writer_put_null = lib.cx_writer_put_null
+cx_writer_put_null.argtypes = [c_void_p, c_size_t]
 
-zcs_writer_put_bit = libzcs.zcs_writer_put_bit
-zcs_writer_put_bit.argtypes = [c_void_p, c_size_t, c_bool]
+cx_writer_put_bit = lib.cx_writer_put_bit
+cx_writer_put_bit.argtypes = [c_void_p, c_size_t, c_bool]
 
-zcs_writer_put_i32 = libzcs.zcs_writer_put_i32
-zcs_writer_put_i32.argtypes = [c_void_p, c_size_t, c_int32]
+cx_writer_put_i32 = lib.cx_writer_put_i32
+cx_writer_put_i32.argtypes = [c_void_p, c_size_t, c_int32]
 
-zcs_writer_put_i64 = libzcs.zcs_writer_put_i64
-zcs_writer_put_i64.argtypes = [c_void_p, c_size_t, c_int64]
+cx_writer_put_i64 = lib.cx_writer_put_i64
+cx_writer_put_i64.argtypes = [c_void_p, c_size_t, c_int64]
 
-zcs_writer_put_str = libzcs.zcs_writer_put_str
-zcs_writer_put_str.argtypes = [c_void_p, c_size_t, c_char_p]
+cx_writer_put_str = lib.cx_writer_put_str
+cx_writer_put_str.argtypes = [c_void_p, c_size_t, c_char_p]
 
-zcs_writer_finish = libzcs.zcs_writer_finish
-zcs_writer_finish.argtypes = [c_void_p, c_bool]
+cx_writer_finish = lib.cx_writer_finish
+cx_writer_finish.argtypes = [c_void_p, c_bool]
 
 BIT = 0
 I32 = 1
@@ -109,11 +108,11 @@ class Writer(object):
 
     def __enter__(self):
         assert self.writer is None
-        self.writer = zcs_writer_new(self.path, self.row_group_size)
+        self.writer = cx_writer_new(self.path, self.row_group_size)
         if not self.writer:
             raise RuntimeError("failed to create writer for %s" % self.path)
         for column in self.columns:
-            if not zcs_writer_add_column(self.writer, column.name, column.type,
+            if not cx_writer_add_column(self.writer, column.name, column.type,
                                          column.encoding, column.compression,
                                          column.level):
                 raise RuntimeError("failed to add column")
@@ -122,8 +121,8 @@ class Writer(object):
     def __exit__(self, err, value, traceback):
         assert self.writer is not None
         if not err:
-            zcs_writer_finish(self.writer, self.sync)
-        zcs_writer_free(self.writer)
+            cx_writer_finish(self.writer, self.sync)
+        cx_writer_free(self.writer)
         self.writer = None
 
     def put(self, row):
@@ -137,25 +136,25 @@ class Writer(object):
 
     def put_null(self, column):
         assert self.writer is not None
-        if not zcs_writer_put_null(self.writer, column):
+        if not cx_writer_put_null(self.writer, column):
             raise RuntimeError("put_null(%d)" % column)
 
     def put_bit(self, column, value):
         assert self.writer is not None
-        if not zcs_writer_put_bit(self.writer, column, value):
+        if not cx_writer_put_bit(self.writer, column, value):
             raise RuntimeError("put_bit(%d, %r)" % (column, value))
 
     def put_i32(self, column, value):
         assert self.writer is not None
-        if not zcs_writer_put_i32(self.writer, column, value):
+        if not cx_writer_put_i32(self.writer, column, value):
             raise RuntimeError("put_i32(%d, %r)" % (column, value))
 
     def put_i64(self, column, value):
         assert self.writer is not None
-        if not zcs_writer_put_i64(self.writer, column, value):
+        if not cx_writer_put_i64(self.writer, column, value):
             raise RuntimeError("put_i64(%d, %r)" % (column, value))
 
     def put_str(self, column, value):
         assert self.writer is not None
-        if not zcs_writer_put_str(self.writer, column, value):
+        if not cx_writer_put_str(self.writer, column, value):
             raise RuntimeError("put_str(%d, %r)" % (column, value))

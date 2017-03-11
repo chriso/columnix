@@ -18,7 +18,7 @@ MunitSuite suites[] = {
     {"/file", file_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE},
     {NULL, NULL, NULL, 1, MUNIT_SUITE_OPTION_NONE}};
 
-static const MunitSuite combined_suite = {"zcs", NULL, suites, 1,
+static const MunitSuite combined_suite = {"cx", NULL, suites, 1,
                                           MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[])

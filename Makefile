@@ -1,4 +1,4 @@
-PROJECT = zcs
+PROJECT = columnix
 
 LDLIBS = -llz4 -lzstd
 
@@ -18,7 +18,7 @@ SRC_FILES = column.c compress.c match.c predicate.c reader.c row.c row_group.c w
 #endif
 
 ifeq ($(release), 1)
-  CFLAGS += -O3 -march=native -DZCS_AVX2 -DZCS_PCMPISTRM
+  CFLAGS += -O3 -march=native -DCX_AVX2 -DCX_PCMPISTRM
 endif
 
 ifeq ($(asan), 1)

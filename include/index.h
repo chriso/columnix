@@ -1,5 +1,5 @@
-#ifndef ZCS_INDEX_
-#define ZCS_INDEX_
+#ifndef CX_INDEX_
+#define CX_INDEX_
 
 #include "types.h"
 
@@ -8,12 +8,12 @@ typedef union {
     int32_t i32;
     int64_t i64;
     uint64_t len;
-} zcs_column_index_value_t;
+} cx_column_index_value_t;
 
-struct zcs_column_index {
+struct cx_column_index {
     uint64_t count;
-    zcs_column_index_value_t min;
-    zcs_column_index_value_t max;
+    cx_column_index_value_t min;
+    cx_column_index_value_t max;
 };
 
 #endif
