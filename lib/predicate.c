@@ -765,6 +765,10 @@ static int cx_column_cost(enum cx_column_type type)
 static int cx_predicate_cost(const struct cx_predicate *predicate,
                              const struct cx_row_group *row_group)
 {
+    // in future, this function should look at more than just the
+    // column type to determine the cost of evaluating the predicate.
+    // for example, it could check the size of each column, whether
+    // it's compressed and/or encoded, and the compression ratio
     int cost = 0;
     switch (predicate->type) {
         case CX_PREDICATE_TRUE:
