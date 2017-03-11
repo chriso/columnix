@@ -328,7 +328,7 @@ static bool cx_row_group_writer_ensure_header(
 {
     if (writer->header_written)
         return true;
-    struct cx_header header = {CX_FILE_MAGIC};
+    struct cx_header header = {CX_FILE_MAGIC, CX_FILE_VERSION};
     if (!cx_row_group_writer_write(writer, &header, sizeof(header)))
         goto error;
     writer->header_written = true;
@@ -501,6 +501,8 @@ bool cx_row_group_writer_finish(struct cx_row_group_writer *writer, bool sync)
                                writer->row_groups.count,
                                writer->columns.count,
                                writer->row_count,
+                               sizeof(footer),
+                               CX_FILE_VERSION,
                                CX_FILE_MAGIC};
     if (!cx_row_group_writer_write(writer, &footer, sizeof(footer)))
         goto error;

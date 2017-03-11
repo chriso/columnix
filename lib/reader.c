@@ -377,8 +377,12 @@ struct cx_row_group_reader *cx_row_group_reader_new(const char *path)
     if (file_size < sizeof(struct cx_footer))
         goto error;
     const struct cx_footer *footer =
-        cx_row_group_reader_at(reader, file_size - sizeof(struct cx_footer));
-    if (footer->magic != CX_FILE_MAGIC)
+        cx_row_group_reader_at(reader, file_size - sizeof(*footer));
+    if (footer->magic != CX_FILE_MAGIC || footer->size < sizeof(*footer))
+        goto error;
+
+    // future extensions
+    if (footer->version != CX_FILE_VERSION)
         goto error;
 
     // check the file contains the row group headers, column descriptors and
@@ -388,7 +392,7 @@ struct cx_row_group_reader *cx_row_group_reader_new(const char *path)
     size_t descriptors_size =
         footer->column_count * sizeof(struct cx_column_descriptor);
     size_t headers_size =
-        row_group_headers_size + descriptors_size + sizeof(struct cx_footer);
+        row_group_headers_size + descriptors_size + footer->size;
     if (file_size < headers_size)
         goto error;
 
@@ -410,7 +414,7 @@ struct cx_row_group_reader *cx_row_group_reader_new(const char *path)
     reader->columns.count = footer->column_count;
     reader->row_groups.count = footer->row_group_count;
     reader->columns.descriptors = cx_row_group_reader_at(
-        reader, file_size - sizeof(struct cx_footer) - descriptors_size);
+        reader, file_size - footer->size - descriptors_size);
     reader->row_groups.headers =
         cx_row_group_reader_at(reader, file_size - headers_size);
 
