@@ -561,7 +561,7 @@ static bool cx_predicate_match_rows_custom(const struct cx_predicate *predicate,
                                            uint64_t *matches, size_t *count)
 {
     size_t column = predicate->column;
-    const void *values;
+    const void *values = NULL;
     switch (type) {
         case CX_COLUMN_BIT:
             assert(predicate->column_type == CX_COLUMN_BIT);
