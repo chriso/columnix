@@ -3,7 +3,7 @@
 
 #include "index.h"
 
-#define CX_FILE_MAGIC 0x65726f7473637a1dLLU
+#define CX_FILE_MAGIC 0x7863040378630201LLU
 
 #define CX_WRITE_ALIGN 8
 
