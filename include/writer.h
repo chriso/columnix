@@ -9,6 +9,8 @@ struct cx_writer *cx_writer_new(const char *, size_t row_group_size);
 
 void cx_writer_free(struct cx_writer *);
 
+bool cx_writer_metadata(struct cx_writer *, const char *);
+
 bool cx_writer_add_column(struct cx_writer *, const char *name,
                           enum cx_column_type, enum cx_encoding_type,
                           enum cx_compression_type, int level);
@@ -26,6 +28,8 @@ struct cx_row_group_writer;
 struct cx_row_group_writer *cx_row_group_writer_new(const char *);
 
 void cx_row_group_writer_free(struct cx_row_group_writer *);
+
+bool cx_row_group_writer_metadata(struct cx_row_group_writer *, const char *);
 
 bool cx_row_group_writer_add_column(struct cx_row_group_writer *,
                                     const char *name, enum cx_column_type,

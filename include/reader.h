@@ -11,6 +11,8 @@ struct cx_reader *cx_reader_new(const char *);
 
 struct cx_reader *cx_reader_new_matching(const char *, struct cx_predicate *);
 
+bool cx_reader_metadata(const struct cx_reader *, const char **);
+
 void cx_reader_free(struct cx_reader *);
 
 void cx_reader_rewind(struct cx_reader *);
@@ -52,13 +54,16 @@ struct cx_row_group_reader;
 
 struct cx_row_group_reader *cx_row_group_reader_new(const char *);
 
+bool cx_row_group_reader_metadata(const struct cx_row_group_reader *,
+                                  const char **);
+
 size_t cx_row_group_reader_column_count(const struct cx_row_group_reader *);
 
 size_t cx_row_group_reader_row_count(const struct cx_row_group_reader *);
 
 size_t cx_row_group_reader_row_group_count(const struct cx_row_group_reader *);
 
-const char *cx_row_group_reader_column_name(struct cx_row_group_reader *,
+const char *cx_row_group_reader_column_name(const struct cx_row_group_reader *,
                                             size_t);
 
 enum cx_column_type cx_row_group_reader_column_type(

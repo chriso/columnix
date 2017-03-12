@@ -32,6 +32,7 @@ struct cx_writer {
 struct cx_row_group_writer {
     FILE *file;
     struct cx_column *strings;
+    char *metadata;
     struct {
         struct cx_column_descriptor *descriptors;
         size_t count;
@@ -73,6 +74,11 @@ void cx_writer_free(struct cx_writer *writer)
     }
     cx_row_group_writer_free(writer->writer);
     free(writer);
+}
+
+bool cx_writer_metadata(struct cx_writer *writer, const char *metadata)
+{
+    return cx_row_group_writer_metadata(writer->writer, metadata);
 }
 
 bool cx_writer_add_column(struct cx_writer *writer, const char *name,
@@ -248,6 +254,22 @@ error:
     return NULL;
 }
 
+bool cx_row_group_writer_metadata(struct cx_row_group_writer *writer,
+                                  const char *metadata)
+{
+    size_t size = strlen(metadata) + 1;
+    char *buf;
+    if (writer->metadata)
+        buf = realloc(writer->metadata, size);
+    else
+        buf = malloc(size);
+    if (!buf)
+        return false;
+    memcpy(buf, metadata, size);
+    writer->metadata = buf;
+    return true;
+}
+
 bool cx_row_group_writer_add_column(struct cx_row_group_writer *writer,
                                     const char *name, enum cx_column_type type,
                                     enum cx_encoding_type encoding,
@@ -328,7 +350,7 @@ static bool cx_row_group_writer_ensure_header(
 {
     if (writer->header_written)
         return true;
-    struct cx_header header = {CX_FILE_MAGIC, CX_FILE_VERSION};
+    struct cx_header header = {CX_FILE_MAGIC, CX_FILE_VERSION, 0};
     if (!cx_row_group_writer_write(writer, &header, sizeof(header)))
         goto error;
     writer->header_written = true;
@@ -473,7 +495,17 @@ bool cx_row_group_writer_finish(struct cx_row_group_writer *writer, bool sync)
     if (!cx_row_group_writer_ensure_header(writer))
         return false;
 
+    int32_t metadata_id = -1;
     size_t offset = cx_row_group_writer_offset(writer);
+
+    // write metadata to the string repository
+    if (writer->metadata) {
+        if (!cx_column_put_str(writer->strings, writer->metadata))
+            return false;
+        size_t string_count = cx_column_count(writer->strings);
+        assert(string_count);
+        metadata_id = string_count - 1;
+    }
 
     // write strings
     size_t strings_size;
@@ -498,6 +530,8 @@ bool cx_row_group_writer_finish(struct cx_row_group_writer *writer, bool sync)
     // write the footer
     struct cx_footer footer = {offset,
                                strings_size,
+                               metadata_id,
+                               0,
                                writer->row_groups.count,
                                writer->columns.count,
                                writer->row_count,
@@ -532,6 +566,8 @@ error:
 
 void cx_row_group_writer_free(struct cx_row_group_writer *writer)
 {
+    if (writer->metadata)
+        free(writer->metadata);
     cx_column_free(writer->strings);
     if (writer->columns.descriptors)
         free(writer->columns.descriptors);

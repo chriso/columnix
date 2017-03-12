@@ -18,6 +18,8 @@ struct cx_header {
 struct cx_footer {
     uint64_t strings_offset;
     uint64_t strings_size;
+    int32_t metadata;
+    uint32_t __padding;
     uint32_t row_group_count;
     uint32_t column_count;
     uint64_t row_count;

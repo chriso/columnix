@@ -38,6 +38,7 @@ struct cx_row_group_reader {
         const struct cx_row_group_header *headers;
         size_t count;
     } row_groups;
+    int32_t metadata;
 };
 
 struct cx_reader_query_context {
@@ -106,6 +107,11 @@ void cx_reader_free(struct cx_reader *reader)
     cx_predicate_free(reader->predicate);
     cx_row_group_reader_free(reader->reader);
     free(reader);
+}
+
+bool cx_reader_metadata(const struct cx_reader *reader, const char **metadata)
+{
+    return cx_row_group_reader_metadata(reader->reader, metadata);
 }
 
 void cx_reader_rewind(struct cx_reader *reader)
@@ -417,6 +423,7 @@ struct cx_row_group_reader *cx_row_group_reader_new(const char *path)
         reader, file_size - footer->size - descriptors_size);
     reader->row_groups.headers =
         cx_row_group_reader_at(reader, file_size - headers_size);
+    reader->metadata = footer->metadata;
 
     return reader;
 error:
@@ -449,7 +456,7 @@ size_t cx_row_group_reader_row_group_count(
     return reader->row_groups.count;
 }
 
-const char *cx_row_group_reader_string(struct cx_row_group_reader *reader,
+const char *cx_row_group_reader_string(const struct cx_row_group_reader *reader,
                                        size_t index)
 {
     cx_column_cursor_rewind(reader->strings_cursor);
@@ -463,8 +470,22 @@ const char *cx_row_group_reader_string(struct cx_row_group_reader *reader,
     return string->ptr;
 }
 
-const char *cx_row_group_reader_column_name(struct cx_row_group_reader *reader,
-                                            size_t column)
+bool cx_row_group_reader_metadata(const struct cx_row_group_reader *reader,
+                                  const char **metadata)
+{
+    if (reader->metadata < 0) {
+        *metadata = NULL;
+        return true;
+    }
+    const char *string = cx_row_group_reader_string(reader, reader->metadata);
+    if (!string)
+        return false;
+    *metadata = string;
+    return true;
+}
+
+const char *cx_row_group_reader_column_name(
+    const struct cx_row_group_reader *reader, size_t column)
 {
     if (column >= reader->columns.count)
         return NULL;
