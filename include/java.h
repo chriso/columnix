@@ -7,6 +7,7 @@ jlong Java_com_columnix_jni_Reader_nativeNew(JNIEnv *, jobject, jstring);
 jlong Java_com_columnix_jni_Reader_nativeNewMatching(JNIEnv *, jobject, jstring,
                                                      jlong);
 void Java_com_columnix_jni_Reader_nativeFree(JNIEnv *, jobject, jlong);
+jstring Java_com_columnix_jni_Reader_nativeMetadata(JNIEnv *, jobject, jlong);
 jint Java_com_columnix_jni_Reader_nativeColumnCount(JNIEnv *, jobject, jlong);
 jlong Java_com_columnix_jni_Reader_nativeRowCount(JNIEnv *, jobject, jlong);
 void Java_com_columnix_jni_Reader_nativeRewind(JNIEnv *, jobject, jlong);
@@ -33,6 +34,8 @@ jbyteArray Java_com_columnix_jni_Reader_nativeGetStringBytes(JNIEnv *, jobject,
 
 jlong Java_com_columnix_jni_Writer_nativeNew(JNIEnv *, jobject, jstring, jlong);
 void Java_com_columnix_jni_Writer_nativeFree(JNIEnv *, jobject, jlong);
+void Java_com_columnix_jni_Writer_nativeMetadata(JNIEnv *, jobject, jlong,
+                                                 jstring);
 void Java_com_columnix_jni_Writer_nativeFinish(JNIEnv *, jobject, jlong,
                                                jboolean);
 void Java_com_columnix_jni_Writer_nativeAddColumn(JNIEnv *, jobject, jlong,

@@ -140,6 +140,20 @@ static bool cx_java_reader_check_column_bounds(JNIEnv *env,
     return true;
 }
 
+jstring Java_com_columnix_jni_Reader_nativeMetadata(JNIEnv *env, jobject this,
+                                                    jlong ptr)
+{
+    struct cx_reader *reader = cx_java_reader_cast(env, ptr);
+    if (!reader)
+        return NULL;
+    const char *metadata = NULL;
+    if (!cx_reader_metadata(reader, &metadata)) {
+        cx_java_throw(env, "java/lang/Exception", "cx_reader_metadata()");
+        return NULL;
+    }
+    return metadata ? (*env)->NewStringUTF(env, metadata) : NULL;
+}
+
 jstring Java_com_columnix_jni_Reader_nativeColumnName(JNIEnv *env, jobject this,
                                                       jlong ptr, jint index)
 {
@@ -338,6 +352,21 @@ void Java_com_columnix_jni_Writer_nativeFree(JNIEnv *env, jobject this,
     if (!writer)
         return;
     cx_writer_free(writer);
+}
+
+void Java_com_columnix_jni_Writer_nativeMetadata(JNIEnv *env, jobject this,
+                                                 jlong ptr,
+                                                 jstring java_metadata)
+{
+    struct cx_writer *writer = cx_java_writer_cast(env, ptr);
+    if (!writer)
+        return;
+    const char *metadata = cx_java_string_new(env, java_metadata);
+    if (!metadata)
+        return;
+    if (!cx_writer_metadata(writer, metadata))
+        cx_java_throw(env, "java/lang/Exception", "cx_writer_metadata()");
+    cx_java_string_free(env, java_metadata, metadata);
 }
 
 void Java_com_columnix_jni_Writer_nativeFinish(JNIEnv *env, jobject this,
