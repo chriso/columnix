@@ -3,7 +3,7 @@ Python bindings for columnix.
 
 Example write (Python):
 
-    from cx import Writer, Column, I64, I32, STR, LZ4, ZSTD
+    from columnix import Writer, Column, I64, I32, STR, LZ4, ZSTD
 
     columns = [Column(I64, "timestamp", compression=LZ4),
                Column(STR, "email", compression=ZSTD),
@@ -101,9 +101,8 @@ class Writer(object):
         self.columns = columns
         self.row_group_size = row_group_size
         self.sync = sync
-        self.column_types = [column.type for column in columns]
-        self.put_lookup = [self.put_bit, self.put_i32, self.put_i64,
-                           self.put_str]
+        put_fn = [self._put_bit, self._put_i32, self._put_i64, self._put_str]
+        self.put_lookup = [put_fn[column.type] for column in columns]
         self.writer = None
 
     def __enter__(self):
@@ -126,35 +125,31 @@ class Writer(object):
         self.writer = None
 
     def put(self, row):
+        assert self.writer is not None
         put_lookup = self.put_lookup
-        column_types = self.column_types
+        put_null = self._put_null
         for column, value in enumerate(row):
             if value is None:
-                self.put_null(column)
+                put_null(column)
             else:
-                put_lookup[column_types[column]](column, value)
+                put_lookup[column](column, value)
 
-    def put_null(self, column):
-        assert self.writer is not None
+    def _put_null(self, column):
         if not cx_writer_put_null(self.writer, column):
             raise RuntimeError("put_null(%d)" % column)
 
-    def put_bit(self, column, value):
-        assert self.writer is not None
+    def _put_bit(self, column, value):
         if not cx_writer_put_bit(self.writer, column, value):
             raise RuntimeError("put_bit(%d, %r)" % (column, value))
 
-    def put_i32(self, column, value):
-        assert self.writer is not None
+    def _put_i32(self, column, value):
         if not cx_writer_put_i32(self.writer, column, value):
             raise RuntimeError("put_i32(%d, %r)" % (column, value))
 
-    def put_i64(self, column, value):
-        assert self.writer is not None
+    def _put_i64(self, column, value):
         if not cx_writer_put_i64(self.writer, column, value):
             raise RuntimeError("put_i64(%d, %r)" % (column, value))
 
-    def put_str(self, column, value):
-        assert self.writer is not None
+    def _put_str(self, column, value):
         if not cx_writer_put_str(self.writer, column, value):
             raise RuntimeError("put_str(%d, %r)" % (column, value))

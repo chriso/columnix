@@ -61,4 +61,16 @@ bool cx_predicate_match_rows(const struct cx_predicate *predicate,
                              struct cx_row_group_cursor *cursor,
                              uint64_t *matches, size_t *count);
 
+typedef enum cx_predicate_match (*cx_predicate_match_index_t)(
+    enum cx_column_type, const struct cx_column_index *, void *data);
+
+typedef bool (*cx_predicate_match_rows_t)(enum cx_column_type, size_t count,
+                                          const void *values, uint64_t *matches,
+                                          void *data);
+
+struct cx_predicate *cx_predicate_new_custom(size_t column, enum cx_column_type,
+                                             cx_predicate_match_rows_t,
+                                             cx_predicate_match_index_t,
+                                             int cost, void *data);
+
 #endif

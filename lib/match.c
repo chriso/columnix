@@ -6,6 +6,10 @@
 
 #ifdef CX_AVX2
 #include "avx2.h"
+#define CX_SIMD_WIDTH 32
+#elif defined(CX_AVX)
+#include "avx.h"
+#define CX_SIMD_WIDTH 16
 #endif
 
 #ifdef CX_PCMPISTRM
@@ -24,43 +28,44 @@
         return mask;                                     \
     }
 
-#define CX_AVX2_MATCH_DEFINITION(name, type, match)                           \
-    static inline uint64_t cx_match_##name##_##match##_avx2(                  \
-        size_t size, const type batch[], type cmp)                            \
-    {                                                                         \
-        cx_##name##_vec_t cmp_vec = cx_avx2_set1_##name(cmp);                 \
-        uint32_t partial_mask[2 * sizeof(type)];                              \
-        for (size_t i = 0; i < 2 * sizeof(type); i++) {                       \
-            cx_##name##_vec_t chunk =                                         \
-                cx_avx2_load_##name(&batch[i * (32 / sizeof(type))]);         \
-            cx_##name##_vec_t result =                                        \
-                cx_avx2_##match##_##name(cmp_vec, chunk);                     \
-            partial_mask[i] = cx_avx2_mask_##name(result);                    \
-        }                                                                     \
-        uint64_t mask = 0;                                                    \
-        for (size_t i = 0; i < 2 * sizeof(type); i++)                         \
-            mask |= ((uint64_t)partial_mask[i] << (i * (32 / sizeof(type)))); \
-        return mask;                                                          \
+#ifdef CX_SIMD_WIDTH
+
+#define CX_SIMD_MATCH_DEFINITION(width, name, type, match)                   \
+    static inline uint64_t cx_match_##name##_##match##_simd(                 \
+        size_t size, const type batch[], type cmp)                           \
+    {                                                                        \
+        cx_##name##_vec_t cmp_vec = cx_simd_##name##_set(cmp);               \
+        uint32_t partial_mask[64 / width * sizeof(type)];                    \
+        for (size_t i = 0; i < 64 / width * sizeof(type); i++) {             \
+            cx_##name##_vec_t chunk =                                        \
+                cx_simd_##name##_load(&batch[i * (width / sizeof(type))]);   \
+            cx_##name##_vec_t result =                                       \
+                cx_simd_##name##_##match(cmp_vec, chunk);                    \
+            partial_mask[i] = cx_simd_##name##_mask(result);                 \
+        }                                                                    \
+        uint64_t mask = 0;                                                   \
+        for (size_t i = 0; i < 64 / width * sizeof(type); i++)               \
+            mask |=                                                          \
+                ((uint64_t)partial_mask[i] << (i * (width / sizeof(type)))); \
+        return mask;                                                         \
     }
 
-#if CX_AVX2
+#define CX_SIMD_MATCH_SET(name, type)                       \
+    CX_SIMD_MATCH_DEFINITION(CX_SIMD_WIDTH, name, type, eq) \
+    CX_SIMD_MATCH_DEFINITION(CX_SIMD_WIDTH, name, type, lt) \
+    CX_SIMD_MATCH_DEFINITION(CX_SIMD_WIDTH, name, type, gt)
 
-#define CX_AVX2_MATCH_SET(name, type)        \
-    CX_AVX2_MATCH_DEFINITION(name, type, eq) \
-    CX_AVX2_MATCH_DEFINITION(name, type, lt) \
-    CX_AVX2_MATCH_DEFINITION(name, type, gt)
-
-CX_AVX2_MATCH_SET(i32, int32_t)
-CX_AVX2_MATCH_SET(i64, int64_t)
-CX_AVX2_MATCH_SET(flt, float)
-CX_AVX2_MATCH_SET(dbl, double)
+CX_SIMD_MATCH_SET(i32, int32_t)
+CX_SIMD_MATCH_SET(i64, int64_t)
+CX_SIMD_MATCH_SET(flt, float)
+CX_SIMD_MATCH_SET(dbl, double)
 
 #define CX_MATCH_DEFINITION(name, type, match)                          \
     uint64_t cx_match_##name##_##match(size_t size, const type batch[], \
                                        type cmp)                        \
     {                                                                   \
         if (size == 64)                                                 \
-            return cx_match_##name##_##match##_avx2(size, batch, cmp);  \
+            return cx_match_##name##_##match##_simd(size, batch, cmp);  \
         return cx_match_##name##_##match##_naive(size, batch, cmp);     \
     }
 
@@ -73,7 +78,7 @@ CX_AVX2_MATCH_SET(dbl, double)
         return cx_match_##name##_##match##_naive(size, batch, cmp);     \
     }
 
-#endif  // if CX_AVX2
+#endif  // simd
 
 #define CX_MATCH_TYPE(name, type)                 \
     CX_NAIVE_MATCH_DEFINITION(name, type, eq, ==) \

@@ -374,6 +374,40 @@ static MunitResult test_empty_columns(const MunitParameter params[], void *ptr)
     return MUNIT_OK;
 }
 
+static MunitResult test_metadata(const MunitParameter params[], void *ptr)
+{
+    struct cx_file_fixture *fixture = ptr;
+
+    // no metadata
+    struct cx_writer *writer = cx_writer_new(fixture->temp_file, 1);
+    assert_not_null(writer);
+    assert_true(cx_writer_finish(writer, true));
+    cx_writer_free(writer);
+    struct cx_reader *reader = cx_reader_new(fixture->temp_file);
+    assert_not_null(reader);
+    const char *metadata = NULL;
+    assert_true(cx_reader_metadata(reader, &metadata));
+    assert_null(metadata);
+    cx_reader_free(reader);
+
+    // metadata
+    writer = cx_writer_new(fixture->temp_file, 1);
+    assert_not_null(writer);
+    cx_writer_metadata(writer, "foo");
+    cx_writer_metadata(writer, "abcxyz");
+    cx_writer_metadata(writer, "bar");  // last one wins
+    assert_true(cx_writer_finish(writer, true));
+    cx_writer_free(writer);
+    reader = cx_reader_new(fixture->temp_file);
+    assert_not_null(reader);
+    metadata = NULL;
+    assert_true(cx_reader_metadata(reader, &metadata));
+    assert_string_equal(metadata, "bar");
+    cx_reader_free(reader);
+
+    return MUNIT_OK;
+}
+
 MunitTest file_tests[] = {
     {"/read-write", test_read_write, setup, teardown, MUNIT_TEST_OPTION_NONE,
      NULL},
@@ -383,4 +417,5 @@ MunitTest file_tests[] = {
      NULL},
     {"/empty-columns", test_empty_columns, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
+    {"/metadata", test_metadata, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
