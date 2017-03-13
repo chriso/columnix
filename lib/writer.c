@@ -515,8 +515,8 @@ bool cx_row_group_writer_finish(struct cx_row_group_writer *writer, bool sync)
 
     // write strings
     size_t strings_size;
-    const void *strings = cx_column_export(writer->strings.column,
-                                           &strings_size);
+    const void *strings =
+        cx_column_export(writer->strings.column, &strings_size);
     if (!cx_row_group_writer_write(writer, strings, strings_size))
         goto error;
 
