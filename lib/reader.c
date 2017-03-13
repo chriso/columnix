@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
@@ -29,7 +30,6 @@ struct cx_row_group_reader {
     size_t file_size;
     size_t row_count;
     struct cx_column *strings;
-    struct cx_column_cursor *strings_cursor;
     struct {
         const struct cx_column_descriptor *descriptors;
         size_t count;
@@ -411,9 +411,6 @@ struct cx_row_group_reader *cx_row_group_reader_new(const char *path)
         CX_COLUMN_STR, CX_ENCODING_NONE, strings, footer->strings_size, NULL);
     if (!reader->strings)
         goto error;
-    reader->strings_cursor = cx_column_cursor_new(reader->strings);
-    if (!reader->strings_cursor)
-        goto error;
 
     // cache counts and header locations
     reader->row_count = footer->row_count;
@@ -431,8 +428,6 @@ error:
         munmap(reader->mmap_ptr, reader->file_size);
     if (reader->file)
         fclose(reader->file);
-    if (reader->strings_cursor)
-        cx_column_cursor_free(reader->strings_cursor);
     if (reader->strings)
         cx_column_free(reader->strings);
     free(reader);
@@ -459,15 +454,15 @@ size_t cx_row_group_reader_row_group_count(
 const char *cx_row_group_reader_string(const struct cx_row_group_reader *reader,
                                        size_t index)
 {
-    cx_column_cursor_rewind(reader->strings_cursor);
-    if (index &&
-        index != cx_column_cursor_skip_str(reader->strings_cursor, index))
-        return NULL;
-    if (!cx_column_cursor_valid(reader->strings_cursor))
-        return NULL;
-    const struct cx_string *string =
-        cx_column_cursor_get_str(reader->strings_cursor);
-    return string->ptr;
+    size_t size;
+    assert(cx_column_type(reader->strings) == CX_COLUMN_STR);
+    assert(cx_column_encoding(reader->strings) == CX_ENCODING_NONE);
+    const char *string = cx_column_export(reader->strings, &size);
+    const char *end = string + size;
+    for (; index && string < end; index--)
+        string += strlen(string) + 1;
+    assert(string <= end);
+    return index == 0 && string != end ? string : NULL;
 }
 
 bool cx_row_group_reader_metadata(const struct cx_row_group_reader *reader,
@@ -572,7 +567,6 @@ void cx_row_group_reader_free(struct cx_row_group_reader *reader)
     if (reader->mmap_ptr)
         munmap(reader->mmap_ptr, reader->file_size);
     fclose(reader->file);
-    cx_column_cursor_free(reader->strings_cursor);
     cx_column_free(reader->strings);
     free(reader);
 }

@@ -7,6 +7,7 @@ CFLAGS += $(BASE_CFLAGS) -pthread
 
 PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
+BINDIR ?= $(PREFIX)/bin
 
 SRC_FILES = column.c compress.c match.c predicate.c reader.c row.c row_group.c writer.c
 
@@ -49,28 +50,36 @@ else
   LIB = lib/lib$(PROJECT).so
 endif
 
-SRC := $(addprefix lib/,$(SRC_FILES))
-OBJ := $(SRC:.c=.o)
+LIB_SRC := $(addprefix lib/,$(SRC_FILES))
+LIB_OBJ := $(LIB_SRC:.c=.o)
+
+BIN_SRC = $(wildcard bin/*.c)
+BIN_OBJ = $(BIN_SRC:.c=.o)
+BIN = $(basename $(BIN_SRC))
 
 TEST_SRC := $(wildcard test/*.c)
 TEST_OBJ := $(TEST_SRC:.c=.o)
 
 TESTS = test/runner
 
-$(LIB): $(OBJ)
+$(LIB): $(LIB_OBJ)
 	$(CC) $(LDFLAGS) $(EXTFLAGS) -shared -o $@ $^ $(LDLIBS)
 
-$(OBJ): CFLAGS += $(EXTFLAGS)
+$(LIB_OBJ): CFLAGS += $(EXTFLAGS)
+$(BIN_OBJ): CFLAGS += $(EXTFLAGS)
 $(TEST_OBJ): CFLAGS = $(BASE_CFLAGS) -Itest
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+$(BIN): $(BIN_OBJ) $(LIB)
+	$(CC) $(LDFLAGS) -o $@ $@.o $(LIB)
+
 $(TESTS): $(TEST_OBJ) $(LIB)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 analyze: clean
-	CC="$(CC) --analyze" $(MAKE) $(OBJ) $(TEST_OBJ)
+	CC="$(CC) --analyze" $(MAKE) $(LIB_OBJ) $(BIN_OBJ) $(TEST_OBJ)
 
 check: $(TESTS)
 	@./$(TESTS) $(grep)
@@ -86,10 +95,11 @@ coverage: clean
 format:
 	clang-format -i */*.{c,h}
 
-install: $(LIB)
+install: $(LIB) $(BIN)
 	install -m 755 $(LIB) $(PREFIX)/$(LIB)
 	install -d $(INCLUDEDIR)/$(PROJECT)
 	install -m 644 $(wildcard include/*.h) $(INCLUDEDIR)/$(PROJECT)
+	install -m 755 $(BIN) $(BINDIR)
 
 uninstall:
 	rm -f $(PREFIX)/$(LIB) $(INCLUDEDIR)/$(PROJECT)/*.h

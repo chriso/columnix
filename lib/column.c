@@ -144,11 +144,6 @@ const struct cx_column_index *cx_column_index(const struct cx_column *column)
     return &column->index;
 }
 
-size_t cx_column_count(const struct cx_column *column)
-{
-    return column->index.count;
-}
-
 __attribute__((noinline)) static bool cx_column_resize(struct cx_column *column,
                                                        size_t alloc_size)
 {
@@ -436,16 +431,4 @@ const struct cx_string *cx_column_cursor_next_batch_str(
     }
     *available = i;
     return (const struct cx_string *)cursor->buffer;
-}
-
-const struct cx_string *cx_column_cursor_get_str(
-    const struct cx_column_cursor *cursor)
-{
-    assert(cursor->column->type == CX_COLUMN_STR);
-    if (!cx_column_cursor_valid(cursor))
-        return NULL;
-    struct cx_string *string = (struct cx_string *)cursor->buffer;
-    string->ptr = cursor->position;
-    string->len = strlen(cursor->position);
-    return string;
 }

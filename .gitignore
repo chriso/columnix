@@ -8,4 +8,6 @@
 test/runner
 coverage*.html
 
+bin/columnix_dump
+
 *.pyc
