@@ -31,8 +31,6 @@ struct cx_writer {
 
 struct cx_row_group_writer {
     FILE *file;
-    struct cx_column *strings;
-    char *metadata;
     struct {
         struct cx_column_descriptor *descriptors;
         size_t count;
@@ -43,6 +41,11 @@ struct cx_row_group_writer {
         size_t count;
         size_t size;
     } row_groups;
+    struct strings {
+        struct cx_column *column;
+        size_t count;
+        char *metadata;
+    } strings;
     size_t row_count;
     bool header_written;
     bool footer_written;
@@ -240,16 +243,16 @@ struct cx_row_group_writer *cx_row_group_writer_new(const char *path)
     struct cx_row_group_writer *writer = calloc(1, sizeof(*writer));
     if (!writer)
         return NULL;
-    writer->strings = cx_column_new(CX_COLUMN_STR, CX_ENCODING_NONE);
-    if (!writer->strings)
+    writer->strings.column = cx_column_new(CX_COLUMN_STR, CX_ENCODING_NONE);
+    if (!writer->strings.column)
         goto error;
     writer->file = fopen(path, "wb");
     if (!writer->file)
         goto error;
     return writer;
 error:
-    if (writer->strings)
-        cx_column_free(writer->strings);
+    if (writer->strings.column)
+        cx_column_free(writer->strings.column);
     free(writer);
     return NULL;
 }
@@ -259,14 +262,24 @@ bool cx_row_group_writer_metadata(struct cx_row_group_writer *writer,
 {
     size_t size = strlen(metadata) + 1;
     char *buf;
-    if (writer->metadata)
-        buf = realloc(writer->metadata, size);
+    if (writer->strings.metadata)
+        buf = realloc(writer->strings.metadata, size);
     else
         buf = malloc(size);
     if (!buf)
         return false;
     memcpy(buf, metadata, size);
-    writer->metadata = buf;
+    writer->strings.metadata = buf;
+    return true;
+}
+
+static bool cx_row_group_writer_add_string(struct cx_row_group_writer *writer,
+                                           const char *string, uint32_t *id)
+{
+    if (!cx_column_put_str(writer->strings.column, string))
+        return false;
+    *id = writer->strings.count;
+    writer->strings.count++;
     return true;
 }
 
@@ -296,22 +309,15 @@ bool cx_row_group_writer_add_column(struct cx_row_group_writer *writer,
         writer->columns.size = new_size;
     }
 
-    if (!cx_column_put_str(writer->strings, name))
-        return false;
-
-    size_t string_count = cx_column_count(writer->strings);
-    assert(string_count);
-
     struct cx_column_descriptor *descriptor =
         &writer->columns.descriptors[writer->columns.count++];
     memset(descriptor, 0, sizeof(*descriptor));
-    descriptor->name = string_count - 1;
     descriptor->type = type;
     descriptor->encoding = encoding;
     descriptor->compression = compression;
     descriptor->level = level;
 
-    return true;
+    return cx_row_group_writer_add_string(writer, name, &descriptor->name);
 }
 
 static size_t cx_write_align(size_t offset)
@@ -499,17 +505,18 @@ bool cx_row_group_writer_finish(struct cx_row_group_writer *writer, bool sync)
     size_t offset = cx_row_group_writer_offset(writer);
 
     // write metadata to the string repository
-    if (writer->metadata) {
-        if (!cx_column_put_str(writer->strings, writer->metadata))
+    if (writer->strings.metadata) {
+        uint32_t id;
+        if (!cx_row_group_writer_add_string(writer, writer->strings.metadata,
+                                            &id))
             return false;
-        size_t string_count = cx_column_count(writer->strings);
-        assert(string_count);
-        metadata_id = string_count - 1;
+        metadata_id = id;
     }
 
     // write strings
     size_t strings_size;
-    const void *strings = cx_column_export(writer->strings, &strings_size);
+    const void *strings = cx_column_export(writer->strings.column,
+                                           &strings_size);
     if (!cx_row_group_writer_write(writer, strings, strings_size))
         goto error;
 
@@ -566,9 +573,9 @@ error:
 
 void cx_row_group_writer_free(struct cx_row_group_writer *writer)
 {
-    if (writer->metadata)
-        free(writer->metadata);
-    cx_column_free(writer->strings);
+    if (writer->strings.metadata)
+        free(writer->strings.metadata);
+    cx_column_free(writer->strings.column);
     if (writer->columns.descriptors)
         free(writer->columns.descriptors);
     if (writer->row_groups.headers)
