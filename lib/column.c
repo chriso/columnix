@@ -252,7 +252,7 @@ bool cx_column_put_i64(struct cx_column *column, int64_t value)
 
 bool cx_column_put_str(struct cx_column *column, const char *value)
 {
-    if (column->type != CX_COLUMN_STR)
+    if (column->type != CX_COLUMN_STR || !value)
         return false;
     size_t length = strlen(value);
     void *slot = cx_column_alloc(column, length + 1);
