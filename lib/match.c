@@ -4,7 +4,10 @@
 
 #include "match.h"
 
-#ifdef CX_AVX2
+#ifdef CX_AVX512
+#include "avx512.h"
+#define CX_SIMD_WIDTH 64
+#elif defined(CX_AVX2)
 #include "avx2.h"
 #define CX_SIMD_WIDTH 32
 #elif defined(CX_AVX)
@@ -35,13 +38,12 @@
         size_t size, const type batch[], type cmp)                           \
     {                                                                        \
         cx_##name##_vec_t cmp_vec = cx_simd_##name##_set(cmp);               \
-        uint32_t partial_mask[64 / width * sizeof(type)];                    \
+        int partial_mask[64 / width * sizeof(type)];                         \
         for (size_t i = 0; i < 64 / width * sizeof(type); i++) {             \
             cx_##name##_vec_t chunk =                                        \
                 cx_simd_##name##_load(&batch[i * (width / sizeof(type))]);   \
-            cx_##name##_vec_t result =                                       \
+            partial_mask[i] =                                                \
                 cx_simd_##name##_##match(cmp_vec, chunk);                    \
-            partial_mask[i] = cx_simd_##name##_mask(result);                 \
         }                                                                    \
         uint64_t mask = 0;                                                   \
         for (size_t i = 0; i < 64 / width * sizeof(type); i++)               \

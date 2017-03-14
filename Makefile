@@ -14,7 +14,9 @@ ifeq ($(debug), 1)
 else
   CFLAGS += -O3 -march=native
   CPU_FEATURES := $(shell ./contrib/cpu-features.sh)
-  ifneq (,$(findstring AVX2,$(CPU_FEATURES)))
+  ifneq (,$(findstring AVX512F,$(CPU_FEATURES)))
+    CFLAGS += -DCX_AVX512
+  else ifneq (,$(findstring AVX2,$(CPU_FEATURES)))
     CFLAGS += -DCX_AVX2
   else ifneq (,$(findstring AVX,$(CPU_FEATURES)))
     CFLAGS += -DCX_AVX
