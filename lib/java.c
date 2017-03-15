@@ -11,8 +11,8 @@ static void cx_java_throw(JNIEnv *env, const char *class, const char *msg)
     (*env)->ThrowNew(env, exception, msg);
 }
 
-jlong Java_com_columnix_jni_c_Reader_create(JNIEnv *env, jobject this,
-                                            jstring java_path)
+jlong Java_com_columnix_jni_Reader_create(JNIEnv *env, jobject this,
+                                          jstring java_path)
 {
     const char *path = (*env)->GetStringUTFChars(env, java_path, 0);
     if (!path)
@@ -24,9 +24,8 @@ jlong Java_com_columnix_jni_c_Reader_create(JNIEnv *env, jobject this,
     return (jlong)reader;
 }
 
-jlong Java_com_columnix_jni_c_Reader_createMatching(JNIEnv *env, jobject this,
-                                                    jstring java_path,
-                                                    jlong ptr)
+jlong Java_com_columnix_jni_Reader_createMatching(JNIEnv *env, jobject this,
+                                                  jstring java_path, jlong ptr)
 {
     struct cx_predicate *predicate = (struct cx_predicate *)ptr;
     const char *path = (*env)->GetStringUTFChars(env, java_path, 0);
@@ -39,30 +38,29 @@ jlong Java_com_columnix_jni_c_Reader_createMatching(JNIEnv *env, jobject this,
     return (jlong)reader;
 }
 
-void Java_com_columnix_jni_c_Reader_free(JNIEnv *env, jobject this, jlong ptr)
+void Java_com_columnix_jni_Reader_free(JNIEnv *env, jobject this, jlong ptr)
 {
     cx_reader_free((struct cx_reader *)ptr);
 }
 
-jint Java_com_columnix_jni_c_Reader_columnCount(JNIEnv *env, jobject this,
-                                                jlong ptr)
+jint Java_com_columnix_jni_Reader_columnCount(JNIEnv *env, jobject this,
+                                              jlong ptr)
 {
     return cx_reader_column_count((struct cx_reader *)ptr);
 }
 
-jlong Java_com_columnix_jni_c_Reader_rowCount(JNIEnv *env, jobject this,
-                                              jlong ptr)
+jlong Java_com_columnix_jni_Reader_rowCount(JNIEnv *env, jobject this,
+                                            jlong ptr)
 {
     return cx_reader_row_count((struct cx_reader *)ptr);
 }
 
-void Java_com_columnix_jni_c_Reader_rewind(JNIEnv *env, jobject this, jlong ptr)
+void Java_com_columnix_jni_Reader_rewind(JNIEnv *env, jobject this, jlong ptr)
 {
     cx_reader_rewind((struct cx_reader *)ptr);
 }
 
-jboolean Java_com_columnix_jni_c_Reader_next(JNIEnv *env, jobject this,
-                                             jlong ptr)
+jboolean Java_com_columnix_jni_Reader_next(JNIEnv *env, jobject this, jlong ptr)
 {
     struct cx_reader *reader = (struct cx_reader *)ptr;
     if (!cx_reader_next(reader)) {
@@ -73,8 +71,8 @@ jboolean Java_com_columnix_jni_c_Reader_next(JNIEnv *env, jobject this,
     return JNI_TRUE;
 }
 
-jstring Java_com_columnix_jni_c_Reader_getMetadata(JNIEnv *env, jobject this,
-                                                   jlong ptr)
+jstring Java_com_columnix_jni_Reader_getMetadata(JNIEnv *env, jobject this,
+                                                 jlong ptr)
 {
     const char *metadata = NULL;
     if (!cx_reader_metadata((struct cx_reader *)ptr, &metadata)) {
@@ -84,8 +82,8 @@ jstring Java_com_columnix_jni_c_Reader_getMetadata(JNIEnv *env, jobject this,
     return metadata ? (*env)->NewStringUTF(env, metadata) : NULL;
 }
 
-jstring Java_com_columnix_jni_c_Reader_columnName(JNIEnv *env, jobject this,
-                                                  jlong ptr, jint index)
+jstring Java_com_columnix_jni_Reader_columnName(JNIEnv *env, jobject this,
+                                                jlong ptr, jint index)
 {
     const char *name = cx_reader_column_name((struct cx_reader *)ptr, index);
     if (!name) {
@@ -95,26 +93,26 @@ jstring Java_com_columnix_jni_c_Reader_columnName(JNIEnv *env, jobject this,
     return (*env)->NewStringUTF(env, name);
 }
 
-jint Java_com_columnix_jni_c_Reader_columnType(JNIEnv *env, jobject this,
-                                               jlong ptr, jint index)
+jint Java_com_columnix_jni_Reader_columnType(JNIEnv *env, jobject this,
+                                             jlong ptr, jint index)
 {
     return cx_reader_column_type((struct cx_reader *)ptr, index);
 }
 
-jint Java_com_columnix_jni_c_Reader_columnEncoding(JNIEnv *env, jobject this,
-                                                   jlong ptr, jint index)
+jint Java_com_columnix_jni_Reader_columnEncoding(JNIEnv *env, jobject this,
+                                                 jlong ptr, jint index)
 {
     return cx_reader_column_encoding((struct cx_reader *)ptr, index);
 }
 
-jint Java_com_columnix_jni_c_Reader_columnCompression(JNIEnv *env, jobject this,
-                                                      jlong ptr, jint index)
+jint Java_com_columnix_jni_Reader_columnCompression(JNIEnv *env, jobject this,
+                                                    jlong ptr, jint index)
 {
     return cx_reader_column_compression((struct cx_reader *)ptr, index);
 }
 
-jboolean Java_com_columnix_jni_c_Reader_isNull(JNIEnv *env, jobject this,
-                                               jlong ptr, jint index)
+jboolean Java_com_columnix_jni_Reader_isNull(JNIEnv *env, jobject this,
+                                             jlong ptr, jint index)
 {
     bool value;
     if (!cx_reader_get_null((struct cx_reader *)ptr, index, &value)) {
@@ -124,8 +122,8 @@ jboolean Java_com_columnix_jni_c_Reader_isNull(JNIEnv *env, jobject this,
     return (jboolean)value;
 }
 
-jboolean Java_com_columnix_jni_c_Reader_getBoolean(JNIEnv *env, jobject this,
-                                                   jlong ptr, jint index)
+jboolean Java_com_columnix_jni_Reader_getBoolean(JNIEnv *env, jobject this,
+                                                 jlong ptr, jint index)
 {
     bool value;
     if (!cx_reader_get_bit((struct cx_reader *)ptr, index, &value)) {
@@ -135,8 +133,8 @@ jboolean Java_com_columnix_jni_c_Reader_getBoolean(JNIEnv *env, jobject this,
     return (jboolean)value;
 }
 
-jint Java_com_columnix_jni_c_Reader_getInt(JNIEnv *env, jobject this, jlong ptr,
-                                           jint index)
+jint Java_com_columnix_jni_Reader_getInt(JNIEnv *env, jobject this, jlong ptr,
+                                         jint index)
 {
     int32_t value;
     if (!cx_reader_get_i32((struct cx_reader *)ptr, index, &value)) {
@@ -146,8 +144,8 @@ jint Java_com_columnix_jni_c_Reader_getInt(JNIEnv *env, jobject this, jlong ptr,
     return (jint)value;
 }
 
-jlong Java_com_columnix_jni_c_Reader_getLong(JNIEnv *env, jobject this,
-                                             jlong ptr, jint index)
+jlong Java_com_columnix_jni_Reader_getLong(JNIEnv *env, jobject this, jlong ptr,
+                                           jint index)
 {
     int64_t value;
     if (!cx_reader_get_i64((struct cx_reader *)ptr, index, &value)) {
@@ -157,8 +155,8 @@ jlong Java_com_columnix_jni_c_Reader_getLong(JNIEnv *env, jobject this,
     return (jlong)value;
 }
 
-jstring Java_com_columnix_jni_c_Reader_getString(JNIEnv *env, jobject this,
-                                                 jlong ptr, jint index)
+jstring Java_com_columnix_jni_Reader_getString(JNIEnv *env, jobject this,
+                                               jlong ptr, jint index)
 {
     const struct cx_string *value;
     if (!cx_reader_get_str((struct cx_reader *)ptr, index, &value)) {
@@ -168,9 +166,9 @@ jstring Java_com_columnix_jni_c_Reader_getString(JNIEnv *env, jobject this,
     return (*env)->NewStringUTF(env, value->ptr);
 }
 
-jbyteArray Java_com_columnix_jni_c_Reader_getStringBytes(JNIEnv *env,
-                                                         jobject this,
-                                                         jlong ptr, jint index)
+jbyteArray Java_com_columnix_jni_Reader_getStringBytes(JNIEnv *env,
+                                                       jobject this, jlong ptr,
+                                                       jint index)
 {
     const struct cx_string *value;
     if (!cx_reader_get_str((struct cx_reader *)ptr, index, &value)) {
@@ -185,9 +183,9 @@ jbyteArray Java_com_columnix_jni_c_Reader_getStringBytes(JNIEnv *env,
     return bytes;
 }
 
-jlong Java_com_columnix_jni_c_Writer_create(JNIEnv *env, jobject this,
-                                            jstring java_path,
-                                            jlong row_group_size)
+jlong Java_com_columnix_jni_Writer_create(JNIEnv *env, jobject this,
+                                          jstring java_path,
+                                          jlong row_group_size)
 {
     const char *path = (*env)->GetStringUTFChars(env, java_path, 0);
     if (!path)
@@ -199,14 +197,13 @@ jlong Java_com_columnix_jni_c_Writer_create(JNIEnv *env, jobject this,
     return (jlong)writer;
 }
 
-void Java_com_columnix_jni_c_Writer_free(JNIEnv *env, jobject this, jlong ptr)
+void Java_com_columnix_jni_Writer_free(JNIEnv *env, jobject this, jlong ptr)
 {
     cx_writer_free((struct cx_writer *)ptr);
 }
 
-void Java_com_columnix_jni_c_Writer_setMetadata(JNIEnv *env, jobject this,
-                                                jlong ptr,
-                                                jstring java_metadata)
+void Java_com_columnix_jni_Writer_setMetadata(JNIEnv *env, jobject this,
+                                              jlong ptr, jstring java_metadata)
 {
     const char *metadata = (*env)->GetStringUTFChars(env, java_metadata, 0);
     if (!metadata)
@@ -216,17 +213,17 @@ void Java_com_columnix_jni_c_Writer_setMetadata(JNIEnv *env, jobject this,
     (*env)->ReleaseStringUTFChars(env, java_metadata, metadata);
 }
 
-void Java_com_columnix_jni_c_Writer_finish(JNIEnv *env, jobject this, jlong ptr,
-                                           jboolean sync)
+void Java_com_columnix_jni_Writer_finish(JNIEnv *env, jobject this, jlong ptr,
+                                         jboolean sync)
 {
     if (!cx_writer_finish((struct cx_writer *)ptr, sync))
         cx_java_throw(env, "java/lang/Exception", "cx_writer_finish()");
 }
 
-void Java_com_columnix_jni_c_Writer_addColumn(JNIEnv *env, jobject this,
-                                              jlong ptr, jstring java_name,
-                                              jint type, jint encoding,
-                                              jint compression, jint level)
+void Java_com_columnix_jni_Writer_addColumn(JNIEnv *env, jobject this,
+                                            jlong ptr, jstring java_name,
+                                            jint type, jint encoding,
+                                            jint compression, jint level)
 {
     struct cx_writer *writer = (struct cx_writer *)ptr;
     const char *name = (*env)->GetStringUTFChars(env, java_name, 0);
@@ -237,38 +234,38 @@ void Java_com_columnix_jni_c_Writer_addColumn(JNIEnv *env, jobject this,
     (*env)->ReleaseStringUTFChars(env, java_name, name);
 }
 
-void Java_com_columnix_jni_c_Writer_putNull(JNIEnv *env, jobject this,
-                                            jlong ptr, jint index)
+void Java_com_columnix_jni_Writer_putNull(JNIEnv *env, jobject this, jlong ptr,
+                                          jint index)
 {
     if (!cx_writer_put_null((struct cx_writer *)ptr, index))
         cx_java_throw(env, "java/lang/Exception", "cx_writer_put_null()");
 }
 
-void Java_com_columnix_jni_c_Writer_putBoolean(JNIEnv *env, jobject this,
-                                               jlong ptr, jint index,
-                                               jboolean value)
+void Java_com_columnix_jni_Writer_putBoolean(JNIEnv *env, jobject this,
+                                             jlong ptr, jint index,
+                                             jboolean value)
 {
     if (!cx_writer_put_bit((struct cx_writer *)ptr, index, value))
         cx_java_throw(env, "java/lang/Exception", "cx_writer_put_bit()");
 }
 
-void Java_com_columnix_jni_c_Writer_putInt(JNIEnv *env, jobject this, jlong ptr,
-                                           jint index, jint value)
+void Java_com_columnix_jni_Writer_putInt(JNIEnv *env, jobject this, jlong ptr,
+                                         jint index, jint value)
 {
     if (!cx_writer_put_i32((struct cx_writer *)ptr, index, value))
         cx_java_throw(env, "java/lang/Exception", "cx_writer_put_i32()");
 }
 
-void Java_com_columnix_jni_c_Writer_putLong(JNIEnv *env, jobject this,
-                                            jlong ptr, jint index, jlong value)
+void Java_com_columnix_jni_Writer_putLong(JNIEnv *env, jobject this, jlong ptr,
+                                          jint index, jlong value)
 {
     if (!cx_writer_put_i64((struct cx_writer *)ptr, index, value))
         cx_java_throw(env, "java/lang/Exception", "cx_writer_put_i64()");
 }
 
-void Java_com_columnix_jni_c_Writer_putString(JNIEnv *env, jobject this,
-                                              jlong ptr, jint index,
-                                              jstring java_value)
+void Java_com_columnix_jni_Writer_putString(JNIEnv *env, jobject this,
+                                            jlong ptr, jint index,
+                                            jstring java_value)
 {
     struct cx_writer *writer = (struct cx_writer *)ptr;
     bool ok;
@@ -285,20 +282,19 @@ void Java_com_columnix_jni_c_Writer_putString(JNIEnv *env, jobject this,
         cx_java_throw(env, "java/lang/Exception", "cx_writer_put_str()");
 }
 
-jlong Java_com_columnix_jni_c_Predicate_negate(JNIEnv *env, jobject this,
-                                               jlong ptr)
+jlong Java_com_columnix_jni_Predicate_negate(JNIEnv *env, jobject this,
+                                             jlong ptr)
 {
     return (jlong)cx_predicate_negate((struct cx_predicate *)ptr);
 }
 
-void Java_com_columnix_jni_c_Predicate_free(JNIEnv *env, jobject this,
-                                            jlong ptr)
+void Java_com_columnix_jni_Predicate_free(JNIEnv *env, jobject this, jlong ptr)
 {
     cx_predicate_free((struct cx_predicate *)ptr);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_and(JNIEnv *env, jobject this,
-                                            jlongArray array)
+jlong Java_com_columnix_jni_Predicate_and(JNIEnv *env, jobject this,
+                                          jlongArray array)
 {
     size_t count = (*env)->GetArrayLength(env, array);
     assert(sizeof(jlong) == sizeof(struct cx_predicate *));
@@ -311,8 +307,8 @@ jlong Java_com_columnix_jni_c_Predicate_and(JNIEnv *env, jobject this,
     return (jlong)predicate;
 }
 
-jlong Java_com_columnix_jni_c_Predicate_or(JNIEnv *env, jobject this,
-                                           jlongArray array)
+jlong Java_com_columnix_jni_Predicate_or(JNIEnv *env, jobject this,
+                                         jlongArray array)
 {
     size_t count = (*env)->GetArrayLength(env, array);
     assert(sizeof(jlong) == sizeof(struct cx_predicate *));
@@ -325,62 +321,58 @@ jlong Java_com_columnix_jni_c_Predicate_or(JNIEnv *env, jobject this,
     return (jlong)predicate;
 }
 
-jlong Java_com_columnix_jni_c_Predicate_isNull(JNIEnv *env, jobject this,
-                                               jint column)
+jlong Java_com_columnix_jni_Predicate_isNull(JNIEnv *env, jobject this,
+                                             jint column)
 {
     return (jlong)cx_predicate_new_null(column);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_booleanEquals(JNIEnv *env, jobject this,
-                                                      jint column,
-                                                      jboolean value)
+jlong Java_com_columnix_jni_Predicate_booleanEquals(JNIEnv *env, jobject this,
+                                                    jint column, jboolean value)
 {
     return (jlong)cx_predicate_new_bit_eq(column, value);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_intEquals(JNIEnv *env, jobject this,
-                                                  jint column, jint value)
+jlong Java_com_columnix_jni_Predicate_intEquals(JNIEnv *env, jobject this,
+                                                jint column, jint value)
 {
     return (jlong)cx_predicate_new_i32_eq(column, value);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_intGreaterThan(JNIEnv *env,
-                                                       jobject this,
-                                                       jint column, jint value)
+jlong Java_com_columnix_jni_Predicate_intGreaterThan(JNIEnv *env, jobject this,
+                                                     jint column, jint value)
 {
     return (jlong)cx_predicate_new_i32_gt(column, value);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_intLessThan(JNIEnv *env, jobject this,
-                                                    jint column, jint value)
+jlong Java_com_columnix_jni_Predicate_intLessThan(JNIEnv *env, jobject this,
+                                                  jint column, jint value)
 {
     return (jlong)cx_predicate_new_i32_lt(column, value);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_longEquals(JNIEnv *env, jobject this,
-                                                   jint column, jlong value)
+jlong Java_com_columnix_jni_Predicate_longEquals(JNIEnv *env, jobject this,
+                                                 jint column, jlong value)
 {
     return (jlong)cx_predicate_new_i64_eq(column, value);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_longGreaterThan(JNIEnv *env,
-                                                        jobject this,
-                                                        jint column,
-                                                        jlong value)
+jlong Java_com_columnix_jni_Predicate_longGreaterThan(JNIEnv *env, jobject this,
+                                                      jint column, jlong value)
 {
     return (jlong)cx_predicate_new_i64_gt(column, value);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_longLessThan(JNIEnv *env, jobject this,
-                                                     jint column, jlong value)
+jlong Java_com_columnix_jni_Predicate_longLessThan(JNIEnv *env, jobject this,
+                                                   jint column, jlong value)
 {
     return (jlong)cx_predicate_new_i64_lt(column, value);
 }
 
-jlong Java_com_columnix_jni_c_Predicate_stringEquals(JNIEnv *env, jobject this,
-                                                     jint column,
-                                                     jstring java_string,
-                                                     jboolean caseSensitive)
+jlong Java_com_columnix_jni_Predicate_stringEquals(JNIEnv *env, jobject this,
+                                                   jint column,
+                                                   jstring java_string,
+                                                   jboolean caseSensitive)
 {
     const char *string = (*env)->GetStringUTFChars(env, java_string, 0);
     if (!string)
@@ -391,9 +383,11 @@ jlong Java_com_columnix_jni_c_Predicate_stringEquals(JNIEnv *env, jobject this,
     return (jlong)predicate;
 }
 
-jlong Java_com_columnix_jni_c_Predicate_stringGreaterThan(
-    JNIEnv *env, jobject this, jint column, jstring java_string,
-    jboolean caseSensitive)
+jlong Java_com_columnix_jni_Predicate_stringGreaterThan(JNIEnv *env,
+                                                        jobject this,
+                                                        jint column,
+                                                        jstring java_string,
+                                                        jboolean caseSensitive)
 {
     const char *string = (*env)->GetStringUTFChars(env, java_string, 0);
     if (!string)
@@ -404,11 +398,10 @@ jlong Java_com_columnix_jni_c_Predicate_stringGreaterThan(
     return (jlong)predicate;
 }
 
-jlong Java_com_columnix_jni_c_Predicate_stringLessThan(JNIEnv *env,
-                                                       jobject this,
-                                                       jint column,
-                                                       jstring java_string,
-                                                       jboolean caseSensitive)
+jlong Java_com_columnix_jni_Predicate_stringLessThan(JNIEnv *env, jobject this,
+                                                     jint column,
+                                                     jstring java_string,
+                                                     jboolean caseSensitive)
 {
     const char *string = (*env)->GetStringUTFChars(env, java_string, 0);
     if (!string)
@@ -419,9 +412,11 @@ jlong Java_com_columnix_jni_c_Predicate_stringLessThan(JNIEnv *env,
     return (jlong)predicate;
 }
 
-jlong Java_com_columnix_jni_c_Predicate_stringContains(
-    JNIEnv *env, jobject this, jint column, jstring java_string, jint location,
-    jboolean caseSensitive)
+jlong Java_com_columnix_jni_Predicate_stringContains(JNIEnv *env, jobject this,
+                                                     jint column,
+                                                     jstring java_string,
+                                                     jint location,
+                                                     jboolean caseSensitive)
 {
     const char *string = (*env)->GetStringUTFChars(env, java_string, 0);
     if (!string)
