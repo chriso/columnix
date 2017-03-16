@@ -2,6 +2,7 @@
 #define CX_ROW_GROUP_
 
 #include "column.h"
+#include "index.h"
 
 struct cx_row_group;
 
@@ -18,7 +19,7 @@ struct cx_lazy_column {
     enum cx_column_type type;
     enum cx_encoding_type encoding;
     enum cx_compression_type compression;
-    const struct cx_column_index *index;
+    const struct cx_index *index;
     const void *ptr;
     size_t size;
     size_t decompressed_size;
@@ -38,14 +39,14 @@ enum cx_column_type cx_row_group_column_type(const struct cx_row_group *,
 enum cx_encoding_type cx_row_group_column_encoding(const struct cx_row_group *,
                                                    size_t);
 
-const struct cx_column_index *cx_row_group_column_index(
-    const struct cx_row_group *, size_t);
+const struct cx_index *cx_row_group_column_index(const struct cx_row_group *,
+                                                 size_t);
 
 const struct cx_column *cx_row_group_column(const struct cx_row_group *,
                                             size_t);
 
-const struct cx_column_index *cx_row_group_null_index(
-    const struct cx_row_group *, size_t);
+const struct cx_index *cx_row_group_null_index(const struct cx_row_group *,
+                                               size_t);
 
 const struct cx_column *cx_row_group_nulls(const struct cx_row_group *, size_t);
 
@@ -71,6 +72,12 @@ const int32_t *cx_row_group_cursor_batch_i32(struct cx_row_group_cursor *,
 const int64_t *cx_row_group_cursor_batch_i64(struct cx_row_group_cursor *,
                                              size_t column_index,
                                              size_t *count);
+const float *cx_row_group_cursor_batch_flt(struct cx_row_group_cursor *,
+                                           size_t column_index,
+                                           size_t *count);
+const double *cx_row_group_cursor_batch_dbl(struct cx_row_group_cursor *,
+                                            size_t column_index,
+                                            size_t *count);
 const struct cx_string *cx_row_group_cursor_batch_str(
     struct cx_row_group_cursor *, size_t column_index, size_t *count);
 

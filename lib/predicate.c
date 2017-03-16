@@ -30,8 +30,8 @@ struct cx_predicate {
     bool case_sensitive;
     bool negate;
     struct {
-        cx_predicate_match_rows_t match_rows;
-        cx_predicate_match_index_t match_index;
+        cx_index_match_rows_t match_rows;
+        cx_index_match_index_t match_index;
         int cost;
         void *data;
     } custom;
@@ -144,6 +144,62 @@ struct cx_predicate *cx_predicate_new_i64_gt(size_t column, int64_t value)
     return cx_predicate_new_i64(column, value, CX_PREDICATE_GT);
 }
 
+static struct cx_predicate *cx_predicate_new_flt(size_t column, float value,
+                                                 enum cx_predicate_type type)
+{
+    struct cx_predicate *predicate = cx_predicate_new();
+    if (!predicate)
+        return NULL;
+    predicate->column = column;
+    predicate->type = type;
+    predicate->column_type = CX_COLUMN_FLT;
+    predicate->value.flt = value;
+    return predicate;
+}
+
+struct cx_predicate *cx_predicate_new_flt_eq(size_t column, float value)
+{
+    return cx_predicate_new_flt(column, value, CX_PREDICATE_EQ);
+}
+
+struct cx_predicate *cx_predicate_new_flt_lt(size_t column, float value)
+{
+    return cx_predicate_new_flt(column, value, CX_PREDICATE_LT);
+}
+
+struct cx_predicate *cx_predicate_new_flt_gt(size_t column, float value)
+{
+    return cx_predicate_new_flt(column, value, CX_PREDICATE_GT);
+}
+
+static struct cx_predicate *cx_predicate_new_dbl(size_t column, double value,
+                                                 enum cx_predicate_type type)
+{
+    struct cx_predicate *predicate = cx_predicate_new();
+    if (!predicate)
+        return NULL;
+    predicate->column = column;
+    predicate->type = type;
+    predicate->column_type = CX_COLUMN_DBL;
+    predicate->value.dbl = value;
+    return predicate;
+}
+
+struct cx_predicate *cx_predicate_new_dbl_eq(size_t column, double value)
+{
+    return cx_predicate_new_dbl(column, value, CX_PREDICATE_EQ);
+}
+
+struct cx_predicate *cx_predicate_new_dbl_lt(size_t column, double value)
+{
+    return cx_predicate_new_dbl(column, value, CX_PREDICATE_LT);
+}
+
+struct cx_predicate *cx_predicate_new_dbl_gt(size_t column, double value)
+{
+    return cx_predicate_new_dbl(column, value, CX_PREDICATE_GT);
+}
+
 static struct cx_predicate *cx_predicate_new_str(size_t column,
                                                  const char *value,
                                                  enum cx_predicate_type type,
@@ -203,10 +259,11 @@ struct cx_predicate *cx_predicate_new_str_contains(
     return predicate;
 }
 
-struct cx_predicate *cx_predicate_new_custom(
-    size_t column, enum cx_column_type type,
-    cx_predicate_match_rows_t match_rows,
-    cx_predicate_match_index_t match_index, int cost, void *data)
+struct cx_predicate *cx_predicate_new_custom(size_t column,
+                                             enum cx_column_type type,
+                                             cx_index_match_rows_t match_rows,
+                                             cx_index_match_index_t match_index,
+                                             int cost, void *data)
 {
     struct cx_predicate *predicate = cx_predicate_new();
     if (!predicate)
@@ -366,10 +423,10 @@ static inline uint64_t cx_mask_cap(uint64_t mask, size_t count)
     return mask;
 }
 
-static bool cx_predicate_match_rows_eq(const struct cx_predicate *predicate,
-                                       struct cx_row_group_cursor *cursor,
-                                       enum cx_column_type type,
-                                       uint64_t *matches, size_t *count)
+static bool cx_index_match_rows_eq(const struct cx_predicate *predicate,
+                                   struct cx_row_group_cursor *cursor,
+                                   enum cx_column_type type, uint64_t *matches,
+                                   size_t *count)
 {
     uint64_t mask = 0;
     switch (type) {
@@ -402,6 +459,22 @@ static bool cx_predicate_match_rows_eq(const struct cx_predicate *predicate,
                 goto error;
             mask = cx_match_i64_eq(*count, values, predicate->value.i64);
         } break;
+        case CX_COLUMN_FLT: {
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            const float *values =
+                cx_row_group_cursor_batch_flt(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_flt_eq(*count, values, predicate->value.flt);
+        } break;
+        case CX_COLUMN_DBL: {
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            const double *values =
+                cx_row_group_cursor_batch_dbl(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_dbl_eq(*count, values, predicate->value.dbl);
+        } break;
         case CX_COLUMN_STR: {
             assert(predicate->column_type == CX_COLUMN_STR);
             const struct cx_string *values =
@@ -418,53 +491,44 @@ error:
     return false;
 }
 
-static enum cx_predicate_match cx_predicate_match_index_eq(
+static enum cx_index_match cx_index_match_index_eq(
     const struct cx_predicate *predicate, enum cx_column_type type,
-    const struct cx_column_index *index)
+    const struct cx_index *index)
 {
-    enum cx_predicate_match result = CX_PREDICATE_MATCH_UNKNOWN;
+    enum cx_index_match result = CX_INDEX_MATCH_UNKNOWN;
     switch (type) {
         case CX_COLUMN_BIT:
             assert(predicate->column_type == CX_COLUMN_BIT);
-            if (index->min.bit && index->max.bit)
-                result = predicate->value.bit ? CX_PREDICATE_MATCH_ALL_ROWS
-                                              : CX_PREDICATE_MATCH_NO_ROWS;
-            else if (!index->min.bit && !index->max.bit)
-                result = predicate->value.bit ? CX_PREDICATE_MATCH_NO_ROWS
-                                              : CX_PREDICATE_MATCH_ALL_ROWS;
+            result = cx_index_match_bit_eq(index, predicate->value.bit);
             break;
         case CX_COLUMN_I32:
             assert(predicate->column_type == CX_COLUMN_I32);
-            if (index->min.i32 > predicate->value.i32 ||
-                index->max.i32 < predicate->value.i32)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
-            else if (index->min.i32 == predicate->value.i32 &&
-                     index->max.i32 == predicate->value.i32)
-                result = CX_PREDICATE_MATCH_ALL_ROWS;
+            result = cx_index_match_i32_eq(index, predicate->value.i32);
             break;
         case CX_COLUMN_I64:
             assert(predicate->column_type == CX_COLUMN_I64);
-            if (index->min.i64 > predicate->value.i64 ||
-                index->max.i64 < predicate->value.i64)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
-            else if (index->min.i64 == predicate->value.i64 &&
-                     index->max.i64 == predicate->value.i64)
-                result = CX_PREDICATE_MATCH_ALL_ROWS;
+            result = cx_index_match_i64_eq(index, predicate->value.i64);
+            break;
+        case CX_COLUMN_FLT:
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            result = cx_index_match_flt_eq(index, predicate->value.flt);
+            break;
+        case CX_COLUMN_DBL:
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            result = cx_index_match_dbl_eq(index, predicate->value.dbl);
             break;
         case CX_COLUMN_STR:
             assert(predicate->column_type == CX_COLUMN_STR);
-            if (index->min.len > predicate->value.str.len ||
-                index->max.len < predicate->value.str.len)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
+            result = cx_index_match_str_eq(index, &predicate->value.str);
             break;
     }
     return result;
 }
 
-static bool cx_predicate_match_rows_lt(const struct cx_predicate *predicate,
-                                       struct cx_row_group_cursor *cursor,
-                                       enum cx_column_type type,
-                                       uint64_t *matches, size_t *count)
+static bool cx_index_match_rows_lt(const struct cx_predicate *predicate,
+                                   struct cx_row_group_cursor *cursor,
+                                   enum cx_column_type type, uint64_t *matches,
+                                   size_t *count)
 {
     uint64_t mask = 0;
     switch (type) {
@@ -486,6 +550,22 @@ static bool cx_predicate_match_rows_lt(const struct cx_predicate *predicate,
                 goto error;
             mask = cx_match_i64_lt(*count, values, predicate->value.i64);
         } break;
+        case CX_COLUMN_FLT: {
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            const float *values =
+                cx_row_group_cursor_batch_flt(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_flt_lt(*count, values, predicate->value.flt);
+        } break;
+        case CX_COLUMN_DBL: {
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            const double *values =
+                cx_row_group_cursor_batch_dbl(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_dbl_lt(*count, values, predicate->value.dbl);
+        } break;
         case CX_COLUMN_STR: {
             assert(predicate->column_type == CX_COLUMN_STR);
             const struct cx_string *values =
@@ -502,27 +582,29 @@ error:
     return false;
 }
 
-static enum cx_predicate_match cx_predicate_match_index_lt(
+static enum cx_index_match cx_index_match_index_lt(
     const struct cx_predicate *predicate, enum cx_column_type type,
-    const struct cx_column_index *index)
+    const struct cx_index *index)
 {
-    enum cx_predicate_match result = CX_PREDICATE_MATCH_UNKNOWN;
+    enum cx_index_match result = CX_INDEX_MATCH_UNKNOWN;
     switch (type) {
         case CX_COLUMN_BIT:
             break;
         case CX_COLUMN_I32:
             assert(predicate->column_type == CX_COLUMN_I32);
-            if (index->min.i32 >= predicate->value.i32)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
-            else if (index->max.i32 < predicate->value.i32)
-                result = CX_PREDICATE_MATCH_ALL_ROWS;
+            result = cx_index_match_i32_lt(index, predicate->value.i32);
             break;
         case CX_COLUMN_I64:
             assert(predicate->column_type == CX_COLUMN_I64);
-            if (index->min.i64 >= predicate->value.i64)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
-            else if (index->max.i64 < predicate->value.i64)
-                result = CX_PREDICATE_MATCH_ALL_ROWS;
+            result = cx_index_match_i64_lt(index, predicate->value.i64);
+            break;
+        case CX_COLUMN_FLT:
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            result = cx_index_match_flt_lt(index, predicate->value.flt);
+            break;
+        case CX_COLUMN_DBL:
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            result = cx_index_match_dbl_lt(index, predicate->value.dbl);
             break;
         case CX_COLUMN_STR:
             break;
@@ -530,10 +612,10 @@ static enum cx_predicate_match cx_predicate_match_index_lt(
     return result;
 }
 
-static bool cx_predicate_match_rows_gt(const struct cx_predicate *predicate,
-                                       struct cx_row_group_cursor *cursor,
-                                       enum cx_column_type type,
-                                       uint64_t *matches, size_t *count)
+static bool cx_index_match_rows_gt(const struct cx_predicate *predicate,
+                                   struct cx_row_group_cursor *cursor,
+                                   enum cx_column_type type, uint64_t *matches,
+                                   size_t *count)
 {
     uint64_t mask = 0;
     switch (type) {
@@ -555,6 +637,22 @@ static bool cx_predicate_match_rows_gt(const struct cx_predicate *predicate,
                 goto error;
             mask = cx_match_i64_gt(*count, values, predicate->value.i64);
         } break;
+        case CX_COLUMN_FLT: {
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            const float *values =
+                cx_row_group_cursor_batch_flt(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_flt_gt(*count, values, predicate->value.flt);
+        } break;
+        case CX_COLUMN_DBL: {
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            const double *values =
+                cx_row_group_cursor_batch_dbl(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_dbl_gt(*count, values, predicate->value.dbl);
+        } break;
         case CX_COLUMN_STR: {
             assert(predicate->column_type == CX_COLUMN_STR);
             const struct cx_string *values =
@@ -571,27 +669,29 @@ error:
     return false;
 }
 
-static enum cx_predicate_match cx_predicate_match_index_gt(
+static enum cx_index_match cx_index_match_index_gt(
     const struct cx_predicate *predicate, enum cx_column_type type,
-    const struct cx_column_index *index)
+    const struct cx_index *index)
 {
-    enum cx_predicate_match result = CX_PREDICATE_MATCH_UNKNOWN;
+    enum cx_index_match result = CX_INDEX_MATCH_UNKNOWN;
     switch (type) {
         case CX_COLUMN_BIT:
             break;
         case CX_COLUMN_I32:
             assert(predicate->column_type == CX_COLUMN_I32);
-            if (index->min.i32 > predicate->value.i32)
-                result = CX_PREDICATE_MATCH_ALL_ROWS;
-            else if (index->max.i32 <= predicate->value.i32)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
+            result = cx_index_match_i32_gt(index, predicate->value.i32);
             break;
         case CX_COLUMN_I64:
             assert(predicate->column_type == CX_COLUMN_I64);
-            if (index->min.i64 > predicate->value.i64)
-                result = CX_PREDICATE_MATCH_ALL_ROWS;
-            else if (index->max.i64 <= predicate->value.i64)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
+            result = cx_index_match_i64_gt(index, predicate->value.i64);
+            break;
+        case CX_COLUMN_FLT:
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            result = cx_index_match_flt_gt(index, predicate->value.flt);
+            break;
+        case CX_COLUMN_DBL:
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            result = cx_index_match_dbl_gt(index, predicate->value.dbl);
             break;
         case CX_COLUMN_STR:
             break;
@@ -599,10 +699,10 @@ static enum cx_predicate_match cx_predicate_match_index_gt(
     return result;
 }
 
-static bool cx_predicate_match_rows_custom(const struct cx_predicate *predicate,
-                                           struct cx_row_group_cursor *cursor,
-                                           enum cx_column_type type,
-                                           uint64_t *matches, size_t *count)
+static bool cx_index_match_rows_custom(const struct cx_predicate *predicate,
+                                       struct cx_row_group_cursor *cursor,
+                                       enum cx_column_type type,
+                                       uint64_t *matches, size_t *count)
 {
     size_t column = predicate->column;
     const void *values = NULL;
@@ -619,6 +719,14 @@ static bool cx_predicate_match_rows_custom(const struct cx_predicate *predicate,
             assert(predicate->column_type == CX_COLUMN_I64);
             values = cx_row_group_cursor_batch_i64(cursor, column, count);
             break;
+        case CX_COLUMN_FLT:
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            values = cx_row_group_cursor_batch_flt(cursor, column, count);
+            break;
+        case CX_COLUMN_DBL:
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            values = cx_row_group_cursor_batch_dbl(cursor, column, count);
+            break;
         case CX_COLUMN_STR:
             assert(predicate->column_type == CX_COLUMN_STR);
             values = cx_row_group_cursor_batch_str(cursor, column, count);
@@ -632,10 +740,10 @@ static bool cx_predicate_match_rows_custom(const struct cx_predicate *predicate,
                                         predicate->custom.data);
 }
 
-bool cx_predicate_match_rows(const struct cx_predicate *predicate,
-                             const struct cx_row_group *row_group,
-                             struct cx_row_group_cursor *cursor,
-                             uint64_t *matches, size_t *count)
+bool cx_index_match_rows(const struct cx_predicate *predicate,
+                         const struct cx_row_group *row_group,
+                         struct cx_row_group_cursor *cursor, uint64_t *matches,
+                         size_t *count)
 {
     enum cx_column_type column_type =
         cx_row_group_column_type(row_group, predicate->column);
@@ -653,18 +761,18 @@ bool cx_predicate_match_rows(const struct cx_predicate *predicate,
             mask = *count ? *nulls : 0;
         } break;
         case CX_PREDICATE_EQ:
-            if (!cx_predicate_match_rows_eq(predicate, cursor, column_type,
-                                            &mask, count))
+            if (!cx_index_match_rows_eq(predicate, cursor, column_type, &mask,
+                                        count))
                 goto error;
             break;
         case CX_PREDICATE_LT:
-            if (!cx_predicate_match_rows_lt(predicate, cursor, column_type,
-                                            &mask, count))
+            if (!cx_index_match_rows_lt(predicate, cursor, column_type, &mask,
+                                        count))
                 goto error;
             break;
         case CX_PREDICATE_GT:
-            if (!cx_predicate_match_rows_gt(predicate, cursor, column_type,
-                                            &mask, count))
+            if (!cx_index_match_rows_gt(predicate, cursor, column_type, &mask,
+                                        count))
                 goto error;
             break;
         case CX_PREDICATE_CONTAINS:
@@ -680,8 +788,8 @@ bool cx_predicate_match_rows(const struct cx_predicate *predicate,
             }
             break;
         case CX_PREDICATE_CUSTOM:
-            if (!cx_predicate_match_rows_custom(predicate, cursor, column_type,
-                                                &mask, count))
+            if (!cx_index_match_rows_custom(predicate, cursor, column_type,
+                                            &mask, count))
                 goto error;
             break;
         case CX_PREDICATE_AND:
@@ -689,8 +797,8 @@ bool cx_predicate_match_rows(const struct cx_predicate *predicate,
             // short-circuit the remaining predicates once the mask is empty
             for (size_t i = 0; mask && i < predicate->operand_count; i++) {
                 uint64_t operand_mask;
-                if (!cx_predicate_match_rows(predicate->operands[i], row_group,
-                                             cursor, &operand_mask, count))
+                if (!cx_index_match_rows(predicate->operands[i], row_group,
+                                         cursor, &operand_mask, count))
                     goto error;
                 mask &= operand_mask;
             }
@@ -701,8 +809,8 @@ bool cx_predicate_match_rows(const struct cx_predicate *predicate,
             for (size_t i = 0;
                  mask != cx_full_mask && i < predicate->operand_count; i++) {
                 uint64_t operand_mask;
-                if (!cx_predicate_match_rows(predicate->operands[i], row_group,
-                                             cursor, &operand_mask, count))
+                if (!cx_index_match_rows(predicate->operands[i], row_group,
+                                         cursor, &operand_mask, count))
                     goto error;
                 mask |= operand_mask;
             }
@@ -714,69 +822,62 @@ error:
     return false;
 }
 
-enum cx_predicate_match cx_predicate_match_indexes(
-    const struct cx_predicate *predicate, const struct cx_row_group *row_group)
+enum cx_index_match cx_index_match_indexes(const struct cx_predicate *predicate,
+                                           const struct cx_row_group *row_group)
 {
     if (!cx_row_group_row_count(row_group))
-        return CX_PREDICATE_MATCH_NO_ROWS;
+        return CX_INDEX_MATCH_NONE;
 
-    const struct cx_column_index *index =
+    const struct cx_index *index =
         cx_row_group_column_index(row_group, predicate->column);
     enum cx_column_type type =
         cx_row_group_column_type(row_group, predicate->column);
-    enum cx_predicate_match result = CX_PREDICATE_MATCH_UNKNOWN;
+    enum cx_index_match result = CX_INDEX_MATCH_UNKNOWN;
     switch (predicate->type) {
         case CX_PREDICATE_TRUE:
-            result = CX_PREDICATE_MATCH_ALL_ROWS;
+            result = CX_INDEX_MATCH_ALL;
             break;
-        case CX_PREDICATE_NULL: {
-            const struct cx_column_index *index =
-                cx_row_group_null_index(row_group, predicate->column);
-            if (index->min.bit && index->max.bit)
-                result = CX_PREDICATE_MATCH_ALL_ROWS;
-            else if (!index->min.bit && !index->max.bit)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
-        } break;
+        case CX_PREDICATE_NULL:
+            index = cx_row_group_null_index(row_group, predicate->column);
+            result = cx_index_match_bit_eq(index, true);
+            break;
         case CX_PREDICATE_EQ:
-            result = cx_predicate_match_index_eq(predicate, type, index);
+            result = cx_index_match_index_eq(predicate, type, index);
             break;
         case CX_PREDICATE_LT:
-            result = cx_predicate_match_index_lt(predicate, type, index);
+            result = cx_index_match_index_lt(predicate, type, index);
             break;
         case CX_PREDICATE_GT:
-            result = cx_predicate_match_index_gt(predicate, type, index);
+            result = cx_index_match_index_gt(predicate, type, index);
             break;
         case CX_PREDICATE_CONTAINS:
-            if (index->max.len < predicate->value.str.len)
-                result = CX_PREDICATE_MATCH_NO_ROWS;
+            result = cx_index_match_str_contains(index, &predicate->value.str);
             break;
         case CX_PREDICATE_AND:
-            result = CX_PREDICATE_MATCH_ALL_ROWS;
-            for (size_t i = 0; result != CX_PREDICATE_MATCH_NO_ROWS &&
-                               i < predicate->operand_count;
+            result = CX_INDEX_MATCH_ALL;
+            for (size_t i = 0;
+                 result != CX_INDEX_MATCH_NONE && i < predicate->operand_count;
                  i++) {
-                enum cx_predicate_match operand_match =
-                    cx_predicate_match_indexes(predicate->operands[i],
-                                               row_group);
+                enum cx_index_match operand_match =
+                    cx_index_match_indexes(predicate->operands[i], row_group);
                 if (operand_match < result)
                     result = operand_match;
             }
             break;
         case CX_PREDICATE_OR:
-            result = CX_PREDICATE_MATCH_NO_ROWS;
-            for (size_t i = 0; result != CX_PREDICATE_MATCH_ALL_ROWS &&
-                               i < predicate->operand_count;
+            result = CX_INDEX_MATCH_NONE;
+            for (size_t i = 0;
+                 result != CX_INDEX_MATCH_ALL && i < predicate->operand_count;
                  i++) {
-                enum cx_predicate_match operand_match =
-                    cx_predicate_match_indexes(predicate->operands[i],
-                                               row_group);
+                enum cx_index_match operand_match =
+                    cx_index_match_indexes(predicate->operands[i], row_group);
                 if (operand_match > result)
                     result = operand_match;
             }
             break;
         case CX_PREDICATE_CUSTOM:
             if (predicate->custom.match_index) {
-                const struct cx_column_index *index =
+                const struct cx_index *index =
                     cx_row_group_column_index(row_group, predicate->column);
                 result = predicate->custom.match_index(type, index,
                                                        predicate->custom.data);
@@ -794,9 +895,11 @@ static int cx_column_cost(enum cx_column_type type)
             cost = 1;
             break;
         case CX_COLUMN_I32:
+        case CX_COLUMN_FLT:
             cost = 8;
             break;
         case CX_COLUMN_I64:
+        case CX_COLUMN_DBL:
             cost = 16;
             break;
         case CX_COLUMN_STR:

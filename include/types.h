@@ -9,6 +9,8 @@ enum cx_column_type {
     CX_COLUMN_BIT,
     CX_COLUMN_I32,
     CX_COLUMN_I64,
+    CX_COLUMN_FLT,
+    CX_COLUMN_DBL,
     CX_COLUMN_STR
 };
 
@@ -30,6 +32,8 @@ typedef union {
     bool bit;
     int32_t i32;
     int64_t i64;
+    float flt;
+    double dbl;
     struct cx_string str;
 } cx_value_t;
 

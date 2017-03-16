@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
                     goto error;
                 }
             } else if (type != types[j]) {
-                fprintf(stderr,
-                    "error: type mismatch for column %zu of %s\n", j, input_path);
+                fprintf(stderr, "error: type mismatch for column %zu of %s\n",
+                        j, input_path);
                 goto error;
             }
         }
@@ -172,6 +172,18 @@ int main(int argc, char *argv[])
                             if (!cx_reader_get_i64(reader, j, &value.i64))
                                 goto read_error;
                             if (!cx_writer_put_i64(writer, j, value.i64))
+                                goto read_error;
+                            break;
+                        case CX_COLUMN_FLT:
+                            if (!cx_reader_get_flt(reader, j, &value.flt))
+                                goto read_error;
+                            if (!cx_writer_put_flt(writer, j, value.flt))
+                                goto read_error;
+                            break;
+                        case CX_COLUMN_DBL:
+                            if (!cx_reader_get_dbl(reader, j, &value.dbl))
+                                goto read_error;
+                            if (!cx_writer_put_dbl(writer, j, value.dbl))
                                 goto read_error;
                             break;
                         case CX_COLUMN_STR:

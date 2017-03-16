@@ -340,6 +340,22 @@ bool cx_reader_get_i64(const struct cx_reader *reader, size_t column_index,
     return cx_row_cursor_get_i64(reader->row_cursor, column_index, value);
 }
 
+bool cx_reader_get_flt(const struct cx_reader *reader, size_t column_index,
+                       float *value)
+{
+    if (!reader->row_cursor)
+        return false;
+    return cx_row_cursor_get_flt(reader->row_cursor, column_index, value);
+}
+
+bool cx_reader_get_dbl(const struct cx_reader *reader, size_t column_index,
+                       double *value)
+{
+    if (!reader->row_cursor)
+        return false;
+    return cx_row_cursor_get_dbl(reader->row_cursor, column_index, value);
+}
+
 bool cx_reader_get_str(const struct cx_reader *reader, size_t column_index,
                        const struct cx_string **value)
 {
@@ -407,8 +423,8 @@ struct cx_row_group_reader *cx_row_group_reader_new(const char *path)
         goto error;
     const void *strings =
         cx_row_group_reader_at(reader, footer->strings_offset);
-    reader->strings = cx_column_new_mmapped(
-        CX_COLUMN_STR, CX_ENCODING_NONE, strings, footer->strings_size, NULL);
+    reader->strings = cx_column_new_mmapped(CX_COLUMN_STR, CX_ENCODING_NONE,
+                                            strings, footer->strings_size, 0);
     if (!reader->strings)
         goto error;
 

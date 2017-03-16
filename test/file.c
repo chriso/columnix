@@ -8,7 +8,7 @@
 #include "helpers.h"
 #include "temp_file.h"
 
-#define COLUMN_COUNT 4
+#define COLUMN_COUNT 6
 #define ROW_GROUP_COUNT 4
 #define ROWS_PER_ROW_GROUP 25
 #define ROW_COUNT (ROW_GROUP_COUNT * ROWS_PER_ROW_GROUP)
@@ -63,7 +63,7 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
     char buffer[64];
 
     enum cx_column_type types[] = {CX_COLUMN_I32, CX_COLUMN_I64, CX_COLUMN_BIT,
-                                   CX_COLUMN_STR};
+                                   CX_COLUMN_STR, CX_COLUMN_FLT, CX_COLUMN_DBL};
 
     CX_FOREACH(cx_compression_types, compression)
     {
@@ -87,6 +87,9 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
                 assert_true(cx_writer_put_null(writer, 3));
             else
                 assert_true(cx_writer_put_str(writer, 3, buffer));
+
+            assert_true(cx_writer_put_flt(writer, 4, (float)i / 10));
+            assert_true(cx_writer_put_dbl(writer, 5, (double)i / 100));
         }
 
         assert_true(cx_writer_finish(writer, true));
@@ -138,6 +141,14 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
                 assert_int(string->len, ==, strlen(buffer));
                 assert_string_equal(buffer, string->ptr);
             }
+
+            float flt;
+            assert_true(cx_reader_get_flt(reader, 4, &flt));
+            assert_float(flt, ==, (float)position / 10);
+
+            double dbl;
+            assert_true(cx_reader_get_dbl(reader, 5, &dbl));
+            assert_float(dbl, ==, (double)position / 100);
         }
         assert_false(cx_reader_error(reader));
         assert_size(position, ==, ROW_COUNT);
@@ -220,6 +231,13 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
                     assert_int(string->len, ==, strlen(buffer));
                     assert_string_equal(buffer, string->ptr);
                 }
+                float flt;
+                assert_true(cx_row_cursor_get_flt(cursor, 4, &flt));
+                assert_float(flt, ==, (float)position / 10);
+
+                double dbl;
+                assert_true(cx_row_cursor_get_dbl(cursor, 5, &dbl));
+                assert_float(dbl, ==, (double)position / 100);
             }
             cx_row_cursor_free(cursor);
             cx_row_group_free(row_group);

@@ -8,7 +8,7 @@
 static const size_t cx_row_group_column_initial_size = 8;
 
 struct cx_row_group_physical_column {
-    const struct cx_column_index *index;
+    struct cx_index *index;
     struct cx_column *column;
     struct cx_lazy_column lazy_column;
 };
@@ -25,6 +25,7 @@ struct cx_row_group {
     struct cx_row_group_column *columns;
     size_t count;
     size_t size;
+    size_t row_count;
 };
 
 struct cx_row_group_cursor_physical_column {
@@ -74,6 +75,9 @@ void cx_row_group_free(struct cx_row_group *row_group)
                 cx_column_free(row_group_column->values.column);
             if (row_group_column->nulls.column)
                 cx_column_free(row_group_column->nulls.column);
+        } else {
+            cx_index_free(row_group_column->values.index);
+            cx_index_free(row_group_column->nulls.index);
         }
     }
     free(row_group->columns);
@@ -95,32 +99,23 @@ static bool cx_row_group_ensure_column_size(struct cx_row_group *row_group)
     return true;
 }
 
-static bool cx_row_group_valid_column(struct cx_row_group *row_group,
-                                      const struct cx_column_index *index)
-{
-    if (row_group->count) {
-        const struct cx_column_index *last_index =
-            cx_row_group_column_index(row_group, row_group->count - 1);
-        if (index->count != last_index->count)
-            return false;
-    }
-    return true;
-}
-
 bool cx_row_group_add_column(struct cx_row_group *row_group,
                              struct cx_column *column, struct cx_column *nulls)
 {
     if (!column)
         return false;
-    const struct cx_column_index *index = cx_column_index(column);
-    if (!cx_row_group_valid_column(row_group, index))
+    size_t row_count = cx_column_count(column);
+    if (row_count != cx_column_count(nulls) ||
+        cx_column_type(nulls) != CX_COLUMN_BIT)
         return false;
-    const struct cx_column_index *null_index = cx_column_index(nulls);
-    if (cx_column_type(nulls) != CX_COLUMN_BIT ||
-        null_index->count != index->count)
+    if (row_group->count && row_group->row_count != row_count)
         return false;
+    struct cx_index *index = cx_index_new(column);
+    struct cx_index *nulls_index = cx_index_new(nulls);
+    if (!index || !nulls_index)
+        goto error;
     if (!cx_row_group_ensure_column_size(row_group))
-        return false;
+        goto error;
     struct cx_row_group_column *row_group_column =
         &row_group->columns[row_group->count++];
     row_group_column->type = cx_column_type(column);
@@ -129,18 +124,25 @@ bool cx_row_group_add_column(struct cx_row_group *row_group,
     row_group_column->values.index = index;
     row_group_column->lazy = false;
     row_group_column->nulls.column = nulls;
-    row_group_column->nulls.index = cx_column_index(nulls);
+    row_group_column->nulls.index = nulls_index;
+    row_group->row_count = row_count;
     return true;
+error:
+    if (index)
+        cx_index_free(index);
+    if (nulls_index)
+        cx_index_free(nulls_index);
+    return false;
 }
 
 bool cx_row_group_add_lazy_column(struct cx_row_group *row_group,
                                   const struct cx_lazy_column *column,
                                   const struct cx_lazy_column *nulls)
 {
-    if (!cx_row_group_valid_column(row_group, column->index))
+    size_t row_count = column->index->count;
+    if (row_count != nulls->index->count || nulls->type != CX_COLUMN_BIT)
         return false;
-    if (nulls->type != CX_COLUMN_BIT ||
-        nulls->index->count != column->index->count)
+    if (row_group->count && row_group->row_count != row_count)
         return false;
     if (!cx_row_group_ensure_column_size(row_group))
         return false;
@@ -148,13 +150,14 @@ bool cx_row_group_add_lazy_column(struct cx_row_group *row_group,
         &row_group->columns[row_group->count++];
     row_group_column->type = column->type;
     row_group_column->encoding = column->encoding;
-    row_group_column->values.index = column->index;
+    row_group_column->values.index = (struct cx_index *)column->index;
     row_group_column->values.column = NULL;
     memcpy(&row_group_column->values.lazy_column, column, sizeof(*column));
     row_group_column->lazy = true;
     row_group_column->nulls.column = NULL;
-    row_group_column->nulls.index = nulls->index;
+    row_group_column->nulls.index = (struct cx_index *)nulls->index;
     memcpy(&row_group_column->nulls.lazy_column, nulls, sizeof(*nulls));
+    row_group->row_count = row_count;
     return true;
 }
 
@@ -167,8 +170,7 @@ size_t cx_row_group_row_count(const struct cx_row_group *row_group)
 {
     if (!row_group->count)
         return 0;
-    const struct cx_column_index *index =
-        cx_row_group_column_index(row_group, 0);
+    const struct cx_index *index = cx_row_group_column_index(row_group, 0);
     return index->count;
 }
 
@@ -186,14 +188,14 @@ enum cx_encoding_type cx_row_group_column_encoding(
     return row_group->columns[index].encoding;
 }
 
-const struct cx_column_index *cx_row_group_column_index(
+const struct cx_index *cx_row_group_column_index(
     const struct cx_row_group *row_group, size_t index)
 {
     assert(index < row_group->count);
     return row_group->columns[index].values.index;
 }
 
-const struct cx_column_index *cx_row_group_null_index(
+const struct cx_index *cx_row_group_null_index(
     const struct cx_row_group *row_group, size_t index)
 {
     assert(index < row_group->count);
@@ -209,15 +211,16 @@ static bool cx_row_group_lazy_column_init(
         void *dest;
         column = cx_column_new_compressed(lazy->type, lazy->encoding, &dest,
                                           lazy->decompressed_size,
-                                          row_group_column->index);
+                                          row_group_column->index->count);
         if (!column)
             goto error;
         if (!cx_decompress(lazy->compression, lazy->ptr, lazy->size, dest,
                            lazy->decompressed_size))
             goto error;
     } else {
-        column = cx_column_new_mmapped(lazy->type, lazy->encoding, lazy->ptr,
-                                       lazy->size, row_group_column->index);
+        column =
+            cx_column_new_mmapped(lazy->type, lazy->encoding, lazy->ptr,
+                                  lazy->size, row_group_column->index->count);
         if (!column)
             goto error;
     }
@@ -403,6 +406,42 @@ const int64_t *cx_row_group_cursor_batch_i64(struct cx_row_group_cursor *cursor,
             column->values.cursor, cursor->position - column->values.position);
         column->values.position += skipped;
         column->values.batch = cx_column_cursor_next_batch_i64(
+            column->values.cursor, &column->values.count);
+        column->values.position += column->values.count;
+    }
+    *count = column->values.count;
+    return column->values.batch;
+}
+
+const float *cx_row_group_cursor_batch_flt(struct cx_row_group_cursor *cursor,
+                                           size_t column_index, size_t *count)
+{
+    if (!cx_row_group_cursor_lazy_column_init(cursor, column_index))
+        return NULL;
+    struct cx_row_group_cursor_column *column = &cursor->columns[column_index];
+    if (column->values.position <= cursor->position) {
+        size_t skipped = cx_column_cursor_skip_flt(
+            column->values.cursor, cursor->position - column->values.position);
+        column->values.position += skipped;
+        column->values.batch = cx_column_cursor_next_batch_flt(
+            column->values.cursor, &column->values.count);
+        column->values.position += column->values.count;
+    }
+    *count = column->values.count;
+    return column->values.batch;
+}
+
+const double *cx_row_group_cursor_batch_dbl(struct cx_row_group_cursor *cursor,
+                                            size_t column_index, size_t *count)
+{
+    if (!cx_row_group_cursor_lazy_column_init(cursor, column_index))
+        return NULL;
+    struct cx_row_group_cursor_column *column = &cursor->columns[column_index];
+    if (column->values.position <= cursor->position) {
+        size_t skipped = cx_column_cursor_skip_dbl(
+            column->values.cursor, cursor->position - column->values.position);
+        column->values.position += skipped;
+        column->values.batch = cx_column_cursor_next_batch_dbl(
             column->values.cursor, &column->values.count);
         column->values.position += column->values.count;
     }

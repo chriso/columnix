@@ -206,6 +206,32 @@ bool cx_writer_put_i64(struct cx_writer *writer, size_t column_index,
     return true;
 }
 
+bool cx_writer_put_flt(struct cx_writer *writer, size_t column_index,
+                       float value)
+{
+    if (!cx_writer_put_check(writer, column_index))
+        return false;
+    if (!cx_column_put_flt(writer->columns[column_index].values, value))
+        return false;
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, false))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
+bool cx_writer_put_dbl(struct cx_writer *writer, size_t column_index,
+                       double value)
+{
+    if (!cx_writer_put_check(writer, column_index))
+        return false;
+    if (!cx_column_put_dbl(writer->columns[column_index].values, value))
+        return false;
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, false))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
 bool cx_writer_put_str(struct cx_writer *writer, size_t column_index,
                        const char *value)
 {
@@ -368,6 +394,7 @@ error:
 
 static bool cx_row_group_writer_put_column(struct cx_row_group_writer *writer,
                                            const struct cx_column *column,
+                                           const struct cx_index *index,
                                            struct cx_column_header *header,
                                            enum cx_compression_type compression,
                                            int compression_level)
@@ -376,7 +403,6 @@ static bool cx_row_group_writer_put_column(struct cx_row_group_writer *writer,
     const void *buffer = cx_column_export(column, &column_size);
     header->decompressed_size = column_size;
     header->offset = cx_write_align(cx_row_group_writer_offset(writer));
-    const struct cx_column_index *index = cx_column_index(column);
     memcpy(&header->index, index, sizeof(*index));
     size_t compressed_size = 0;
     void *compressed = NULL;
@@ -463,13 +489,16 @@ bool cx_row_group_writer_put(struct cx_row_group_writer *writer,
         const struct cx_column *nulls = cx_row_group_nulls(row_group, i);
         if (!column || !nulls)
             goto error;
-        if (!cx_row_group_writer_put_column(writer, column, &headers[i * 2],
-                                            descriptor->compression,
-                                            descriptor->level))
+        const struct cx_index *index = cx_row_group_column_index(row_group, i);
+        const struct cx_index *nulls_index =
+            cx_row_group_column_index(row_group, i);
+        if (!cx_row_group_writer_put_column(
+                writer, column, index, &headers[i * 2], descriptor->compression,
+                descriptor->level))
             goto error;
-        if (!cx_row_group_writer_put_column(writer, nulls, &headers[i * 2 + 1],
-                                            CX_NULL_COMPRESSION_TYPE,
-                                            CX_NULL_COMPRESSION_LEVEL))
+        if (!cx_row_group_writer_put_column(
+                writer, nulls, nulls_index, &headers[i * 2 + 1],
+                CX_NULL_COMPRESSION_TYPE, CX_NULL_COMPRESSION_LEVEL))
             goto error;
     }
 

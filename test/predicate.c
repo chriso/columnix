@@ -4,7 +4,7 @@
 
 #include "helpers.h"
 
-#define COLUMN_COUNT 10
+#define COLUMN_COUNT 14
 #define ROW_COUNT 10
 
 static const uint64_t all_rows = (1 << ROW_COUNT) - 1;
@@ -18,7 +18,7 @@ struct cx_predicate_fixture {
 
 struct cx_predicate_index_test_case {
     struct cx_predicate *predicate;
-    enum cx_predicate_match expected;
+    enum cx_index_match expected;
 };
 
 struct cx_predicate_row_test_case {
@@ -37,7 +37,8 @@ static void *setup(const MunitParameter params[], void *data)
     enum cx_column_type types[] = {CX_COLUMN_I32, CX_COLUMN_I64, CX_COLUMN_BIT,
                                    CX_COLUMN_STR, CX_COLUMN_I32, CX_COLUMN_I64,
                                    CX_COLUMN_BIT, CX_COLUMN_BIT, CX_COLUMN_I32,
-                                   CX_COLUMN_I32};
+                                   CX_COLUMN_I32, CX_COLUMN_FLT, CX_COLUMN_FLT,
+                                   CX_COLUMN_DBL, CX_COLUMN_DBL};
 
     for (size_t i = 0; i < COLUMN_COUNT; i++) {
         fixture->columns[i] = cx_column_new(types[i], CX_ENCODING_NONE);
@@ -62,6 +63,11 @@ static void *setup(const MunitParameter params[], void *data)
 
         assert_true(cx_column_put_i32(fixture->columns[8], -10));
         assert_true(cx_column_put_i32(fixture->columns[9], (i & 0x1) ? -1 : 1));
+
+        assert_true(cx_column_put_flt(fixture->columns[10], (float)i / 10));
+        assert_true(cx_column_put_flt(fixture->columns[11], 5.1));
+        assert_true(cx_column_put_dbl(fixture->columns[12], (double)i / 100));
+        assert_true(cx_column_put_dbl(fixture->columns[13], 5.1));
 
         assert_true(cx_column_put_bit(fixture->nulls[0], i % 2 == 0));
         assert_true(cx_column_put_bit(fixture->nulls[1], i % 3 == 0));
@@ -99,9 +105,9 @@ static MunitResult test_indexes(const struct cx_predicate_fixture *fixture,
     for (size_t i = 0; i < size / sizeof(*test_cases); i++) {
         struct cx_predicate_index_test_case *test_case = &test_cases[i];
         assert_not_null(test_case->predicate);
-        assert_int(cx_predicate_match_indexes(test_case->predicate,
-                                              fixture->row_group),
-                   ==, test_case->expected);
+        assert_int(
+            cx_index_match_indexes(test_case->predicate, fixture->row_group),
+            ==, test_case->expected);
         cx_predicate_free(test_case->predicate);
     }
     return MUNIT_OK;
@@ -116,9 +122,9 @@ static MunitResult test_rows(const struct cx_predicate_fixture *fixture,
         assert_not_null(test_case->predicate);
         size_t count;
         uint64_t matches;
-        assert_true(cx_predicate_match_rows(test_case->predicate,
-                                            fixture->row_group, fixture->cursor,
-                                            &matches, &count));
+        assert_true(cx_index_match_rows(test_case->predicate,
+                                        fixture->row_group, fixture->cursor,
+                                        &matches, &count));
         assert_size(count, ==, ROW_COUNT);
         assert_uint64(matches, ==, test_case->expected);
         cx_predicate_free(test_case->predicate);
@@ -183,13 +189,13 @@ static MunitResult test_bit_match_index(const MunitParameter params[],
                                         void *fixture)
 {
     struct cx_predicate_index_test_case test_cases[] = {
-        {cx_predicate_new_true(), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_bit_eq(2, true), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_bit_eq(2, false), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_bit_eq(6, false), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_bit_eq(6, true), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_bit_eq(7, false), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_bit_eq(7, true), CX_PREDICATE_MATCH_ALL_ROWS}};
+        {cx_predicate_new_true(), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_bit_eq(2, true), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_bit_eq(2, false), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_bit_eq(6, false), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_bit_eq(6, true), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_bit_eq(7, false), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_bit_eq(7, true), CX_INDEX_MATCH_ALL}};
 
     return test_indexes(fixture, test_cases, sizeof(test_cases));
 }
@@ -213,17 +219,17 @@ static MunitResult test_i32_match_index(const MunitParameter params[],
                                         void *fixture)
 {
     struct cx_predicate_index_test_case test_cases[] = {
-        {cx_predicate_new_true(), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_i32_lt(0, 10), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_i32_lt(0, 0), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_i32_lt(0, 5), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_i32_gt(0, -1), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_i32_gt(0, 9), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_i32_gt(0, 5), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_i32_eq(0, -1), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_i32_eq(0, 10), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_i32_eq(0, 9), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_i32_eq(4, 5), CX_PREDICATE_MATCH_ALL_ROWS},
+        {cx_predicate_new_true(), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_i32_lt(0, 10), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_i32_lt(0, 0), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_i32_lt(0, 5), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_i32_gt(0, -1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_i32_gt(0, 9), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_i32_gt(0, 5), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_i32_eq(0, -1), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_i32_eq(0, 10), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_i32_eq(0, 9), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_i32_eq(4, 5), CX_INDEX_MATCH_ALL},
     };
 
     return test_indexes(fixture, test_cases, sizeof(test_cases));
@@ -262,17 +268,17 @@ static MunitResult test_i64_match_index(const MunitParameter params[],
                                         void *fixture)
 {
     struct cx_predicate_index_test_case test_cases[] = {
-        {cx_predicate_new_true(), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_i64_lt(1, 10), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_i64_lt(1, 0), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_i64_lt(1, 5), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_i64_gt(1, -1), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_i64_gt(1, 9), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_i64_gt(1, 5), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_i64_eq(1, -1), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_i64_eq(1, 10), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_i64_eq(1, 9), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_i64_eq(5, 5), CX_PREDICATE_MATCH_ALL_ROWS},
+        {cx_predicate_new_true(), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_i64_lt(1, 10), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_i64_lt(1, 0), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_i64_lt(1, 5), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_i64_gt(1, -1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_i64_gt(1, 9), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_i64_gt(1, 5), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_i64_eq(1, -1), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_i64_eq(1, 10), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_i64_eq(1, 9), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_i64_eq(5, 5), CX_INDEX_MATCH_ALL},
     };
 
     return test_indexes(fixture, test_cases, sizeof(test_cases));
@@ -307,26 +313,124 @@ static MunitResult test_i64_match_rows(const MunitParameter params[],
     return test_rows(fixture, test_cases, sizeof(test_cases));
 }
 
+static MunitResult test_flt_match_index(const MunitParameter params[],
+                                        void *fixture)
+{
+    struct cx_predicate_index_test_case test_cases[] = {
+        {cx_predicate_new_flt_lt(10, 1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_flt_lt(10, 0), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_flt_lt(10, 0.5), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_flt_gt(10, -0.1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_flt_gt(10, 0.9), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_flt_gt(10, 0.5), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_flt_eq(10, -0.1), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_flt_eq(10, 1.1), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_flt_eq(10, 0.9), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_flt_eq(11, 5.1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_flt_eq(11, 10), CX_INDEX_MATCH_NONE},
+    };
+
+    return test_indexes(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_flt_match_rows(const MunitParameter params[],
+                                       void *fixture)
+{
+    struct cx_predicate_row_test_case test_cases[] = {
+        {cx_predicate_new_true(), all_rows},
+        {cx_predicate_new_flt_lt(10, 1), all_rows},
+        {cx_predicate_new_flt_lt(10, 0), 0},
+        {cx_predicate_new_flt_lt(10, 0.4), 0xF},
+        {cx_predicate_new_flt_gt(10, -0.1), all_rows},
+        {cx_predicate_new_flt_gt(10, 0.9), 0},
+        {cx_predicate_new_flt_eq(10, 0), 0x1},
+        {cx_predicate_new_flt_eq(10, 0.1), 0x2},
+        {cx_predicate_new_flt_eq(10, 0.2), 0x4},
+        {cx_predicate_new_flt_eq(10, 0.3), 0x8},
+        // (col != 0.3) => 0b1111110111
+        {cx_predicate_negate(cx_predicate_new_flt_eq(10, 0.3)), 0x3F7},
+        // (col > 0.2 && col < 0.8) => 0b0011111000
+        {cx_predicate_new_and(2, cx_predicate_new_flt_gt(10, 0.2),
+                              cx_predicate_new_flt_lt(10, 0.8)),
+         0xF8},
+        // (col < 0.2 || col > 0.8) => 0b1000000011
+        {cx_predicate_new_or(2, cx_predicate_new_flt_lt(10, 0.2),
+                             cx_predicate_new_flt_gt(10, 0.8)),
+         0x203},
+    };
+
+    return test_rows(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_dbl_match_index(const MunitParameter params[],
+                                        void *fixture)
+{
+    struct cx_predicate_index_test_case test_cases[] = {
+        {cx_predicate_new_dbl_lt(12, 0.1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_dbl_lt(12, 0), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_dbl_lt(12, 0.05), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_dbl_gt(12, -0.01), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_dbl_gt(12, 0.09), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_dbl_gt(12, 0.05), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_dbl_eq(12, -0.01), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_dbl_eq(12, 0.11), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_dbl_eq(12, 0.09), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_dbl_eq(13, 5.1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_dbl_eq(13, 10), CX_INDEX_MATCH_NONE},
+    };
+
+    return test_indexes(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_dbl_match_rows(const MunitParameter params[],
+                                       void *fixture)
+{
+    struct cx_predicate_row_test_case test_cases[] = {
+        {cx_predicate_new_true(), all_rows},
+        {cx_predicate_new_dbl_lt(12, 0.1), all_rows},
+        {cx_predicate_new_dbl_lt(12, 0), 0},
+        {cx_predicate_new_dbl_lt(12, 0.04), 0xF},
+        {cx_predicate_new_dbl_gt(12, -0.01), all_rows},
+        {cx_predicate_new_dbl_gt(12, 0.09), 0},
+        {cx_predicate_new_dbl_eq(12, 0), 0x1},
+        {cx_predicate_new_dbl_eq(12, 0.01), 0x2},
+        {cx_predicate_new_dbl_eq(12, 0.02), 0x4},
+        {cx_predicate_new_dbl_eq(12, 0.03), 0x8},
+        // (col != 0.03) => 0b1111110111
+        {cx_predicate_negate(cx_predicate_new_dbl_eq(12, 0.03)), 0x3F7},
+        // (col > 0.02 && col < 0.08) => 0b0011111000
+        {cx_predicate_new_and(2, cx_predicate_new_dbl_gt(12, 0.02),
+                              cx_predicate_new_dbl_lt(12, 0.08)),
+         0xF8},
+        // (col < 0.02 || col > 0.08) => 0b1000000011
+        {cx_predicate_new_or(2, cx_predicate_new_dbl_lt(12, 0.02),
+                             cx_predicate_new_dbl_gt(12, 0.08)),
+         0x203},
+    };
+
+    return test_rows(fixture, test_cases, sizeof(test_cases));
+}
+
 static MunitResult test_str_match_index(const MunitParameter params[],
                                         void *fixture)
 {
     struct cx_predicate_index_test_case test_cases[] = {
-        {cx_predicate_new_true(), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_new_str_eq(3, "foo", true), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_str_eq(3, "cx 0", true), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_str_eq(3, "cx 10", true), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_str_lt(3, "foo", true), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_str_lt(3, "cx 0", true), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_str_lt(3, "cx 10", true), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_str_gt(3, "foo", true), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_str_gt(3, "cx 0", true), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_str_gt(3, "cx 10", true), CX_PREDICATE_MATCH_UNKNOWN},
+        {cx_predicate_new_true(), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_str_eq(3, "foo", true), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_str_eq(3, "cx 0", true), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_str_eq(3, "cx 10", true), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_str_lt(3, "foo", true), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_str_lt(3, "cx 0", true), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_str_lt(3, "cx 10", true), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_str_gt(3, "foo", true), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_str_gt(3, "cx 0", true), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_str_gt(3, "cx 10", true), CX_INDEX_MATCH_UNKNOWN},
         {cx_predicate_new_str_contains(3, "foo", true, CX_STR_LOCATION_ANY),
-         CX_PREDICATE_MATCH_UNKNOWN},
+         CX_INDEX_MATCH_UNKNOWN},
         {cx_predicate_new_str_contains(3, "cx 0", true, CX_STR_LOCATION_ANY),
-         CX_PREDICATE_MATCH_UNKNOWN},
+         CX_INDEX_MATCH_UNKNOWN},
         {cx_predicate_new_str_contains(3, "cx 10", true, CX_STR_LOCATION_ANY),
-         CX_PREDICATE_MATCH_NO_ROWS}};
+         CX_INDEX_MATCH_NONE}};
 
     return test_indexes(fixture, test_cases, sizeof(test_cases));
 }
@@ -410,14 +514,12 @@ static MunitResult test_null_match_index(const MunitParameter params[],
                                          void *fixture)
 {
     struct cx_predicate_index_test_case test_cases[] = {
-        {cx_predicate_new_null(0), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_null(1), CX_PREDICATE_MATCH_UNKNOWN},
-        {cx_predicate_new_null(2), CX_PREDICATE_MATCH_ALL_ROWS},
-        {cx_predicate_negate(cx_predicate_new_null(2)),
-         CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_new_null(3), CX_PREDICATE_MATCH_NO_ROWS},
-        {cx_predicate_negate(cx_predicate_new_null(3)),
-         CX_PREDICATE_MATCH_ALL_ROWS},
+        {cx_predicate_new_null(0), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_null(1), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_null(2), CX_INDEX_MATCH_ALL},
+        {cx_predicate_negate(cx_predicate_new_null(2)), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_null(3), CX_INDEX_MATCH_NONE},
+        {cx_predicate_negate(cx_predicate_new_null(3)), CX_INDEX_MATCH_ALL},
     };
 
     return test_indexes(fixture, test_cases, sizeof(test_cases));
@@ -436,39 +538,37 @@ static MunitResult test_null_match_rows(const MunitParameter params[],
     return test_rows(fixture, test_cases, sizeof(test_cases));
 }
 
-enum cx_predicate_match cx_custom_i32_polarity_match_index(
-    enum cx_column_type type, const struct cx_column_index *index, void *data)
+enum cx_index_match cx_custom_i32_polarity_match_index(
+    enum cx_column_type type, const struct cx_index *index, void *data)
 {
     bool negative = *(bool *)data;
     assert_int(type, ==, CX_COLUMN_I32);
     if (index->max.i32 <= 0)
-        return negative ? CX_PREDICATE_MATCH_ALL_ROWS
-                        : CX_PREDICATE_MATCH_NO_ROWS;
+        return negative ? CX_INDEX_MATCH_ALL : CX_INDEX_MATCH_NONE;
     if (index->min.i32 >= 0)
-        return negative ? CX_PREDICATE_MATCH_NO_ROWS
-                        : CX_PREDICATE_MATCH_ALL_ROWS;
-    return CX_PREDICATE_MATCH_UNKNOWN;
+        return negative ? CX_INDEX_MATCH_NONE : CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
 }
 
 static MunitResult test_custom_match_index(const MunitParameter params[],
                                            void *fixture)
 {
     bool negative = true, positive = false;
-    cx_predicate_match_index_t match = cx_custom_i32_polarity_match_index;
+    cx_index_match_index_t match = cx_custom_i32_polarity_match_index;
 
     struct cx_predicate_index_test_case test_cases[] = {
         {cx_predicate_new_custom(0, CX_COLUMN_I32, NULL, match, 0, &negative),
-         CX_PREDICATE_MATCH_NO_ROWS},
+         CX_INDEX_MATCH_NONE},
         {cx_predicate_new_custom(0, CX_COLUMN_I32, NULL, match, 0, &positive),
-         CX_PREDICATE_MATCH_ALL_ROWS},
+         CX_INDEX_MATCH_ALL},
         {cx_predicate_new_custom(8, CX_COLUMN_I32, NULL, match, 0, &negative),
-         CX_PREDICATE_MATCH_ALL_ROWS},
+         CX_INDEX_MATCH_ALL},
         {cx_predicate_new_custom(8, CX_COLUMN_I32, NULL, match, 0, &positive),
-         CX_PREDICATE_MATCH_NO_ROWS},
+         CX_INDEX_MATCH_NONE},
         {cx_predicate_new_custom(9, CX_COLUMN_I32, NULL, match, 0, &negative),
-         CX_PREDICATE_MATCH_UNKNOWN},
+         CX_INDEX_MATCH_UNKNOWN},
         {cx_predicate_new_custom(9, CX_COLUMN_I32, NULL, match, 0, &positive),
-         CX_PREDICATE_MATCH_UNKNOWN},
+         CX_INDEX_MATCH_UNKNOWN},
     };
 
     return test_indexes(fixture, test_cases, sizeof(test_cases));
@@ -493,7 +593,7 @@ static MunitResult test_custom_match_rows(const MunitParameter params[],
                                           void *fixture)
 {
     bool negative = true, positive = false;
-    cx_predicate_match_rows_t match = cx_custom_i32_polarity_match_rows;
+    cx_index_match_rows_t match = cx_custom_i32_polarity_match_rows;
 
     struct cx_predicate_row_test_case test_cases[] = {
         {cx_predicate_new_custom(0, CX_COLUMN_I32, match, NULL, 0, &negative),
@@ -586,6 +686,14 @@ MunitTest predicate_tests[] = {
     {"/i64-match-index", test_i64_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i64-match-rows", test_i64_match_rows, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/flt-match-index", test_flt_match_index, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/flt-match-rows", test_flt_match_rows, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/dbl-match-index", test_dbl_match_index, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/dbl-match-rows", test_dbl_match_rows, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/str-match-index", test_str_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
