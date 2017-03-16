@@ -9,7 +9,7 @@ PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
 BINDIR ?= $(PREFIX)/bin
 
-SRC_FILES = column.c compress.c match.c predicate.c reader.c row.c row_group.c writer.c
+SRC_FILES = column.c compress.c index.c match.c predicate.c reader.c row.c row_group.c writer.c
 
 #ifeq ($(java), 1)
   JAVA_HOME := $(shell /usr/libexec/java_home)
