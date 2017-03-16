@@ -19,7 +19,6 @@ struct cx_column {
     size_t size;
     enum cx_column_type type;
     enum cx_encoding_type encoding;
-    struct cx_index index;
     bool mmapped;
 };
 
@@ -33,8 +32,7 @@ struct cx_column_cursor {
 
 static struct cx_column *cx_column_new_size(enum cx_column_type type,
                                             enum cx_encoding_type encoding,
-                                            size_t size,
-                                            const struct cx_index *index)
+                                            size_t size, size_t count)
 {
     struct cx_column *column = calloc(1, sizeof(*column));
     if (!column)
@@ -53,9 +51,7 @@ static struct cx_column *cx_column_new_size(enum cx_column_type type,
     }
     column->type = type;
     column->encoding = encoding;
-    if (index)
-        memcpy(&column->index, index, sizeof(*index));
-    column->count = column->index.count;
+    column->count = count;
     return column;
 error:
     free(column);
@@ -65,15 +61,15 @@ error:
 struct cx_column *cx_column_new(enum cx_column_type type,
                                 enum cx_encoding_type encoding)
 {
-    return cx_column_new_size(type, encoding, cx_column_initial_size, NULL);
+    return cx_column_new_size(type, encoding, cx_column_initial_size, 0);
 }
 
 struct cx_column *cx_column_new_mmapped(enum cx_column_type type,
                                         enum cx_encoding_type encoding,
                                         const void *ptr, size_t size,
-                                        const struct cx_index *index)
+                                        size_t count)
 {
-    struct cx_column *column = cx_column_new_size(type, encoding, 0, index);
+    struct cx_column *column = cx_column_new_size(type, encoding, 0, count);
     if (!column)
         return NULL;
     column->offset = size;
@@ -86,11 +82,11 @@ struct cx_column *cx_column_new_mmapped(enum cx_column_type type,
 struct cx_column *cx_column_new_compressed(enum cx_column_type type,
                                            enum cx_encoding_type encoding,
                                            void **ptr, size_t size,
-                                           const struct cx_index *index)
+                                           size_t count)
 {
     if (!size)
         return NULL;
-    struct cx_column *column = cx_column_new_size(type, encoding, size, index);
+    struct cx_column *column = cx_column_new_size(type, encoding, size, count);
     if (!column)
         return NULL;
     column->offset = size;
@@ -144,11 +140,6 @@ enum cx_encoding_type cx_column_encoding(const struct cx_column *column)
 size_t cx_column_count(const struct cx_column *column)
 {
     return column->count;
-}
-
-const struct cx_index *cx_index(const struct cx_column *column)
-{
-    return &column->index;
 }
 
 __attribute__((noinline)) static bool cx_column_resize(struct cx_column *column,
@@ -205,16 +196,9 @@ bool cx_column_put_bit(struct cx_column *column, bool value)
         bitset = (uint64_t *)cx_column_offset(
             column, column->offset - sizeof(uint64_t));
     }
-    column->count++;
     if (value)
-        *bitset |= (uint64_t)1 << column->index.count;
-    if (!column->index.count) {
-        column->index.min.bit = column->index.max.bit = value;
-    } else {
-        column->index.min.bit = value && column->index.min.bit;
-        column->index.max.bit = value || column->index.max.bit;
-    }
-    column->index.count++;
+        *bitset |= (uint64_t)1 << column->count;
+    column->count++;
     return true;
 }
 
@@ -227,15 +211,6 @@ bool cx_column_put_i32(struct cx_column *column, int32_t value)
         return false;
     *slot = value;
     column->count++;
-    if (!column->index.count) {
-        column->index.min.i32 = column->index.max.i32 = value;
-    } else {
-        if (value > column->index.max.i32)
-            column->index.max.i32 = value;
-        if (value < column->index.min.i32)
-            column->index.min.i32 = value;
-    }
-    column->index.count++;
     return true;
 }
 
@@ -248,15 +223,6 @@ bool cx_column_put_i64(struct cx_column *column, int64_t value)
         return false;
     *slot = value;
     column->count++;
-    if (!column->index.count) {
-        column->index.min.i64 = column->index.max.i64 = value;
-    } else {
-        if (value > column->index.max.i64)
-            column->index.max.i64 = value;
-        if (value < column->index.min.i64)
-            column->index.min.i64 = value;
-    }
-    column->index.count++;
     return true;
 }
 
@@ -270,15 +236,6 @@ bool cx_column_put_str(struct cx_column *column, const char *value)
         return false;
     memcpy(slot, value, length + 1);
     column->count++;
-    if (!column->index.count) {
-        column->index.min.len = column->index.max.len = length;
-    } else {
-        if (length < column->index.min.len)
-            column->index.min.len = length;
-        if (length > column->index.max.len)
-            column->index.max.len = length;
-    }
-    column->index.count++;
     return true;
 }
 
@@ -365,7 +322,7 @@ size_t cx_column_cursor_skip_bit(struct cx_column_cursor *cursor, size_t count)
         cx_column_cursor_skip(cursor, sizeof(uint64_t), count / 64);
     skipped *= 64;
     if (!cx_column_cursor_valid(cursor)) {
-        size_t trailing_bits = cursor->column->index.count % 64;
+        size_t trailing_bits = cursor->column->count % 64;
         if (trailing_bits)
             skipped -= 64 - trailing_bits;
     }

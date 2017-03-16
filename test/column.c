@@ -84,10 +84,6 @@ static void assert_i32_col_equal(const struct cx_column *a,
     assert_not_null(b_ptr);
     assert_size(a_size, ==, b_size);
     assert_memory_equal(a_size, a_ptr, b_ptr);
-    const struct cx_index *a_index = cx_index(a);
-    const struct cx_index *b_index = cx_index(b);
-    assert_ptr_not_equal(a_index, b_index);
-    assert_memory_equal(sizeof(*a_index), a_index, b_index);
 }
 
 static MunitResult test_import_mmapped(const MunitParameter params[],
@@ -98,7 +94,7 @@ static MunitResult test_import_mmapped(const MunitParameter params[],
     const void *ptr = cx_column_export(col, &size);
     assert_not_null(ptr);
     struct cx_column *copy = cx_column_new_mmapped(
-        CX_COLUMN_I32, CX_ENCODING_NONE, ptr, size, cx_index(col));
+        CX_COLUMN_I32, CX_ENCODING_NONE, ptr, size, cx_column_count(col));
     assert_i32_col_equal(col, copy);
     assert_false(cx_column_put_i32(copy, 0));  // mmapped
     cx_column_free(copy);
@@ -114,7 +110,7 @@ static MunitResult test_import_compressed(const MunitParameter params[],
     assert_not_null(ptr);
     void *dest;
     struct cx_column *copy = cx_column_new_compressed(
-        CX_COLUMN_I32, CX_ENCODING_NONE, &dest, size, cx_index(col));
+        CX_COLUMN_I32, CX_ENCODING_NONE, &dest, size, cx_column_count(col));
     assert_not_null(copy);
     memcpy(dest, ptr, size);
     assert_i32_col_equal(col, copy);
@@ -128,55 +124,6 @@ static MunitResult test_bit_put_mismatch(const MunitParameter params[],
 {
     struct cx_column *col = (struct cx_column *)fixture;
     assert_false(cx_column_put_i64(col, 1));
-    return MUNIT_OK;
-}
-
-static MunitResult test_bit_index(const MunitParameter params[], void *fixture)
-{
-    struct cx_column *col = cx_column_new(CX_COLUMN_BIT, CX_ENCODING_NONE);
-    assert_not_null(col);
-
-    const struct cx_index *index = cx_index(col);
-    assert_uint64(index->count, ==, 0);
-
-    assert_true(cx_column_put_bit(col, false));
-    assert_uint64(index->count, ==, 1);
-    assert_uint64(index->min.bit, ==, false);
-    assert_uint64(index->max.bit, ==, false);
-
-    assert_true(cx_column_put_bit(col, false));
-    assert_uint64(index->count, ==, 2);
-    assert_uint64(index->min.bit, ==, false);
-    assert_uint64(index->max.bit, ==, false);
-
-    assert_true(cx_column_put_bit(col, true));
-    assert_uint64(index->count, ==, 3);
-    assert_uint64(index->min.bit, ==, false);
-    assert_uint64(index->max.bit, ==, true);
-
-    cx_column_free(col);
-    col = cx_column_new(CX_COLUMN_BIT, CX_ENCODING_NONE);
-    assert_not_null(col);
-
-    index = cx_index(col);
-    assert_uint64(index->count, ==, 0);
-
-    assert_true(cx_column_put_bit(col, true));
-    assert_uint64(index->count, ==, 1);
-    assert_uint64(index->min.bit, ==, true);
-    assert_uint64(index->max.bit, ==, true);
-
-    assert_true(cx_column_put_bit(col, true));
-    assert_uint64(index->count, ==, 2);
-    assert_uint64(index->min.bit, ==, true);
-    assert_uint64(index->max.bit, ==, true);
-
-    assert_true(cx_column_put_bit(col, false));
-    assert_uint64(index->count, ==, 3);
-    assert_uint64(index->min.bit, ==, false);
-    assert_uint64(index->max.bit, ==, true);
-
-    cx_column_free(col);
     return MUNIT_OK;
 }
 
@@ -220,43 +167,6 @@ static MunitResult test_i32_put_mismatch(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_i32_index(const MunitParameter params[], void *fixture)
-{
-    struct cx_column *col = cx_column_new(CX_COLUMN_I32, CX_ENCODING_NONE);
-    assert_not_null(col);
-
-    const struct cx_index *index = cx_index(col);
-    assert_uint64(index->count, ==, 0);
-
-    assert_true(cx_column_put_i32(col, 10));
-    assert_uint64(index->count, ==, 1);
-    assert_uint64(index->min.i32, ==, 10);
-    assert_uint64(index->max.i32, ==, 10);
-
-    assert_true(cx_column_put_i32(col, 20));
-    assert_uint64(index->count, ==, 2);
-    assert_uint64(index->min.i32, ==, 10);
-    assert_uint64(index->max.i32, ==, 20);
-
-    assert_true(cx_column_put_i32(col, 15));
-    assert_uint64(index->count, ==, 3);
-    assert_uint64(index->min.i32, ==, 10);
-    assert_uint64(index->max.i32, ==, 20);
-
-    assert_true(cx_column_put_i32(col, INT_MAX));
-    assert_uint64(index->count, ==, 4);
-    assert_uint64(index->min.i32, ==, 10);
-    assert_uint64(index->max.i32, ==, INT_MAX);
-
-    assert_true(cx_column_put_i32(col, 0));
-    assert_uint64(index->count, ==, 5);
-    assert_uint64(index->min.i32, ==, 0);
-    assert_uint64(index->max.i32, ==, INT_MAX);
-
-    cx_column_free(col);
-    return MUNIT_OK;
-}
-
 static MunitResult test_i32_cursor(const MunitParameter params[], void *fixture)
 {
     struct cx_column *col = (struct cx_column *)fixture;
@@ -292,48 +202,6 @@ static MunitResult test_i64_put_mismatch(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_i64_index(const MunitParameter params[], void *fixture)
-{
-    struct cx_column *col = cx_column_new(CX_COLUMN_I64, CX_ENCODING_NONE);
-    assert_not_null(col);
-
-    const struct cx_index *index = cx_index(col);
-    assert_uint64(index->count, ==, 0);
-
-    assert_true(cx_column_put_i64(col, 10));
-    assert_uint64(index->count, ==, 1);
-    assert_uint64(index->min.i64, ==, 10);
-    assert_uint64(index->max.i64, ==, 10);
-
-    assert_true(cx_column_put_i64(col, 20));
-    assert_uint64(index->count, ==, 2);
-    assert_uint64(index->min.i64, ==, 10);
-    assert_uint64(index->max.i64, ==, 20);
-
-    assert_true(cx_column_put_i64(col, 15));
-    assert_uint64(index->count, ==, 3);
-    assert_uint64(index->min.i64, ==, 10);
-    assert_uint64(index->max.i64, ==, 20);
-
-    assert_true(cx_column_put_i64(col, INT_MAX));
-    assert_uint64(index->count, ==, 4);
-    assert_uint64(index->min.i64, ==, 10);
-    assert_uint64(index->max.i64, ==, INT_MAX);
-
-    assert_true(cx_column_put_i64(col, 0));
-    assert_uint64(index->count, ==, 5);
-    assert_uint64(index->min.i64, ==, 0);
-    assert_uint64(index->max.i64, ==, INT_MAX);
-
-    assert_true(cx_column_put_i64(col, LLONG_MAX));
-    assert_uint64(index->count, ==, 6);
-    assert_uint64(index->min.i64, ==, 0);
-    assert_uint64(index->max.i64, ==, LLONG_MAX);
-
-    cx_column_free(col);
-    return MUNIT_OK;
-}
-
 static MunitResult test_i64_cursor(const MunitParameter params[], void *fixture)
 {
     struct cx_column *col = (struct cx_column *)fixture;
@@ -366,43 +234,6 @@ static MunitResult test_str_put_mismatch(const MunitParameter params[],
 {
     struct cx_column *col = (struct cx_column *)fixture;
     assert_false(cx_column_put_i32(col, 1));
-    return MUNIT_OK;
-}
-
-static MunitResult test_str_index(const MunitParameter params[], void *fixture)
-{
-    struct cx_column *col = cx_column_new(CX_COLUMN_STR, CX_ENCODING_NONE);
-    assert_not_null(col);
-
-    const struct cx_index *index = cx_index(col);
-    assert_uint64(index->count, ==, 0);
-
-    assert_true(cx_column_put_str(col, "foo"));
-    assert_uint64(index->count, ==, 1);
-    assert_uint64(index->min.len, ==, 3);
-    assert_uint64(index->max.len, ==, 3);
-
-    assert_true(cx_column_put_str(col, "foobar"));
-    assert_uint64(index->count, ==, 2);
-    assert_uint64(index->min.len, ==, 3);
-    assert_uint64(index->max.len, ==, 6);
-
-    assert_true(cx_column_put_str(col, "yeah"));
-    assert_uint64(index->count, ==, 3);
-    assert_uint64(index->min.len, ==, 3);
-    assert_uint64(index->max.len, ==, 6);
-
-    assert_true(cx_column_put_str(col, "foobarbaz"));
-    assert_uint64(index->count, ==, 4);
-    assert_uint64(index->min.len, ==, 3);
-    assert_uint64(index->max.len, ==, 9);
-
-    assert_true(cx_column_put_str(col, ""));
-    assert_uint64(index->count, ==, 5);
-    assert_uint64(index->min.len, ==, 0);
-    assert_uint64(index->max.len, ==, 9);
-
-    cx_column_free(col);
     return MUNIT_OK;
 }
 
@@ -445,22 +276,18 @@ MunitTest column_tests[] = {
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/bit-put-mismatch", test_bit_put_mismatch, setup_bit, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
-    {"/bit-index", test_bit_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {"/bit-cursor", test_bit_cursor, setup_bit, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-put-mismatch", test_i32_put_mismatch, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
-    {"/i32-index", test_i32_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-cursor", test_i32_cursor, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i64-put-mismatch", test_i64_put_mismatch, setup_i64, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
-    {"/i64-index", test_i64_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {"/i64-cursor", test_i64_cursor, setup_i64, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/str-put-mismatch", test_str_put_mismatch, setup_str, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
-    {"/str-index", test_str_index, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {"/str-cursor", test_str_cursor, setup_str, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};

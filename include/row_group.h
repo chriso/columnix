@@ -2,6 +2,7 @@
 #define CX_ROW_GROUP_
 
 #include "column.h"
+#include "index.h"
 
 struct cx_row_group;
 

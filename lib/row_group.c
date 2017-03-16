@@ -8,7 +8,7 @@
 static const size_t cx_row_group_column_initial_size = 8;
 
 struct cx_row_group_physical_column {
-    const struct cx_index *index;
+    struct cx_index *index;
     struct cx_column *column;
     struct cx_lazy_column lazy_column;
 };
@@ -75,6 +75,9 @@ void cx_row_group_free(struct cx_row_group *row_group)
                 cx_column_free(row_group_column->values.column);
             if (row_group_column->nulls.column)
                 cx_column_free(row_group_column->nulls.column);
+        } else {
+            cx_index_free(row_group_column->values.index);
+            cx_index_free(row_group_column->nulls.index);
         }
     }
     free(row_group->columns);
@@ -96,18 +99,6 @@ static bool cx_row_group_ensure_column_size(struct cx_row_group *row_group)
     return true;
 }
 
-static bool cx_row_group_valid_column(struct cx_row_group *row_group,
-                                      const struct cx_index *index)
-{
-    if (row_group->count) {
-        const struct cx_index *last_index =
-            cx_row_group_column_index(row_group, row_group->count - 1);
-        if (index->count != last_index->count)
-            return false;
-    }
-    return true;
-}
-
 bool cx_row_group_add_column(struct cx_row_group *row_group,
                              struct cx_column *column, struct cx_column *nulls)
 {
@@ -119,29 +110,40 @@ bool cx_row_group_add_column(struct cx_row_group *row_group,
         return false;
     if (row_group->count && row_group->row_count != row_count)
         return false;
+    struct cx_index *index = cx_index_new(column);
+    struct cx_index *nulls_index = cx_index_new(nulls);
+    if (!index || !nulls_index)
+        goto error;
     if (!cx_row_group_ensure_column_size(row_group))
-        return false;
+        goto error;
     struct cx_row_group_column *row_group_column =
         &row_group->columns[row_group->count++];
     row_group_column->type = cx_column_type(column);
     row_group_column->encoding = cx_column_encoding(column);
     row_group_column->values.column = column;
-    row_group_column->values.index = cx_index(column);
+    row_group_column->values.index = index;
     row_group_column->lazy = false;
     row_group_column->nulls.column = nulls;
-    row_group_column->nulls.index = cx_index(nulls);
+    row_group_column->nulls.index = nulls_index;
     row_group->row_count = row_count;
     return true;
+error:
+    if (index)
+        cx_index_free(index);
+    if (nulls_index)
+        cx_index_free(nulls_index);
+    return false;
 }
 
 bool cx_row_group_add_lazy_column(struct cx_row_group *row_group,
                                   const struct cx_lazy_column *column,
                                   const struct cx_lazy_column *nulls)
 {
-    if (!cx_row_group_valid_column(row_group, column->index))
+    size_t row_count = column->index->count;
+    if (row_count != nulls->index->count ||
+        nulls->type != CX_COLUMN_BIT)
         return false;
-    if (nulls->type != CX_COLUMN_BIT ||
-        nulls->index->count != column->index->count)
+    if (row_group->count && row_group->row_count != row_count)
         return false;
     if (!cx_row_group_ensure_column_size(row_group))
         return false;
@@ -149,13 +151,14 @@ bool cx_row_group_add_lazy_column(struct cx_row_group *row_group,
         &row_group->columns[row_group->count++];
     row_group_column->type = column->type;
     row_group_column->encoding = column->encoding;
-    row_group_column->values.index = column->index;
+    row_group_column->values.index = (struct cx_index *)column->index;
     row_group_column->values.column = NULL;
     memcpy(&row_group_column->values.lazy_column, column, sizeof(*column));
     row_group_column->lazy = true;
     row_group_column->nulls.column = NULL;
-    row_group_column->nulls.index = nulls->index;
+    row_group_column->nulls.index = (struct cx_index *)nulls->index;
     memcpy(&row_group_column->nulls.lazy_column, nulls, sizeof(*nulls));
+    row_group->row_count = row_count;
     return true;
 }
 
@@ -209,7 +212,7 @@ static bool cx_row_group_lazy_column_init(
         void *dest;
         column = cx_column_new_compressed(lazy->type, lazy->encoding, &dest,
                                           lazy->decompressed_size,
-                                          row_group_column->index);
+                                          row_group_column->index->count);
         if (!column)
             goto error;
         if (!cx_decompress(lazy->compression, lazy->ptr, lazy->size, dest,
@@ -217,7 +220,8 @@ static bool cx_row_group_lazy_column_init(
             goto error;
     } else {
         column = cx_column_new_mmapped(lazy->type, lazy->encoding, lazy->ptr,
-                                       lazy->size, row_group_column->index);
+                                       lazy->size,
+                                       row_group_column->index->count);
         if (!column)
             goto error;
     }

@@ -1,7 +1,7 @@
 #ifndef CX_INDEX_
 #define CX_INDEX_
 
-#include "types.h"
+#include "column.h"
 
 typedef union {
     bool bit;
@@ -15,5 +15,9 @@ struct cx_index {
     cx_index_value_t min;
     cx_index_value_t max;
 };
+
+struct cx_index *cx_index_new(const struct cx_column *);
+
+void cx_index_free(struct cx_index *);
 
 #endif
