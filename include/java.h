@@ -23,6 +23,8 @@ jboolean Java_com_columnix_jni_Reader_getBoolean(JNIEnv *, jobject, jlong,
                                                  jint);
 jint Java_com_columnix_jni_Reader_getInt(JNIEnv *, jobject, jlong, jint);
 jlong Java_com_columnix_jni_Reader_getLong(JNIEnv *, jobject, jlong, jint);
+jfloat Java_com_columnix_jni_Reader_getFloat(JNIEnv *, jobject, jlong, jint);
+jdouble Java_com_columnix_jni_Reader_getDouble(JNIEnv *, jobject, jlong, jint);
 jstring Java_com_columnix_jni_Reader_getString(JNIEnv *, jobject, jlong, jint);
 jbyteArray Java_com_columnix_jni_Reader_getStringBytes(JNIEnv *, jobject, jlong,
                                                        jint);
@@ -40,6 +42,10 @@ void Java_com_columnix_jni_Writer_putBoolean(JNIEnv *, jobject, jlong, jint,
 void Java_com_columnix_jni_Writer_putInt(JNIEnv *, jobject, jlong, jint, jint);
 void Java_com_columnix_jni_Writer_putLong(JNIEnv *, jobject, jlong, jint,
                                           jlong);
+void Java_com_columnix_jni_Writer_putFloat(JNIEnv *, jobject, jlong, jint,
+                                           jfloat);
+void Java_com_columnix_jni_Writer_putDouble(JNIEnv *, jobject, jlong, jint,
+                                            jdouble);
 void Java_com_columnix_jni_Writer_putString(JNIEnv *, jobject, jlong, jint,
                                             jstring);
 
@@ -64,6 +70,20 @@ jlong Java_com_columnix_jni_Predicate_longGreaterThan(JNIEnv *, jobject, jint,
                                                       jlong);
 jlong Java_com_columnix_jni_Predicate_longLessThan(JNIEnv *, jobject, jint,
                                                    jlong);
+
+jfloat Java_com_columnix_jni_Predicate_floatEquals(JNIEnv *, jobject, jint,
+                                                   jfloat);
+jfloat Java_com_columnix_jni_Predicate_floatGreaterThan(JNIEnv *, jobject, jint,
+                                                        jfloat);
+jfloat Java_com_columnix_jni_Predicate_floatLessThan(JNIEnv *, jobject, jint,
+                                                     jfloat);
+
+jdouble Java_com_columnix_jni_Predicate_doubleEquals(JNIEnv *, jobject, jint,
+                                                     jdouble);
+jdouble Java_com_columnix_jni_Predicate_doubleGreaterThan(JNIEnv *, jobject,
+                                                          jint, jdouble);
+jdouble Java_com_columnix_jni_Predicate_doubleLessThan(JNIEnv *, jobject, jint,
+                                                       jdouble);
 
 jlong Java_com_columnix_jni_Predicate_stringEquals(JNIEnv *, jobject, jint,
                                                    jstring, jboolean);

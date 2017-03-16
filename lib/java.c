@@ -155,6 +155,28 @@ jlong Java_com_columnix_jni_Reader_getLong(JNIEnv *env, jobject this, jlong ptr,
     return (jlong)value;
 }
 
+jfloat Java_com_columnix_jni_Reader_getFloat(JNIEnv *env, jobject this,
+                                             jlong ptr, jint index)
+{
+    float value;
+    if (!cx_reader_get_flt((struct cx_reader *)ptr, index, &value)) {
+        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_flt()");
+        return 0;
+    }
+    return (jfloat)value;
+}
+
+jdouble Java_com_columnix_jni_Reader_getDouble(JNIEnv *env, jobject this,
+                                               jlong ptr, jint index)
+{
+    double value;
+    if (!cx_reader_get_dbl((struct cx_reader *)ptr, index, &value)) {
+        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_dbl()");
+        return 0;
+    }
+    return (jdouble)value;
+}
+
 jstring Java_com_columnix_jni_Reader_getString(JNIEnv *env, jobject this,
                                                jlong ptr, jint index)
 {
@@ -263,6 +285,21 @@ void Java_com_columnix_jni_Writer_putLong(JNIEnv *env, jobject this, jlong ptr,
         cx_java_throw(env, "java/lang/Exception", "cx_writer_put_i64()");
 }
 
+void Java_com_columnix_jni_Writer_putFloat(JNIEnv *env, jobject this, jlong ptr,
+                                           jint index, jfloat value)
+{
+    if (!cx_writer_put_flt((struct cx_writer *)ptr, index, value))
+        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_flt()");
+}
+
+void Java_com_columnix_jni_Writer_putDouble(JNIEnv *env, jobject this,
+                                            jlong ptr, jint index,
+                                            jdouble value)
+{
+    if (!cx_writer_put_dbl((struct cx_writer *)ptr, index, value))
+        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_dbl()");
+}
+
 void Java_com_columnix_jni_Writer_putString(JNIEnv *env, jobject this,
                                             jlong ptr, jint index,
                                             jstring java_value)
@@ -367,6 +404,48 @@ jlong Java_com_columnix_jni_Predicate_longLessThan(JNIEnv *env, jobject this,
                                                    jint column, jlong value)
 {
     return (jlong)cx_predicate_new_i64_lt(column, value);
+}
+
+jfloat Java_com_columnix_jni_Predicate_floatEquals(JNIEnv *env, jobject this,
+                                                   jint column, jfloat value)
+{
+    return (jlong)cx_predicate_new_flt_eq(column, value);
+}
+
+jfloat Java_com_columnix_jni_Predicate_floatGreaterThan(JNIEnv *env,
+                                                        jobject this,
+                                                        jint column,
+                                                        jfloat value)
+{
+    return (jlong)cx_predicate_new_flt_gt(column, value);
+}
+
+jfloat Java_com_columnix_jni_Predicate_floatLessThan(JNIEnv *env, jobject this,
+                                                     jint column, jfloat value)
+{
+    return (jlong)cx_predicate_new_flt_lt(column, value);
+}
+
+jdouble Java_com_columnix_jni_Predicate_doubleEquals(JNIEnv *env, jobject this,
+                                                     jint column, jdouble value)
+{
+    return (jlong)cx_predicate_new_dbl_eq(column, value);
+}
+
+jdouble Java_com_columnix_jni_Predicate_doubleGreaterThan(JNIEnv *env,
+                                                          jobject this,
+                                                          jint column,
+                                                          jdouble value)
+{
+    return (jlong)cx_predicate_new_dbl_gt(column, value);
+}
+
+jdouble Java_com_columnix_jni_Predicate_doubleLessThan(JNIEnv *env,
+                                                       jobject this,
+                                                       jint column,
+                                                       jdouble value)
+{
+    return (jlong)cx_predicate_new_dbl_lt(column, value);
 }
 
 jlong Java_com_columnix_jni_Predicate_stringEquals(JNIEnv *env, jobject this,
