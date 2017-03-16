@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
 #include <assert.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,7 +48,8 @@ void cx_predicate_free(struct cx_predicate *predicate)
 {
     if (predicate->operands) {
         for (size_t i = 0; i < predicate->operand_count; i++)
-            cx_predicate_free(predicate->operands[i]);
+            if (predicate->operands[i])
+                cx_predicate_free(predicate->operands[i]);
         free(predicate->operands);
     }
     if (predicate->string)
@@ -278,8 +278,8 @@ struct cx_predicate *cx_predicate_new_custom(size_t column,
     return predicate;
 }
 
-static struct cx_predicate *cx_predicate_new_operator(size_t count,
-                                                      va_list operands)
+static struct cx_predicate *cx_predicate_new_operator(
+    enum cx_predicate_type type, size_t count, va_list operands)
 {
     if (!count)
         return NULL;
@@ -287,11 +287,39 @@ static struct cx_predicate *cx_predicate_new_operator(size_t count,
     if (!predicate)
         return NULL;
     predicate->operand_count = count;
-    predicate->operands = malloc(count * sizeof(struct cx_predicate *));
+    predicate->type = type;
+    predicate->operands = calloc(count, sizeof(struct cx_predicate *));
     if (!predicate->operands)
         goto error;
-    for (size_t i = 0; i < count; i++)
+    for (size_t i = 0; i < count; i++) {
         predicate->operands[i] = va_arg(operands, struct cx_predicate *);
+        if (!predicate->operands[i])
+            goto error;
+    }
+    return predicate;
+error:
+    cx_predicate_free(predicate);
+    return NULL;
+}
+
+static struct cx_predicate *cx_predicate_new_operator_array(
+    enum cx_predicate_type type, size_t count, struct cx_predicate **operands)
+{
+    if (!count)
+        return NULL;
+    struct cx_predicate *predicate = cx_predicate_new();
+    if (!predicate)
+        return NULL;
+    predicate->operand_count = count;
+    predicate->type = type;
+    predicate->operands = calloc(count, sizeof(struct cx_predicate *));
+    if (!predicate->operands)
+        goto error;
+    for (size_t i = 0; i < count; i++) {
+        predicate->operands[i] = operands[i];
+        if (!predicate->operands[i])
+            goto error;
+    }
     return predicate;
 error:
     cx_predicate_free(predicate);
@@ -302,24 +330,40 @@ struct cx_predicate *cx_predicate_new_and(size_t count, ...)
 {
     va_list operands;
     va_start(operands, count);
-    struct cx_predicate *predicate = cx_predicate_new_operator(count, operands);
+    struct cx_predicate *predicate = cx_predicate_new_vand(count, operands);
     va_end(operands);
-    if (!predicate)
-        return NULL;
-    predicate->type = CX_PREDICATE_AND;
     return predicate;
+}
+
+struct cx_predicate *cx_predicate_new_vand(size_t count, va_list operands)
+{
+    return cx_predicate_new_operator(CX_PREDICATE_AND, count, operands);
+}
+
+struct cx_predicate *cx_predicate_new_aand(size_t count,
+                                           struct cx_predicate **operands)
+{
+    return cx_predicate_new_operator_array(CX_PREDICATE_AND, count, operands);
 }
 
 struct cx_predicate *cx_predicate_new_or(size_t count, ...)
 {
     va_list operands;
     va_start(operands, count);
-    struct cx_predicate *predicate = cx_predicate_new_operator(count, operands);
+    struct cx_predicate *predicate = cx_predicate_new_vor(count, operands);
     va_end(operands);
-    if (!predicate)
-        return NULL;
-    predicate->type = CX_PREDICATE_OR;
     return predicate;
+}
+
+struct cx_predicate *cx_predicate_new_vor(size_t count, va_list operands)
+{
+    return cx_predicate_new_operator(CX_PREDICATE_OR, count, operands);
+}
+
+struct cx_predicate *cx_predicate_new_aor(size_t count,
+                                          struct cx_predicate **operands)
+{
+    return cx_predicate_new_operator_array(CX_PREDICATE_OR, count, operands);
 }
 
 struct cx_predicate *cx_predicate_negate(struct cx_predicate *predicate)

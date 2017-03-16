@@ -9,6 +9,15 @@ PREFIX ?= /usr/local
 INCLUDEDIR ?= $(PREFIX)/include
 BINDIR ?= $(PREFIX)/bin
 
+SRC_FILES = column.c compress.c index.c match.c predicate.c reader.c row.c row_group.c writer.c
+
+#ifeq ($(java), 1)
+  JAVA_HOME := $(shell /usr/libexec/java_home)
+  JAVA_OS := $(shell uname -s | tr A-Z a-z)
+  CFLAGS += -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(JAVA_OS)
+  SRC_FILES += java.c
+#endif
+
 ifeq ($(debug), 1)
   CFLAGS += -Og
 else
@@ -44,15 +53,15 @@ else
   LIB = lib/lib$(PROJECT).so
 endif
 
-LIB_SRC = $(wildcard lib/*.c)
-LIB_OBJ = $(LIB_SRC:.c=.o)
+LIB_SRC := $(addprefix lib/,$(SRC_FILES))
+LIB_OBJ := $(LIB_SRC:.c=.o)
 
 BIN_SRC = $(wildcard bin/*.c)
 BIN_OBJ = $(BIN_SRC:.c=.o)
 BIN = $(basename $(BIN_SRC))
 
-TEST_SRC = $(wildcard test/*.c)
-TEST_OBJ = $(TEST_SRC:.c=.o)
+TEST_SRC := $(wildcard test/*.c)
+TEST_OBJ := $(TEST_SRC:.c=.o)
 
 TESTS = test/runner
 

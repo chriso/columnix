@@ -1,6 +1,8 @@
 #ifndef CX_PREDICATE_H_
 #define CX_PREDICATE_H_
 
+#include <stdarg.h>
+
 #include "match.h"
 #include "row_group.h"
 
@@ -39,7 +41,11 @@ struct cx_predicate *cx_predicate_new_str_contains(size_t, const char *, bool,
                                                    enum cx_str_location);
 
 struct cx_predicate *cx_predicate_new_and(size_t, ...);
+struct cx_predicate *cx_predicate_new_vand(size_t, va_list);
+struct cx_predicate *cx_predicate_new_aand(size_t, struct cx_predicate **);
 struct cx_predicate *cx_predicate_new_or(size_t, ...);
+struct cx_predicate *cx_predicate_new_vor(size_t, va_list);
+struct cx_predicate *cx_predicate_new_aor(size_t, struct cx_predicate **);
 
 bool cx_predicate_valid(const struct cx_predicate *,
                         const struct cx_row_group *);
