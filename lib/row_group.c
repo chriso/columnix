@@ -8,7 +8,7 @@
 static const size_t cx_row_group_column_initial_size = 8;
 
 struct cx_row_group_physical_column {
-    const struct cx_column_index *index;
+    const struct cx_index *index;
     struct cx_column *column;
     struct cx_lazy_column lazy_column;
 };
@@ -97,10 +97,10 @@ static bool cx_row_group_ensure_column_size(struct cx_row_group *row_group)
 }
 
 static bool cx_row_group_valid_column(struct cx_row_group *row_group,
-                                      const struct cx_column_index *index)
+                                      const struct cx_index *index)
 {
     if (row_group->count) {
-        const struct cx_column_index *last_index =
+        const struct cx_index *last_index =
             cx_row_group_column_index(row_group, row_group->count - 1);
         if (index->count != last_index->count)
             return false;
@@ -126,10 +126,10 @@ bool cx_row_group_add_column(struct cx_row_group *row_group,
     row_group_column->type = cx_column_type(column);
     row_group_column->encoding = cx_column_encoding(column);
     row_group_column->values.column = column;
-    row_group_column->values.index = cx_column_index(column);
+    row_group_column->values.index = cx_index(column);
     row_group_column->lazy = false;
     row_group_column->nulls.column = nulls;
-    row_group_column->nulls.index = cx_column_index(nulls);
+    row_group_column->nulls.index = cx_index(nulls);
     row_group->row_count = row_count;
     return true;
 }
@@ -168,8 +168,7 @@ size_t cx_row_group_row_count(const struct cx_row_group *row_group)
 {
     if (!row_group->count)
         return 0;
-    const struct cx_column_index *index =
-        cx_row_group_column_index(row_group, 0);
+    const struct cx_index *index = cx_row_group_column_index(row_group, 0);
     return index->count;
 }
 
@@ -187,14 +186,14 @@ enum cx_encoding_type cx_row_group_column_encoding(
     return row_group->columns[index].encoding;
 }
 
-const struct cx_column_index *cx_row_group_column_index(
+const struct cx_index *cx_row_group_column_index(
     const struct cx_row_group *row_group, size_t index)
 {
     assert(index < row_group->count);
     return row_group->columns[index].values.index;
 }
 
-const struct cx_column_index *cx_row_group_null_index(
+const struct cx_index *cx_row_group_null_index(
     const struct cx_row_group *row_group, size_t index)
 {
     assert(index < row_group->count);

@@ -56,7 +56,7 @@ bool cx_predicate_match_rows(const struct cx_predicate *predicate,
                              uint64_t *matches, size_t *count);
 
 typedef enum cx_predicate_match (*cx_predicate_match_index_t)(
-    enum cx_column_type, const struct cx_column_index *, void *data);
+    enum cx_column_type, const struct cx_index *, void *data);
 
 typedef bool (*cx_predicate_match_rows_t)(enum cx_column_type, size_t count,
                                           const void *values, uint64_t *matches,

@@ -84,11 +84,11 @@ static MunitResult test_add_column(const MunitParameter params[], void *ptr)
         assert_int(cx_row_group_column_encoding(row_group, i), ==,
                    cx_column_encoding(column));
         assert_ptr_equal(cx_row_group_column_index(row_group, i),
-                         cx_column_index(column));
+                         cx_index(column));
 
         assert_ptr_equal(cx_row_group_nulls(row_group, i), nulls);
         assert_ptr_equal(cx_row_group_null_index(row_group, i),
-                         cx_column_index(nulls));
+                         cx_index(nulls));
     }
 
     return MUNIT_OK;

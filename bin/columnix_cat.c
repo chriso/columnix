@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
                     goto error;
                 }
             } else if (type != types[j]) {
-                fprintf(stderr,
-                    "error: type mismatch for column %zu of %s\n", j, input_path);
+                fprintf(stderr, "error: type mismatch for column %zu of %s\n",
+                        j, input_path);
                 goto error;
             }
         }

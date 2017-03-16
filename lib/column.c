@@ -19,7 +19,7 @@ struct cx_column {
     size_t size;
     enum cx_column_type type;
     enum cx_encoding_type encoding;
-    struct cx_column_index index;
+    struct cx_index index;
     bool mmapped;
 };
 
@@ -34,7 +34,7 @@ struct cx_column_cursor {
 static struct cx_column *cx_column_new_size(enum cx_column_type type,
                                             enum cx_encoding_type encoding,
                                             size_t size,
-                                            const struct cx_column_index *index)
+                                            const struct cx_index *index)
 {
     struct cx_column *column = calloc(1, sizeof(*column));
     if (!column)
@@ -71,7 +71,7 @@ struct cx_column *cx_column_new(enum cx_column_type type,
 struct cx_column *cx_column_new_mmapped(enum cx_column_type type,
                                         enum cx_encoding_type encoding,
                                         const void *ptr, size_t size,
-                                        const struct cx_column_index *index)
+                                        const struct cx_index *index)
 {
     struct cx_column *column = cx_column_new_size(type, encoding, 0, index);
     if (!column)
@@ -86,7 +86,7 @@ struct cx_column *cx_column_new_mmapped(enum cx_column_type type,
 struct cx_column *cx_column_new_compressed(enum cx_column_type type,
                                            enum cx_encoding_type encoding,
                                            void **ptr, size_t size,
-                                           const struct cx_column_index *index)
+                                           const struct cx_index *index)
 {
     if (!size)
         return NULL;
@@ -146,7 +146,7 @@ size_t cx_column_count(const struct cx_column *column)
     return column->count;
 }
 
-const struct cx_column_index *cx_column_index(const struct cx_column *column)
+const struct cx_index *cx_index(const struct cx_column *column)
 {
     return &column->index;
 }

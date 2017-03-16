@@ -8,12 +8,12 @@ typedef union {
     int32_t i32;
     int64_t i64;
     uint64_t len;
-} cx_column_index_value_t;
+} cx_index_value_t;
 
-struct cx_column_index {
+struct cx_index {
     uint64_t count;
-    cx_column_index_value_t min;
-    cx_column_index_value_t max;
+    cx_index_value_t min;
+    cx_index_value_t max;
 };
 
 #endif

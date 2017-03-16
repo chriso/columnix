@@ -376,7 +376,7 @@ error:
 
 static enum cx_predicate_match cx_predicate_match_index_eq(
     const struct cx_predicate *predicate, enum cx_column_type type,
-    const struct cx_column_index *index)
+    const struct cx_index *index)
 {
     enum cx_predicate_match result = CX_PREDICATE_MATCH_UNKNOWN;
     switch (type) {
@@ -460,7 +460,7 @@ error:
 
 static enum cx_predicate_match cx_predicate_match_index_lt(
     const struct cx_predicate *predicate, enum cx_column_type type,
-    const struct cx_column_index *index)
+    const struct cx_index *index)
 {
     enum cx_predicate_match result = CX_PREDICATE_MATCH_UNKNOWN;
     switch (type) {
@@ -529,7 +529,7 @@ error:
 
 static enum cx_predicate_match cx_predicate_match_index_gt(
     const struct cx_predicate *predicate, enum cx_column_type type,
-    const struct cx_column_index *index)
+    const struct cx_index *index)
 {
     enum cx_predicate_match result = CX_PREDICATE_MATCH_UNKNOWN;
     switch (type) {
@@ -676,7 +676,7 @@ enum cx_predicate_match cx_predicate_match_indexes(
     if (!cx_row_group_row_count(row_group))
         return CX_PREDICATE_MATCH_NO_ROWS;
 
-    const struct cx_column_index *index =
+    const struct cx_index *index =
         cx_row_group_column_index(row_group, predicate->column);
     enum cx_column_type type =
         cx_row_group_column_type(row_group, predicate->column);
@@ -686,7 +686,7 @@ enum cx_predicate_match cx_predicate_match_indexes(
             result = CX_PREDICATE_MATCH_ALL_ROWS;
             break;
         case CX_PREDICATE_NULL: {
-            const struct cx_column_index *index =
+            const struct cx_index *index =
                 cx_row_group_null_index(row_group, predicate->column);
             if (index->min.bit && index->max.bit)
                 result = CX_PREDICATE_MATCH_ALL_ROWS;
@@ -732,7 +732,7 @@ enum cx_predicate_match cx_predicate_match_indexes(
             break;
         case CX_PREDICATE_CUSTOM:
             if (predicate->custom.match_index) {
-                const struct cx_column_index *index =
+                const struct cx_index *index =
                     cx_row_group_column_index(row_group, predicate->column);
                 result = predicate->custom.match_index(type, index,
                                                        predicate->custom.data);

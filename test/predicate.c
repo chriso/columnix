@@ -437,7 +437,7 @@ static MunitResult test_null_match_rows(const MunitParameter params[],
 }
 
 enum cx_predicate_match cx_custom_i32_polarity_match_index(
-    enum cx_column_type type, const struct cx_column_index *index, void *data)
+    enum cx_column_type type, const struct cx_index *index, void *data)
 {
     bool negative = *(bool *)data;
     assert_int(type, ==, CX_COLUMN_I32);

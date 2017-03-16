@@ -13,12 +13,11 @@ struct cx_column *cx_column_new(enum cx_column_type, enum cx_encoding_type);
 
 struct cx_column *cx_column_new_mmapped(enum cx_column_type,
                                         enum cx_encoding_type, const void *,
-                                        size_t, const struct cx_column_index *);
+                                        size_t, const struct cx_index *);
 
 struct cx_column *cx_column_new_compressed(enum cx_column_type,
                                            enum cx_encoding_type, void **,
-                                           size_t,
-                                           const struct cx_column_index *);
+                                           size_t, const struct cx_index *);
 
 void cx_column_free(struct cx_column *);
 
@@ -30,7 +29,7 @@ enum cx_encoding_type cx_column_encoding(const struct cx_column *);
 
 size_t cx_column_count(const struct cx_column *column);
 
-const struct cx_column_index *cx_column_index(const struct cx_column *);
+const struct cx_index *cx_index(const struct cx_column *);
 
 bool cx_column_put_bit(struct cx_column *, bool);
 bool cx_column_put_i32(struct cx_column *, int32_t);

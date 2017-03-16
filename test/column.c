@@ -84,8 +84,8 @@ static void assert_i32_col_equal(const struct cx_column *a,
     assert_not_null(b_ptr);
     assert_size(a_size, ==, b_size);
     assert_memory_equal(a_size, a_ptr, b_ptr);
-    const struct cx_column_index *a_index = cx_column_index(a);
-    const struct cx_column_index *b_index = cx_column_index(b);
+    const struct cx_index *a_index = cx_index(a);
+    const struct cx_index *b_index = cx_index(b);
     assert_ptr_not_equal(a_index, b_index);
     assert_memory_equal(sizeof(*a_index), a_index, b_index);
 }
@@ -98,7 +98,7 @@ static MunitResult test_import_mmapped(const MunitParameter params[],
     const void *ptr = cx_column_export(col, &size);
     assert_not_null(ptr);
     struct cx_column *copy = cx_column_new_mmapped(
-        CX_COLUMN_I32, CX_ENCODING_NONE, ptr, size, cx_column_index(col));
+        CX_COLUMN_I32, CX_ENCODING_NONE, ptr, size, cx_index(col));
     assert_i32_col_equal(col, copy);
     assert_false(cx_column_put_i32(copy, 0));  // mmapped
     cx_column_free(copy);
@@ -114,7 +114,7 @@ static MunitResult test_import_compressed(const MunitParameter params[],
     assert_not_null(ptr);
     void *dest;
     struct cx_column *copy = cx_column_new_compressed(
-        CX_COLUMN_I32, CX_ENCODING_NONE, &dest, size, cx_column_index(col));
+        CX_COLUMN_I32, CX_ENCODING_NONE, &dest, size, cx_index(col));
     assert_not_null(copy);
     memcpy(dest, ptr, size);
     assert_i32_col_equal(col, copy);
@@ -136,7 +136,7 @@ static MunitResult test_bit_index(const MunitParameter params[], void *fixture)
     struct cx_column *col = cx_column_new(CX_COLUMN_BIT, CX_ENCODING_NONE);
     assert_not_null(col);
 
-    const struct cx_column_index *index = cx_column_index(col);
+    const struct cx_index *index = cx_index(col);
     assert_uint64(index->count, ==, 0);
 
     assert_true(cx_column_put_bit(col, false));
@@ -158,7 +158,7 @@ static MunitResult test_bit_index(const MunitParameter params[], void *fixture)
     col = cx_column_new(CX_COLUMN_BIT, CX_ENCODING_NONE);
     assert_not_null(col);
 
-    index = cx_column_index(col);
+    index = cx_index(col);
     assert_uint64(index->count, ==, 0);
 
     assert_true(cx_column_put_bit(col, true));
@@ -225,7 +225,7 @@ static MunitResult test_i32_index(const MunitParameter params[], void *fixture)
     struct cx_column *col = cx_column_new(CX_COLUMN_I32, CX_ENCODING_NONE);
     assert_not_null(col);
 
-    const struct cx_column_index *index = cx_column_index(col);
+    const struct cx_index *index = cx_index(col);
     assert_uint64(index->count, ==, 0);
 
     assert_true(cx_column_put_i32(col, 10));
@@ -297,7 +297,7 @@ static MunitResult test_i64_index(const MunitParameter params[], void *fixture)
     struct cx_column *col = cx_column_new(CX_COLUMN_I64, CX_ENCODING_NONE);
     assert_not_null(col);
 
-    const struct cx_column_index *index = cx_column_index(col);
+    const struct cx_index *index = cx_index(col);
     assert_uint64(index->count, ==, 0);
 
     assert_true(cx_column_put_i64(col, 10));
@@ -374,7 +374,7 @@ static MunitResult test_str_index(const MunitParameter params[], void *fixture)
     struct cx_column *col = cx_column_new(CX_COLUMN_STR, CX_ENCODING_NONE);
     assert_not_null(col);
 
-    const struct cx_column_index *index = cx_column_index(col);
+    const struct cx_index *index = cx_index(col);
     assert_uint64(index->count, ==, 0);
 
     assert_true(cx_column_put_str(col, "foo"));

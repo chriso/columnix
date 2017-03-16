@@ -42,8 +42,7 @@
         for (size_t i = 0; i < 64 / width * sizeof(type); i++) {             \
             cx_##name##_vec_t chunk =                                        \
                 cx_simd_##name##_load(&batch[i * (width / sizeof(type))]);   \
-            partial_mask[i] =                                                \
-                cx_simd_##name##_##match(cmp_vec, chunk);                    \
+            partial_mask[i] = cx_simd_##name##_##match(cmp_vec, chunk);      \
         }                                                                    \
         uint64_t mask = 0;                                                   \
         for (size_t i = 0; i < 64 / width * sizeof(type); i++)               \
@@ -104,9 +103,9 @@ static inline bool cx_str_eq(const struct cx_string *a,
     if (a->len < 16) {
         __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
         __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
-        return _mm_cmpistro(a_vec, b_vec, _SIDD_UBYTE_OPS |
-                                              _SIDD_CMP_EQUAL_EACH |
-                                              _SIDD_BIT_MASK);
+        return _mm_cmpistro(
+            a_vec, b_vec,
+            _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_EACH | _SIDD_BIT_MASK);
     }
 #endif
     return !memcmp(a->ptr, b->ptr, a->len);
@@ -127,9 +126,9 @@ static inline bool cx_str_contains_any(const struct cx_string *a,
     if (a->len < 16 && b->len < 16) {
         __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
         __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
-        return _mm_cmpistrc(a_vec, b_vec, _SIDD_UBYTE_OPS |
-                                              _SIDD_CMP_EQUAL_ORDERED |
-                                              _SIDD_BIT_MASK);
+        return _mm_cmpistrc(
+            a_vec, b_vec,
+            _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ORDERED | _SIDD_BIT_MASK);
     }
 #endif
     return !!strstr(a->ptr, b->ptr);
@@ -150,9 +149,9 @@ static inline bool cx_str_contains_start(const struct cx_string *a,
     if (b->len < 16) {
         __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
         __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
-        return _mm_cmpistro(a_vec, b_vec, _SIDD_UBYTE_OPS |
-                                              _SIDD_CMP_EQUAL_ORDERED |
-                                              _SIDD_BIT_MASK);
+        return _mm_cmpistro(
+            a_vec, b_vec,
+            _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ORDERED | _SIDD_BIT_MASK);
     }
 #endif
     return !memcmp(a->ptr, b->ptr, b->len);
@@ -173,9 +172,9 @@ static inline bool cx_str_contains_end(const struct cx_string *a,
     if (b->len < 16) {
         __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
         __m128i b_vec = _mm_loadu_si128((__m128i *)(a->ptr + a->len - b->len));
-        return _mm_cmpistro(a_vec, b_vec, _SIDD_UBYTE_OPS |
-                                              _SIDD_CMP_EQUAL_ORDERED |
-                                              _SIDD_BIT_MASK);
+        return _mm_cmpistro(
+            a_vec, b_vec,
+            _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ORDERED | _SIDD_BIT_MASK);
     }
 #endif
     return !memcmp(a->ptr + a->len - b->len, b->ptr, b->len);
