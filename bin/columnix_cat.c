@@ -174,6 +174,18 @@ int main(int argc, char *argv[])
                             if (!cx_writer_put_i64(writer, j, value.i64))
                                 goto read_error;
                             break;
+                        case CX_COLUMN_FLT:
+                            if (!cx_reader_get_flt(reader, j, &value.flt))
+                                goto read_error;
+                            if (!cx_writer_put_flt(writer, j, value.flt))
+                                goto read_error;
+                            break;
+                        case CX_COLUMN_DBL:
+                            if (!cx_reader_get_dbl(reader, j, &value.dbl))
+                                goto read_error;
+                            if (!cx_writer_put_dbl(writer, j, value.dbl))
+                                goto read_error;
+                            break;
                         case CX_COLUMN_STR:
                             if (!cx_reader_get_str(reader, j, &string))
                                 goto read_error;

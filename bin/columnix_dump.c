@@ -59,6 +59,16 @@ int main(int argc, char *argv[])
                     goto read_error;
                 printf("%" PRIi64 "\n", value.i64);
                 break;
+            case CX_COLUMN_FLT:
+                if (!cx_reader_get_flt(reader, column, &value.flt))
+                    goto read_error;
+                printf("%f\n", value.flt);
+                break;
+            case CX_COLUMN_DBL:
+                if (!cx_reader_get_dbl(reader, column, &value.dbl))
+                    goto read_error;
+                printf("%f\n", value.dbl);
+                break;
             case CX_COLUMN_STR:
                 if (!cx_reader_get_str(reader, column, &string))
                     goto read_error;

@@ -4,7 +4,7 @@
 
 #include "helpers.h"
 
-#define COLUMN_COUNT 4
+#define COLUMN_COUNT 6
 #define ROW_COUNT 1111
 
 struct cx_row_group_fixture {
@@ -22,7 +22,7 @@ static void *setup(const MunitParameter params[], void *data)
     assert_not_null(fixture->row_group);
 
     enum cx_column_type types[] = {CX_COLUMN_I32, CX_COLUMN_I64, CX_COLUMN_BIT,
-                                   CX_COLUMN_STR};
+                                   CX_COLUMN_STR, CX_COLUMN_FLT, CX_COLUMN_DBL};
 
     for (size_t i = 0; i < COLUMN_COUNT; i++) {
         fixture->columns[i] = cx_column_new(types[i], CX_ENCODING_NONE);
@@ -38,11 +38,15 @@ static void *setup(const MunitParameter params[], void *data)
         assert_true(cx_column_put_bit(fixture->columns[2], i % 3 == 0));
         sprintf(buffer, "cx %zu", i);
         assert_true(cx_column_put_str(fixture->columns[3], buffer));
+        assert_true(cx_column_put_flt(fixture->columns[4], (float)i / 10));
+        assert_true(cx_column_put_dbl(fixture->columns[5], (double)i / 100));
 
         assert_true(cx_column_put_bit(fixture->nulls[0], i % 2 == 0));
         assert_true(cx_column_put_bit(fixture->nulls[1], i % 3 == 0));
         assert_true(cx_column_put_bit(fixture->nulls[2], false));
         assert_true(cx_column_put_bit(fixture->nulls[3], true));
+        assert_true(cx_column_put_bit(fixture->nulls[4], false));
+        assert_true(cx_column_put_bit(fixture->nulls[5], false));
     }
 
     return fixture;
@@ -201,6 +205,18 @@ static MunitResult test_cursor(const MunitParameter params[], void *ptr)
                     assert_true(bit);
                 }
             }
+
+            const float *flt_batch =
+                cx_row_group_cursor_batch_flt(cursor, 4, &count);
+            assert_not_null(flt_batch);
+            for (size_t i = 0; i < count; i++)
+                assert_float(flt_batch[i], ==, (float)(position + i) / 10);
+
+            const double *dbl_batch =
+                cx_row_group_cursor_batch_dbl(cursor, 5, &count);
+            assert_not_null(dbl_batch);
+            for (size_t i = 0; i < count; i++)
+                assert_double(dbl_batch[i], ==, (double)(position + i) / 100);
 
             position += count;
         }

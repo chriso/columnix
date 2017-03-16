@@ -206,6 +206,32 @@ bool cx_writer_put_i64(struct cx_writer *writer, size_t column_index,
     return true;
 }
 
+bool cx_writer_put_flt(struct cx_writer *writer, size_t column_index,
+                       float value)
+{
+    if (!cx_writer_put_check(writer, column_index))
+        return false;
+    if (!cx_column_put_flt(writer->columns[column_index].values, value))
+        return false;
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, false))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
+bool cx_writer_put_dbl(struct cx_writer *writer, size_t column_index,
+                       double value)
+{
+    if (!cx_writer_put_check(writer, column_index))
+        return false;
+    if (!cx_column_put_dbl(writer->columns[column_index].values, value))
+        return false;
+    if (!cx_column_put_bit(writer->columns[column_index].nulls, false))
+        return false;
+    writer->position += (column_index == 0);
+    return true;
+}
+
 bool cx_writer_put_str(struct cx_writer *writer, size_t column_index,
                        const char *value)
 {

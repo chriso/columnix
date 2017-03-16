@@ -208,6 +208,16 @@ bool cx_column_put_i64(struct cx_column *column, int64_t value)
     return cx_column_put(column, CX_COLUMN_I64, &value, sizeof(int64_t));
 }
 
+bool cx_column_put_flt(struct cx_column *column, float value)
+{
+    return cx_column_put(column, CX_COLUMN_FLT, &value, sizeof(float));
+}
+
+bool cx_column_put_dbl(struct cx_column *column, double value)
+{
+    return cx_column_put(column, CX_COLUMN_DBL, &value, sizeof(double));
+}
+
 bool cx_column_put_str(struct cx_column *column, const char *value)
 {
     return cx_column_put(column, CX_COLUMN_STR, value, strlen(value) + 1);
@@ -222,6 +232,10 @@ bool cx_column_put_unit(struct cx_column *column)
             return cx_column_put_i32(column, 0);
         case CX_COLUMN_I64:
             return cx_column_put_i64(column, 0);
+        case CX_COLUMN_FLT:
+            return cx_column_put_flt(column, 0.0);
+        case CX_COLUMN_DBL:
+            return cx_column_put_dbl(column, 0.0);
         case CX_COLUMN_STR:
             return cx_column_put_str(column, "");
     }
@@ -293,9 +307,8 @@ static size_t cx_column_cursor_skip(struct cx_column_cursor *cursor,
 size_t cx_column_cursor_skip_bit(struct cx_column_cursor *cursor, size_t count)
 {
     assert(count % 64 == 0);
-    size_t skipped =
-        cx_column_cursor_skip(cursor, CX_COLUMN_BIT, sizeof(uint64_t),
-                              count / 64);
+    size_t skipped = cx_column_cursor_skip(cursor, CX_COLUMN_BIT,
+                                           sizeof(uint64_t), count / 64);
     skipped *= 64;
     if (!cx_column_cursor_valid(cursor)) {
         size_t trailing_bits = cursor->column->count % 64;
@@ -313,6 +326,16 @@ size_t cx_column_cursor_skip_i32(struct cx_column_cursor *cursor, size_t count)
 size_t cx_column_cursor_skip_i64(struct cx_column_cursor *cursor, size_t count)
 {
     return cx_column_cursor_skip(cursor, CX_COLUMN_I64, sizeof(int64_t), count);
+}
+
+size_t cx_column_cursor_skip_flt(struct cx_column_cursor *cursor, size_t count)
+{
+    return cx_column_cursor_skip(cursor, CX_COLUMN_FLT, sizeof(float), count);
+}
+
+size_t cx_column_cursor_skip_dbl(struct cx_column_cursor *cursor, size_t count)
+{
+    return cx_column_cursor_skip(cursor, CX_COLUMN_DBL, sizeof(double), count);
 }
 
 size_t cx_column_cursor_skip_str(struct cx_column_cursor *cursor, size_t count)
@@ -347,6 +370,22 @@ const int64_t *cx_column_cursor_next_batch_i64(struct cx_column_cursor *cursor,
 {
     const int64_t *values = cursor->position;
     *available = cx_column_cursor_skip_i64(cursor, CX_BATCH_SIZE);
+    return values;
+}
+
+const float *cx_column_cursor_next_batch_flt(struct cx_column_cursor *cursor,
+                                             size_t *available)
+{
+    const float *values = cursor->position;
+    *available = cx_column_cursor_skip_flt(cursor, CX_BATCH_SIZE);
+    return values;
+}
+
+const double *cx_column_cursor_next_batch_dbl(struct cx_column_cursor *cursor,
+                                              size_t *available)
+{
+    const double *values = cursor->position;
+    *available = cx_column_cursor_skip_dbl(cursor, CX_BATCH_SIZE);
     return values;
 }
 

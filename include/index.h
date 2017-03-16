@@ -7,6 +7,8 @@ typedef union {
     bool bit;
     int32_t i32;
     int64_t i64;
+    float flt;
+    double dbl;
     uint64_t len;
 } cx_index_value_t;
 
@@ -35,6 +37,14 @@ enum cx_index_match cx_index_match_i32_gt(const struct cx_index *, int32_t);
 enum cx_index_match cx_index_match_i64_eq(const struct cx_index *, int64_t);
 enum cx_index_match cx_index_match_i64_lt(const struct cx_index *, int64_t);
 enum cx_index_match cx_index_match_i64_gt(const struct cx_index *, int64_t);
+
+enum cx_index_match cx_index_match_flt_eq(const struct cx_index *, float);
+enum cx_index_match cx_index_match_flt_lt(const struct cx_index *, float);
+enum cx_index_match cx_index_match_flt_gt(const struct cx_index *, float);
+
+enum cx_index_match cx_index_match_dbl_eq(const struct cx_index *, double);
+enum cx_index_match cx_index_match_dbl_lt(const struct cx_index *, double);
+enum cx_index_match cx_index_match_dbl_gt(const struct cx_index *, double);
 
 enum cx_index_match cx_index_match_str_eq(const struct cx_index *,
                                           const struct cx_string *);

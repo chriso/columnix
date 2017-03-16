@@ -32,6 +32,8 @@ size_t cx_column_count(const struct cx_column *column);
 bool cx_column_put_bit(struct cx_column *, bool);
 bool cx_column_put_i32(struct cx_column *, int32_t);
 bool cx_column_put_i64(struct cx_column *, int64_t);
+bool cx_column_put_flt(struct cx_column *, float);
+bool cx_column_put_dbl(struct cx_column *, double);
 bool cx_column_put_str(struct cx_column *, const char *);
 
 bool cx_column_put_unit(struct cx_column *);
@@ -50,12 +52,18 @@ const int32_t *cx_column_cursor_next_batch_i32(struct cx_column_cursor *,
                                                size_t *);
 const int64_t *cx_column_cursor_next_batch_i64(struct cx_column_cursor *,
                                                size_t *);
+const float *cx_column_cursor_next_batch_flt(struct cx_column_cursor *,
+                                             size_t *);
+const double *cx_column_cursor_next_batch_dbl(struct cx_column_cursor *,
+                                              size_t *);
 const struct cx_string *cx_column_cursor_next_batch_str(
     struct cx_column_cursor *, size_t *);
 
 size_t cx_column_cursor_skip_bit(struct cx_column_cursor *, size_t);
 size_t cx_column_cursor_skip_i32(struct cx_column_cursor *, size_t);
 size_t cx_column_cursor_skip_i64(struct cx_column_cursor *, size_t);
+size_t cx_column_cursor_skip_flt(struct cx_column_cursor *, size_t);
+size_t cx_column_cursor_skip_dbl(struct cx_column_cursor *, size_t);
 size_t cx_column_cursor_skip_str(struct cx_column_cursor *, size_t);
 
 #endif

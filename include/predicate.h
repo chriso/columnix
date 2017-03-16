@@ -24,6 +24,14 @@ struct cx_predicate *cx_predicate_new_i64_eq(size_t, int64_t);
 struct cx_predicate *cx_predicate_new_i64_lt(size_t, int64_t);
 struct cx_predicate *cx_predicate_new_i64_gt(size_t, int64_t);
 
+struct cx_predicate *cx_predicate_new_flt_eq(size_t, float);
+struct cx_predicate *cx_predicate_new_flt_lt(size_t, float);
+struct cx_predicate *cx_predicate_new_flt_gt(size_t, float);
+
+struct cx_predicate *cx_predicate_new_dbl_eq(size_t, double);
+struct cx_predicate *cx_predicate_new_dbl_lt(size_t, double);
+struct cx_predicate *cx_predicate_new_dbl_gt(size_t, double);
+
 struct cx_predicate *cx_predicate_new_str_eq(size_t, const char *, bool);
 struct cx_predicate *cx_predicate_new_str_lt(size_t, const char *, bool);
 struct cx_predicate *cx_predicate_new_str_gt(size_t, const char *, bool);

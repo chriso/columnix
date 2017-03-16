@@ -413,6 +413,42 @@ const int64_t *cx_row_group_cursor_batch_i64(struct cx_row_group_cursor *cursor,
     return column->values.batch;
 }
 
+const float *cx_row_group_cursor_batch_flt(struct cx_row_group_cursor *cursor,
+                                           size_t column_index, size_t *count)
+{
+    if (!cx_row_group_cursor_lazy_column_init(cursor, column_index))
+        return NULL;
+    struct cx_row_group_cursor_column *column = &cursor->columns[column_index];
+    if (column->values.position <= cursor->position) {
+        size_t skipped = cx_column_cursor_skip_flt(
+            column->values.cursor, cursor->position - column->values.position);
+        column->values.position += skipped;
+        column->values.batch = cx_column_cursor_next_batch_flt(
+            column->values.cursor, &column->values.count);
+        column->values.position += column->values.count;
+    }
+    *count = column->values.count;
+    return column->values.batch;
+}
+
+const double *cx_row_group_cursor_batch_dbl(struct cx_row_group_cursor *cursor,
+                                            size_t column_index, size_t *count)
+{
+    if (!cx_row_group_cursor_lazy_column_init(cursor, column_index))
+        return NULL;
+    struct cx_row_group_cursor_column *column = &cursor->columns[column_index];
+    if (column->values.position <= cursor->position) {
+        size_t skipped = cx_column_cursor_skip_dbl(
+            column->values.cursor, cursor->position - column->values.position);
+        column->values.position += skipped;
+        column->values.batch = cx_column_cursor_next_batch_dbl(
+            column->values.cursor, &column->values.count);
+        column->values.position += column->values.count;
+    }
+    *count = column->values.count;
+    return column->values.batch;
+}
+
 const struct cx_string *cx_row_group_cursor_batch_str(
     struct cx_row_group_cursor *cursor, size_t column_index, size_t *count)
 {

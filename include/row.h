@@ -26,6 +26,10 @@ bool cx_row_cursor_get_i32(const struct cx_row_cursor *, size_t column_index,
                            int32_t *value);
 bool cx_row_cursor_get_i64(const struct cx_row_cursor *, size_t column_index,
                            int64_t *value);
+bool cx_row_cursor_get_flt(const struct cx_row_cursor *, size_t column_index,
+                           float *value);
+bool cx_row_cursor_get_dbl(const struct cx_row_cursor *, size_t column_index,
+                           double *value);
 bool cx_row_cursor_get_str(const struct cx_row_cursor *, size_t column_index,
                            const struct cx_string **value);
 

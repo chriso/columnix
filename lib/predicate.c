@@ -144,6 +144,62 @@ struct cx_predicate *cx_predicate_new_i64_gt(size_t column, int64_t value)
     return cx_predicate_new_i64(column, value, CX_PREDICATE_GT);
 }
 
+static struct cx_predicate *cx_predicate_new_flt(size_t column, float value,
+                                                 enum cx_predicate_type type)
+{
+    struct cx_predicate *predicate = cx_predicate_new();
+    if (!predicate)
+        return NULL;
+    predicate->column = column;
+    predicate->type = type;
+    predicate->column_type = CX_COLUMN_FLT;
+    predicate->value.flt = value;
+    return predicate;
+}
+
+struct cx_predicate *cx_predicate_new_flt_eq(size_t column, float value)
+{
+    return cx_predicate_new_flt(column, value, CX_PREDICATE_EQ);
+}
+
+struct cx_predicate *cx_predicate_new_flt_lt(size_t column, float value)
+{
+    return cx_predicate_new_flt(column, value, CX_PREDICATE_LT);
+}
+
+struct cx_predicate *cx_predicate_new_flt_gt(size_t column, float value)
+{
+    return cx_predicate_new_flt(column, value, CX_PREDICATE_GT);
+}
+
+static struct cx_predicate *cx_predicate_new_dbl(size_t column, double value,
+                                                 enum cx_predicate_type type)
+{
+    struct cx_predicate *predicate = cx_predicate_new();
+    if (!predicate)
+        return NULL;
+    predicate->column = column;
+    predicate->type = type;
+    predicate->column_type = CX_COLUMN_DBL;
+    predicate->value.dbl = value;
+    return predicate;
+}
+
+struct cx_predicate *cx_predicate_new_dbl_eq(size_t column, double value)
+{
+    return cx_predicate_new_dbl(column, value, CX_PREDICATE_EQ);
+}
+
+struct cx_predicate *cx_predicate_new_dbl_lt(size_t column, double value)
+{
+    return cx_predicate_new_dbl(column, value, CX_PREDICATE_LT);
+}
+
+struct cx_predicate *cx_predicate_new_dbl_gt(size_t column, double value)
+{
+    return cx_predicate_new_dbl(column, value, CX_PREDICATE_GT);
+}
+
 static struct cx_predicate *cx_predicate_new_str(size_t column,
                                                  const char *value,
                                                  enum cx_predicate_type type,
@@ -359,6 +415,22 @@ static bool cx_index_match_rows_eq(const struct cx_predicate *predicate,
                 goto error;
             mask = cx_match_i64_eq(*count, values, predicate->value.i64);
         } break;
+        case CX_COLUMN_FLT: {
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            const float *values =
+                cx_row_group_cursor_batch_flt(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_flt_eq(*count, values, predicate->value.flt);
+        } break;
+        case CX_COLUMN_DBL: {
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            const double *values =
+                cx_row_group_cursor_batch_dbl(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_dbl_eq(*count, values, predicate->value.dbl);
+        } break;
         case CX_COLUMN_STR: {
             assert(predicate->column_type == CX_COLUMN_STR);
             const struct cx_string *values =
@@ -393,6 +465,14 @@ static enum cx_index_match cx_index_match_index_eq(
             assert(predicate->column_type == CX_COLUMN_I64);
             result = cx_index_match_i64_eq(index, predicate->value.i64);
             break;
+        case CX_COLUMN_FLT:
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            result = cx_index_match_flt_eq(index, predicate->value.flt);
+            break;
+        case CX_COLUMN_DBL:
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            result = cx_index_match_dbl_eq(index, predicate->value.dbl);
+            break;
         case CX_COLUMN_STR:
             assert(predicate->column_type == CX_COLUMN_STR);
             result = cx_index_match_str_eq(index, &predicate->value.str);
@@ -426,6 +506,22 @@ static bool cx_index_match_rows_lt(const struct cx_predicate *predicate,
                 goto error;
             mask = cx_match_i64_lt(*count, values, predicate->value.i64);
         } break;
+        case CX_COLUMN_FLT: {
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            const float *values =
+                cx_row_group_cursor_batch_flt(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_flt_lt(*count, values, predicate->value.flt);
+        } break;
+        case CX_COLUMN_DBL: {
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            const double *values =
+                cx_row_group_cursor_batch_dbl(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_dbl_lt(*count, values, predicate->value.dbl);
+        } break;
         case CX_COLUMN_STR: {
             assert(predicate->column_type == CX_COLUMN_STR);
             const struct cx_string *values =
@@ -458,6 +554,14 @@ static enum cx_index_match cx_index_match_index_lt(
             assert(predicate->column_type == CX_COLUMN_I64);
             result = cx_index_match_i64_lt(index, predicate->value.i64);
             break;
+        case CX_COLUMN_FLT:
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            result = cx_index_match_flt_lt(index, predicate->value.flt);
+            break;
+        case CX_COLUMN_DBL:
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            result = cx_index_match_dbl_lt(index, predicate->value.dbl);
+            break;
         case CX_COLUMN_STR:
             break;
     }
@@ -488,6 +592,22 @@ static bool cx_index_match_rows_gt(const struct cx_predicate *predicate,
             if (!values)
                 goto error;
             mask = cx_match_i64_gt(*count, values, predicate->value.i64);
+        } break;
+        case CX_COLUMN_FLT: {
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            const float *values =
+                cx_row_group_cursor_batch_flt(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_flt_gt(*count, values, predicate->value.flt);
+        } break;
+        case CX_COLUMN_DBL: {
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            const double *values =
+                cx_row_group_cursor_batch_dbl(cursor, predicate->column, count);
+            if (!values)
+                goto error;
+            mask = cx_match_dbl_gt(*count, values, predicate->value.dbl);
         } break;
         case CX_COLUMN_STR: {
             assert(predicate->column_type == CX_COLUMN_STR);
@@ -521,6 +641,14 @@ static enum cx_index_match cx_index_match_index_gt(
             assert(predicate->column_type == CX_COLUMN_I64);
             result = cx_index_match_i64_gt(index, predicate->value.i64);
             break;
+        case CX_COLUMN_FLT:
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            result = cx_index_match_flt_gt(index, predicate->value.flt);
+            break;
+        case CX_COLUMN_DBL:
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            result = cx_index_match_dbl_gt(index, predicate->value.dbl);
+            break;
         case CX_COLUMN_STR:
             break;
     }
@@ -546,6 +674,14 @@ static bool cx_index_match_rows_custom(const struct cx_predicate *predicate,
         case CX_COLUMN_I64:
             assert(predicate->column_type == CX_COLUMN_I64);
             values = cx_row_group_cursor_batch_i64(cursor, column, count);
+            break;
+        case CX_COLUMN_FLT:
+            assert(predicate->column_type == CX_COLUMN_FLT);
+            values = cx_row_group_cursor_batch_flt(cursor, column, count);
+            break;
+        case CX_COLUMN_DBL:
+            assert(predicate->column_type == CX_COLUMN_DBL);
+            values = cx_row_group_cursor_batch_dbl(cursor, column, count);
             break;
         case CX_COLUMN_STR:
             assert(predicate->column_type == CX_COLUMN_STR);
@@ -715,9 +851,11 @@ static int cx_column_cost(enum cx_column_type type)
             cost = 1;
             break;
         case CX_COLUMN_I32:
+        case CX_COLUMN_FLT:
             cost = 8;
             break;
         case CX_COLUMN_I64:
+        case CX_COLUMN_DBL:
             cost = 16;
             break;
         case CX_COLUMN_STR:

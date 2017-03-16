@@ -18,6 +18,8 @@ bool cx_writer_add_column(struct cx_writer *, const char *name,
 bool cx_writer_put_bit(struct cx_writer *, size_t, bool);
 bool cx_writer_put_i32(struct cx_writer *, size_t, int32_t);
 bool cx_writer_put_i64(struct cx_writer *, size_t, int64_t);
+bool cx_writer_put_flt(struct cx_writer *, size_t, float);
+bool cx_writer_put_dbl(struct cx_writer *, size_t, double);
 bool cx_writer_put_str(struct cx_writer *, size_t, const char *);
 bool cx_writer_put_null(struct cx_writer *, size_t);
 

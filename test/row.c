@@ -4,7 +4,7 @@
 
 #include "helpers.h"
 
-#define COLUMN_COUNT 4
+#define COLUMN_COUNT 6
 #define ROW_COUNT 100
 
 struct cx_row_fixture {
@@ -24,7 +24,7 @@ static void *setup(const MunitParameter params[], void *data)
     assert_not_null(fixture->row_group);
 
     enum cx_column_type types[] = {CX_COLUMN_I32, CX_COLUMN_I64, CX_COLUMN_BIT,
-                                   CX_COLUMN_STR};
+                                   CX_COLUMN_STR, CX_COLUMN_FLT, CX_COLUMN_DBL};
 
     for (size_t i = 0; i < COLUMN_COUNT; i++) {
         fixture->columns[i] = cx_column_new(types[i], CX_ENCODING_NONE);
@@ -40,11 +40,15 @@ static void *setup(const MunitParameter params[], void *data)
         assert_true(cx_column_put_bit(fixture->columns[2], i % 3 == 0));
         sprintf(buffer, "cx %zu", i);
         assert_true(cx_column_put_str(fixture->columns[3], buffer));
+        assert_true(cx_column_put_flt(fixture->columns[4], (float)i / 10));
+        assert_true(cx_column_put_dbl(fixture->columns[5], (double)i / 100));
 
         assert_true(cx_column_put_bit(fixture->nulls[0], i % 2 == 0));
         assert_true(cx_column_put_bit(fixture->nulls[1], i % 3 == 0));
         assert_true(cx_column_put_bit(fixture->nulls[2], true));
         assert_true(cx_column_put_bit(fixture->nulls[3], false));
+        assert_true(cx_column_put_bit(fixture->nulls[4], false));
+        assert_true(cx_column_put_bit(fixture->nulls[5], false));
     }
 
     for (size_t i = 0; i < COLUMN_COUNT; i++)
@@ -112,6 +116,14 @@ static void test_cursor_position(struct cx_row_cursor *cursor, size_t expected)
     sprintf(buffer, "cx %zu", expected);
     assert_int(string->len, ==, strlen(buffer));
     assert_string_equal(buffer, string->ptr);
+
+    float flt;
+    assert_true(cx_row_cursor_get_flt(cursor, 4, &flt));
+    assert_float(flt, ==, (float)expected / 10);
+
+    double dbl;
+    assert_true(cx_row_cursor_get_dbl(cursor, 5, &dbl));
+    assert_double(dbl, ==, (double)expected / 100);
 }
 
 static MunitResult test_count(const MunitParameter params[], void *ptr)

@@ -72,6 +72,12 @@ const int32_t *cx_row_group_cursor_batch_i32(struct cx_row_group_cursor *,
 const int64_t *cx_row_group_cursor_batch_i64(struct cx_row_group_cursor *,
                                              size_t column_index,
                                              size_t *count);
+const float *cx_row_group_cursor_batch_flt(struct cx_row_group_cursor *,
+                                           size_t column_index,
+                                           size_t *count);
+const double *cx_row_group_cursor_batch_dbl(struct cx_row_group_cursor *,
+                                            size_t column_index,
+                                            size_t *count);
 const struct cx_string *cx_row_group_cursor_batch_str(
     struct cx_row_group_cursor *, size_t column_index, size_t *count);
 

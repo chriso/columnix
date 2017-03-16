@@ -161,6 +161,32 @@ bool cx_row_cursor_get_i64(const struct cx_row_cursor *cursor,
     return true;
 }
 
+bool cx_row_cursor_get_flt(const struct cx_row_cursor *cursor,
+                           size_t column_index, float *value)
+{
+    assert(cursor->row_mask);
+    size_t count;
+    const float *batch =
+        cx_row_group_cursor_batch_flt(cursor->cursor, column_index, &count);
+    if (!batch || !count)
+        return false;
+    *value = batch[cursor->position];
+    return true;
+}
+
+bool cx_row_cursor_get_dbl(const struct cx_row_cursor *cursor,
+                           size_t column_index, double *value)
+{
+    assert(cursor->row_mask);
+    size_t count;
+    const double *batch =
+        cx_row_group_cursor_batch_dbl(cursor->cursor, column_index, &count);
+    if (!batch || !count)
+        return false;
+    *value = batch[cursor->position];
+    return true;
+}
+
 bool cx_row_cursor_get_str(const struct cx_row_cursor *cursor,
                            size_t column_index, const struct cx_string **value)
 {

@@ -41,6 +41,28 @@ static void *setup_i64(const MunitParameter params[], void *data)
     return col;
 }
 
+static void *setup_flt(const MunitParameter params[], void *data)
+{
+    struct cx_column *col = cx_column_new(CX_COLUMN_FLT, CX_ENCODING_NONE);
+    assert_not_null(col);
+    for (int32_t i = 0; i < COUNT; i++)
+        assert_true(cx_column_put_flt(col, (float)i));
+    assert_int(cx_column_type(col), ==, CX_COLUMN_FLT);
+    assert_int(cx_column_encoding(col), ==, CX_ENCODING_NONE);
+    return col;
+}
+
+static void *setup_dbl(const MunitParameter params[], void *data)
+{
+    struct cx_column *col = cx_column_new(CX_COLUMN_DBL, CX_ENCODING_NONE);
+    assert_not_null(col);
+    for (int32_t i = 0; i < COUNT; i++)
+        assert_true(cx_column_put_dbl(col, (double)i));
+    assert_int(cx_column_type(col), ==, CX_COLUMN_DBL);
+    assert_int(cx_column_encoding(col), ==, CX_ENCODING_NONE);
+    return col;
+}
+
 static void *setup_str(const MunitParameter params[], void *data)
 {
     struct cx_column *col = cx_column_new(CX_COLUMN_STR, CX_ENCODING_NONE);
@@ -229,6 +251,76 @@ static MunitResult test_i64_cursor(const MunitParameter params[], void *fixture)
     return MUNIT_OK;
 }
 
+static MunitResult test_flt_put_mismatch(const MunitParameter params[],
+                                         void *fixture)
+{
+    struct cx_column *col = (struct cx_column *)fixture;
+    assert_false(cx_column_put_i64(col, 1));
+    return MUNIT_OK;
+}
+
+static MunitResult test_flt_cursor(const MunitParameter params[], void *fixture)
+{
+    struct cx_column *col = (struct cx_column *)fixture;
+    struct cx_column_cursor *cursor = cx_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t position, count;
+    size_t starting_positions[] = {0, 1, 8, 13, 64, 234, COUNT / 2 + 1, COUNT};
+
+    CX_FOREACH(starting_positions, position)
+    {
+        assert_size(cx_column_cursor_skip_flt(cursor, position), ==, position);
+        while (cx_column_cursor_valid(cursor)) {
+            const float *values =
+                cx_column_cursor_next_batch_flt(cursor, &count);
+            for (size_t j = 0; j < count; j++)
+                assert_float(values[j], ==, (float)(j + position));
+            position += count;
+        }
+        assert_size(position, ==, COUNT);
+        cx_column_cursor_rewind(cursor);
+    }
+
+    cx_column_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
+static MunitResult test_dbl_put_mismatch(const MunitParameter params[],
+                                         void *fixture)
+{
+    struct cx_column *col = (struct cx_column *)fixture;
+    assert_false(cx_column_put_i64(col, 1));
+    return MUNIT_OK;
+}
+
+static MunitResult test_dbl_cursor(const MunitParameter params[], void *fixture)
+{
+    struct cx_column *col = (struct cx_column *)fixture;
+    struct cx_column_cursor *cursor = cx_column_cursor_new(col);
+    assert_not_null(cursor);
+
+    size_t position, count;
+    size_t starting_positions[] = {0, 1, 8, 13, 64, 234, COUNT / 2 + 1, COUNT};
+
+    CX_FOREACH(starting_positions, position)
+    {
+        assert_size(cx_column_cursor_skip_dbl(cursor, position), ==, position);
+        while (cx_column_cursor_valid(cursor)) {
+            const double *values =
+                cx_column_cursor_next_batch_dbl(cursor, &count);
+            for (size_t j = 0; j < count; j++)
+                assert_double(values[j], ==, (double)(j + position));
+            position += count;
+        }
+        assert_size(position, ==, COUNT);
+        cx_column_cursor_rewind(cursor);
+    }
+
+    cx_column_cursor_free(cursor);
+    return MUNIT_OK;
+}
+
 static MunitResult test_str_put_mismatch(const MunitParameter params[],
                                          void *fixture)
 {
@@ -281,6 +373,14 @@ MunitTest column_tests[] = {
     {"/i32-put-mismatch", test_i32_put_mismatch, setup_i32, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i32-cursor", test_i32_cursor, setup_i32, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/flt-put-mismatch", test_flt_put_mismatch, setup_flt, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/flt-cursor", test_flt_cursor, setup_flt, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/dbl-put-mismatch", test_dbl_put_mismatch, setup_dbl, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/dbl-cursor", test_dbl_cursor, setup_dbl, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i64-put-mismatch", test_i64_put_mismatch, setup_i64, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},

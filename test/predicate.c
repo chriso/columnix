@@ -4,7 +4,7 @@
 
 #include "helpers.h"
 
-#define COLUMN_COUNT 10
+#define COLUMN_COUNT 14
 #define ROW_COUNT 10
 
 static const uint64_t all_rows = (1 << ROW_COUNT) - 1;
@@ -37,7 +37,8 @@ static void *setup(const MunitParameter params[], void *data)
     enum cx_column_type types[] = {CX_COLUMN_I32, CX_COLUMN_I64, CX_COLUMN_BIT,
                                    CX_COLUMN_STR, CX_COLUMN_I32, CX_COLUMN_I64,
                                    CX_COLUMN_BIT, CX_COLUMN_BIT, CX_COLUMN_I32,
-                                   CX_COLUMN_I32};
+                                   CX_COLUMN_I32, CX_COLUMN_FLT, CX_COLUMN_FLT,
+                                   CX_COLUMN_DBL, CX_COLUMN_DBL};
 
     for (size_t i = 0; i < COLUMN_COUNT; i++) {
         fixture->columns[i] = cx_column_new(types[i], CX_ENCODING_NONE);
@@ -62,6 +63,11 @@ static void *setup(const MunitParameter params[], void *data)
 
         assert_true(cx_column_put_i32(fixture->columns[8], -10));
         assert_true(cx_column_put_i32(fixture->columns[9], (i & 0x1) ? -1 : 1));
+
+        assert_true(cx_column_put_flt(fixture->columns[10], (float)i / 10));
+        assert_true(cx_column_put_flt(fixture->columns[11], 5.1));
+        assert_true(cx_column_put_dbl(fixture->columns[12], (double)i / 100));
+        assert_true(cx_column_put_dbl(fixture->columns[13], 5.1));
 
         assert_true(cx_column_put_bit(fixture->nulls[0], i % 2 == 0));
         assert_true(cx_column_put_bit(fixture->nulls[1], i % 3 == 0));
@@ -301,6 +307,104 @@ static MunitResult test_i64_match_rows(const MunitParameter params[],
         // (col < 2 || col > 8) => 0b1000000011
         {cx_predicate_new_or(2, cx_predicate_new_i64_lt(1, 2),
                              cx_predicate_new_i64_gt(1, 8)),
+         0x203},
+    };
+
+    return test_rows(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_flt_match_index(const MunitParameter params[],
+                                        void *fixture)
+{
+    struct cx_predicate_index_test_case test_cases[] = {
+        {cx_predicate_new_flt_lt(10, 1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_flt_lt(10, 0), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_flt_lt(10, 0.5), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_flt_gt(10, -0.1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_flt_gt(10, 0.9), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_flt_gt(10, 0.5), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_flt_eq(10, -0.1), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_flt_eq(10, 1.1), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_flt_eq(10, 0.9), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_flt_eq(11, 5.1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_flt_eq(11, 10), CX_INDEX_MATCH_NONE},
+    };
+
+    return test_indexes(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_flt_match_rows(const MunitParameter params[],
+                                       void *fixture)
+{
+    struct cx_predicate_row_test_case test_cases[] = {
+        {cx_predicate_new_true(), all_rows},
+        {cx_predicate_new_flt_lt(10, 1), all_rows},
+        {cx_predicate_new_flt_lt(10, 0), 0},
+        {cx_predicate_new_flt_lt(10, 0.4), 0xF},
+        {cx_predicate_new_flt_gt(10, -0.1), all_rows},
+        {cx_predicate_new_flt_gt(10, 0.9), 0},
+        {cx_predicate_new_flt_eq(10, 0), 0x1},
+        {cx_predicate_new_flt_eq(10, 0.1), 0x2},
+        {cx_predicate_new_flt_eq(10, 0.2), 0x4},
+        {cx_predicate_new_flt_eq(10, 0.3), 0x8},
+        // (col != 0.3) => 0b1111110111
+        {cx_predicate_negate(cx_predicate_new_flt_eq(10, 0.3)), 0x3F7},
+        // (col > 0.2 && col < 0.8) => 0b0011111000
+        {cx_predicate_new_and(2, cx_predicate_new_flt_gt(10, 0.2),
+                              cx_predicate_new_flt_lt(10, 0.8)),
+         0xF8},
+        // (col < 0.2 || col > 0.8) => 0b1000000011
+        {cx_predicate_new_or(2, cx_predicate_new_flt_lt(10, 0.2),
+                             cx_predicate_new_flt_gt(10, 0.8)),
+         0x203},
+    };
+
+    return test_rows(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_dbl_match_index(const MunitParameter params[],
+                                        void *fixture)
+{
+    struct cx_predicate_index_test_case test_cases[] = {
+        {cx_predicate_new_dbl_lt(12, 0.1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_dbl_lt(12, 0), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_dbl_lt(12, 0.05), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_dbl_gt(12, -0.01), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_dbl_gt(12, 0.09), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_dbl_gt(12, 0.05), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_dbl_eq(12, -0.01), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_dbl_eq(12, 0.11), CX_INDEX_MATCH_NONE},
+        {cx_predicate_new_dbl_eq(12, 0.09), CX_INDEX_MATCH_UNKNOWN},
+        {cx_predicate_new_dbl_eq(13, 5.1), CX_INDEX_MATCH_ALL},
+        {cx_predicate_new_dbl_eq(13, 10), CX_INDEX_MATCH_NONE},
+    };
+
+    return test_indexes(fixture, test_cases, sizeof(test_cases));
+}
+
+static MunitResult test_dbl_match_rows(const MunitParameter params[],
+                                       void *fixture)
+{
+    struct cx_predicate_row_test_case test_cases[] = {
+        {cx_predicate_new_true(), all_rows},
+        {cx_predicate_new_dbl_lt(12, 0.1), all_rows},
+        {cx_predicate_new_dbl_lt(12, 0), 0},
+        {cx_predicate_new_dbl_lt(12, 0.04), 0xF},
+        {cx_predicate_new_dbl_gt(12, -0.01), all_rows},
+        {cx_predicate_new_dbl_gt(12, 0.09), 0},
+        {cx_predicate_new_dbl_eq(12, 0), 0x1},
+        {cx_predicate_new_dbl_eq(12, 0.01), 0x2},
+        {cx_predicate_new_dbl_eq(12, 0.02), 0x4},
+        {cx_predicate_new_dbl_eq(12, 0.03), 0x8},
+        // (col != 0.03) => 0b1111110111
+        {cx_predicate_negate(cx_predicate_new_dbl_eq(12, 0.03)), 0x3F7},
+        // (col > 0.02 && col < 0.08) => 0b0011111000
+        {cx_predicate_new_and(2, cx_predicate_new_dbl_gt(12, 0.02),
+                              cx_predicate_new_dbl_lt(12, 0.08)),
+         0xF8},
+        // (col < 0.02 || col > 0.08) => 0b1000000011
+        {cx_predicate_new_or(2, cx_predicate_new_dbl_lt(12, 0.02),
+                             cx_predicate_new_dbl_gt(12, 0.08)),
          0x203},
     };
 
@@ -582,6 +686,14 @@ MunitTest predicate_tests[] = {
     {"/i64-match-index", test_i64_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/i64-match-rows", test_i64_match_rows, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/flt-match-index", test_flt_match_index, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/flt-match-rows", test_flt_match_rows, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/dbl-match-index", test_dbl_match_index, setup, teardown,
+     MUNIT_TEST_OPTION_NONE, NULL},
+    {"/dbl-match-rows", test_dbl_match_rows, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},
     {"/str-match-index", test_str_match_index, setup, teardown,
      MUNIT_TEST_OPTION_NONE, NULL},

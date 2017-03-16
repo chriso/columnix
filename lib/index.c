@@ -1,5 +1,6 @@
 #define __STDC_LIMIT_MACROS
 #include <assert.h>
+#include <float.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -8,6 +9,8 @@
 static void cx_index_update_bit(struct cx_index *, struct cx_column_cursor *);
 static void cx_index_update_i32(struct cx_index *, struct cx_column_cursor *);
 static void cx_index_update_i64(struct cx_index *, struct cx_column_cursor *);
+static void cx_index_update_flt(struct cx_index *, struct cx_column_cursor *);
+static void cx_index_update_dbl(struct cx_index *, struct cx_column_cursor *);
 static void cx_index_update_str(struct cx_index *, struct cx_column_cursor *);
 
 struct cx_index *cx_index_new(const struct cx_column *column)
@@ -30,6 +33,14 @@ struct cx_index *cx_index_new(const struct cx_column *column)
         case CX_COLUMN_I64:
             index->min.i64 = INT64_MAX;
             cx_index_update_i64(index, cursor);
+            break;
+        case CX_COLUMN_FLT:
+            index->min.flt = FLT_MAX;
+            cx_index_update_flt(index, cursor);
+            break;
+        case CX_COLUMN_DBL:
+            index->min.dbl = DBL_MAX;
+            cx_index_update_dbl(index, cursor);
             break;
         case CX_COLUMN_STR:
             index->min.len = UINT64_MAX;
@@ -97,6 +108,42 @@ static void cx_index_update_i64(struct cx_index *index,
                 index->max.i64 = value;
             if (value < index->min.i64)
                 index->min.i64 = value;
+        }
+    }
+}
+
+static void cx_index_update_flt(struct cx_index *index,
+                                struct cx_column_cursor *cursor)
+{
+    while (cx_column_cursor_valid(cursor)) {
+        size_t count;
+        const float *values = cx_column_cursor_next_batch_flt(cursor, &count);
+        assert(count);
+        index->count += count;
+        for (size_t i = 0; i < count; i++) {
+            float value = values[i];
+            if (value > index->max.flt)
+                index->max.flt = value;
+            if (value < index->min.flt)
+                index->min.flt = value;
+        }
+    }
+}
+
+static void cx_index_update_dbl(struct cx_index *index,
+                                struct cx_column_cursor *cursor)
+{
+    while (cx_column_cursor_valid(cursor)) {
+        size_t count;
+        const double *values = cx_column_cursor_next_batch_dbl(cursor, &count);
+        assert(count);
+        index->count += count;
+        for (size_t i = 0; i < count; i++) {
+            double value = values[i];
+            if (value > index->max.dbl)
+                index->max.dbl = value;
+            if (value < index->min.dbl)
+                index->min.dbl = value;
         }
     }
 }
@@ -186,6 +233,66 @@ enum cx_index_match cx_index_match_i64_gt(const struct cx_index *index,
     if (index->min.i64 > value)
         return CX_INDEX_MATCH_ALL;
     if (index->max.i64 <= value)
+        return CX_INDEX_MATCH_NONE;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_flt_eq(const struct cx_index *index,
+                                          float value)
+{
+    if (index->min.flt > value || index->max.flt < value)
+        return CX_INDEX_MATCH_NONE;
+    if (index->min.flt == value && index->max.flt == value)
+        return CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_flt_lt(const struct cx_index *index,
+                                          float value)
+{
+    if (index->min.flt >= value)
+        return CX_INDEX_MATCH_NONE;
+    if (index->max.flt < value)
+        return CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_flt_gt(const struct cx_index *index,
+                                          float value)
+{
+    if (index->min.flt > value)
+        return CX_INDEX_MATCH_ALL;
+    if (index->max.flt <= value)
+        return CX_INDEX_MATCH_NONE;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_dbl_eq(const struct cx_index *index,
+                                          double value)
+{
+    if (index->min.dbl > value || index->max.dbl < value)
+        return CX_INDEX_MATCH_NONE;
+    if (index->min.dbl == value && index->max.dbl == value)
+        return CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_dbl_lt(const struct cx_index *index,
+                                          double value)
+{
+    if (index->min.dbl >= value)
+        return CX_INDEX_MATCH_NONE;
+    if (index->max.dbl < value)
+        return CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_dbl_gt(const struct cx_index *index,
+                                          double value)
+{
+    if (index->min.dbl > value)
+        return CX_INDEX_MATCH_ALL;
+    if (index->max.dbl <= value)
         return CX_INDEX_MATCH_NONE;
     return CX_INDEX_MATCH_UNKNOWN;
 }

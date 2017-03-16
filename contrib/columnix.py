@@ -44,7 +44,8 @@ Example read (C):
 """
 
 from ctypes import cdll, util
-from ctypes import c_char_p, c_size_t, c_void_p, c_int, c_int32, c_int64, c_bool
+from ctypes import (c_char_p, c_size_t, c_void_p, c_int, c_int32, c_int64,
+                    c_bool, c_float, c_double)
 
 lib = cdll.LoadLibrary(util.find_library("columnix"))
 
@@ -70,6 +71,12 @@ cx_writer_put_i32.argtypes = [c_void_p, c_size_t, c_int32]
 cx_writer_put_i64 = lib.cx_writer_put_i64
 cx_writer_put_i64.argtypes = [c_void_p, c_size_t, c_int64]
 
+cx_writer_put_flt = lib.cx_writer_put_flt
+cx_writer_put_flt.argtypes = [c_void_p, c_size_t, c_float]
+
+cx_writer_put_dbl = lib.cx_writer_put_dbl
+cx_writer_put_dbl.argtypes = [c_void_p, c_size_t, c_double]
+
 cx_writer_put_str = lib.cx_writer_put_str
 cx_writer_put_str.argtypes = [c_void_p, c_size_t, c_char_p]
 
@@ -79,7 +86,9 @@ cx_writer_finish.argtypes = [c_void_p, c_bool]
 BIT = 0
 I32 = 1
 I64 = 2
-STR = 3
+FLT = 3
+DBL = 4
+STR = 5
 
 LZ4 = 1
 LZ4HC = 2
@@ -101,7 +110,8 @@ class Writer(object):
         self.columns = columns
         self.row_group_size = row_group_size
         self.sync = sync
-        put_fn = [self._put_bit, self._put_i32, self._put_i64, self._put_str]
+        put_fn = [self._put_bit, self._put_i32, self._put_i64, self._put_flt,
+                  self._put_dbl, self._put_str]
         self.put_lookup = [put_fn[column.type] for column in columns]
         self.writer = None
 
@@ -149,6 +159,14 @@ class Writer(object):
     def _put_i64(self, column, value):
         if not cx_writer_put_i64(self.writer, column, value):
             raise RuntimeError("put_i64(%d, %r)" % (column, value))
+
+    def _put_flt(self, column, value):
+        if not cx_writer_put_flt(self.writer, column, value):
+            raise RuntimeError("put_flt(%d, %r)" % (column, value))
+
+    def _put_dbl(self, column, value):
+        if not cx_writer_put_dbl(self.writer, column, value):
+            raise RuntimeError("put_dbl(%d, %r)" % (column, value))
 
     def _put_str(self, column, value):
         if not cx_writer_put_str(self.writer, column, value):
