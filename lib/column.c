@@ -14,6 +14,7 @@ struct cx_column {
         void *mutable;
         const void *mmapped;
     } buffer;
+    size_t count;
     size_t offset;
     size_t size;
     enum cx_column_type type;
@@ -54,6 +55,7 @@ static struct cx_column *cx_column_new_size(enum cx_column_type type,
     column->encoding = encoding;
     if (index)
         memcpy(&column->index, index, sizeof(*index));
+    column->count = column->index.count;
     return column;
 error:
     free(column);
@@ -139,6 +141,11 @@ enum cx_encoding_type cx_column_encoding(const struct cx_column *column)
     return column->encoding;
 }
 
+size_t cx_column_count(const struct cx_column *column)
+{
+    return column->count;
+}
+
 const struct cx_column_index *cx_column_index(const struct cx_column *column)
 {
     return &column->index;
@@ -188,7 +195,7 @@ bool cx_column_put_bit(struct cx_column *column, bool value)
     if (column->mmapped)
         return false;
     uint64_t *bitset;
-    if (column->index.count % 64 == 0) {
+    if (column->count % 64 == 0) {
         bitset = cx_column_alloc(column, sizeof(uint64_t));
         if (!bitset)
             return false;
@@ -198,6 +205,7 @@ bool cx_column_put_bit(struct cx_column *column, bool value)
         bitset = (uint64_t *)cx_column_offset(
             column, column->offset - sizeof(uint64_t));
     }
+    column->count++;
     if (value)
         *bitset |= (uint64_t)1 << column->index.count;
     if (!column->index.count) {
@@ -218,6 +226,7 @@ bool cx_column_put_i32(struct cx_column *column, int32_t value)
     if (!slot)
         return false;
     *slot = value;
+    column->count++;
     if (!column->index.count) {
         column->index.min.i32 = column->index.max.i32 = value;
     } else {
@@ -238,6 +247,7 @@ bool cx_column_put_i64(struct cx_column *column, int64_t value)
     if (!slot)
         return false;
     *slot = value;
+    column->count++;
     if (!column->index.count) {
         column->index.min.i64 = column->index.max.i64 = value;
     } else {
@@ -259,6 +269,7 @@ bool cx_column_put_str(struct cx_column *column, const char *value)
     if (!slot)
         return false;
     memcpy(slot, value, length + 1);
+    column->count++;
     if (!column->index.count) {
         column->index.min.len = column->index.max.len = length;
     } else {

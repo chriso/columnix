@@ -28,6 +28,8 @@ enum cx_column_type cx_column_type(const struct cx_column *);
 
 enum cx_encoding_type cx_column_encoding(const struct cx_column *);
 
+size_t cx_column_count(const struct cx_column *column);
+
 const struct cx_column_index *cx_column_index(const struct cx_column *);
 
 bool cx_column_put_bit(struct cx_column *, bool);

@@ -25,6 +25,7 @@ struct cx_row_group {
     struct cx_row_group_column *columns;
     size_t count;
     size_t size;
+    size_t row_count;
 };
 
 struct cx_row_group_cursor_physical_column {
@@ -112,12 +113,11 @@ bool cx_row_group_add_column(struct cx_row_group *row_group,
 {
     if (!column)
         return false;
-    const struct cx_column_index *index = cx_column_index(column);
-    if (!cx_row_group_valid_column(row_group, index))
+    size_t row_count = cx_column_count(column);
+    if (row_count != cx_column_count(nulls) ||
+        cx_column_type(nulls) != CX_COLUMN_BIT)
         return false;
-    const struct cx_column_index *null_index = cx_column_index(nulls);
-    if (cx_column_type(nulls) != CX_COLUMN_BIT ||
-        null_index->count != index->count)
+    if (row_group->count && row_group->row_count != row_count)
         return false;
     if (!cx_row_group_ensure_column_size(row_group))
         return false;
@@ -126,10 +126,11 @@ bool cx_row_group_add_column(struct cx_row_group *row_group,
     row_group_column->type = cx_column_type(column);
     row_group_column->encoding = cx_column_encoding(column);
     row_group_column->values.column = column;
-    row_group_column->values.index = index;
+    row_group_column->values.index = cx_column_index(column);
     row_group_column->lazy = false;
     row_group_column->nulls.column = nulls;
     row_group_column->nulls.index = cx_column_index(nulls);
+    row_group->row_count = row_count;
     return true;
 }
 
