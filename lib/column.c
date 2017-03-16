@@ -167,87 +167,61 @@ __attribute__((noinline)) static bool cx_column_resize(struct cx_column *column,
     return true;
 }
 
-static void *cx_column_alloc(struct cx_column *column, size_t size)
+static bool cx_column_put(struct cx_column *column, enum cx_column_type type,
+                          const void *value, size_t size)
 {
-    if (column->mmapped)
+    if (column->mmapped || column->type != type || !value)
         return false;
     if (column->offset + size > column->size)
         if (!cx_column_resize(column, size))
-            return NULL;
-    void *ptr = (void *)cx_column_tail(column);
+            return false;
+    void *slot = (void *)cx_column_tail(column);
+    memcpy(slot, value, size);
+    column->count++;
     column->offset += size;
-    return ptr;
+    return true;
 }
 
 bool cx_column_put_bit(struct cx_column *column, bool value)
 {
-    if (column->type != CX_COLUMN_BIT)
-        return false;
-    if (column->mmapped)
-        return false;
-    uint64_t *bitset;
     if (column->count % 64 == 0) {
-        bitset = cx_column_alloc(column, sizeof(uint64_t));
-        if (!bitset)
-            return false;
-        *bitset = 0;
-    } else {
-        assert(column->offset >= sizeof(uint64_t));
-        bitset = (uint64_t *)cx_column_offset(
+        uint64_t bitset = value != 0;
+        return cx_column_put(column, CX_COLUMN_BIT, &bitset, sizeof(uint64_t));
+    } else if (column->type != CX_COLUMN_BIT || column->mmapped)
+        return false;
+    if (value) {
+        uint64_t *bitset = (uint64_t *)cx_column_offset(
             column, column->offset - sizeof(uint64_t));
-    }
-    if (value)
         *bitset |= (uint64_t)1 << column->count;
+    }
     column->count++;
     return true;
 }
 
 bool cx_column_put_i32(struct cx_column *column, int32_t value)
 {
-    if (column->type != CX_COLUMN_I32)
-        return false;
-    int32_t *slot = cx_column_alloc(column, sizeof(int32_t));
-    if (!slot)
-        return false;
-    *slot = value;
-    column->count++;
-    return true;
+    return cx_column_put(column, CX_COLUMN_I32, &value, sizeof(int32_t));
 }
 
 bool cx_column_put_i64(struct cx_column *column, int64_t value)
 {
-    if (column->type != CX_COLUMN_I64)
-        return false;
-    int64_t *slot = cx_column_alloc(column, sizeof(int64_t));
-    if (!slot)
-        return false;
-    *slot = value;
-    column->count++;
-    return true;
+    return cx_column_put(column, CX_COLUMN_I64, &value, sizeof(int64_t));
 }
 
 bool cx_column_put_str(struct cx_column *column, const char *value)
 {
-    if (column->type != CX_COLUMN_STR || !value)
-        return false;
-    size_t length = strlen(value);
-    void *slot = cx_column_alloc(column, length + 1);
-    if (!slot)
-        return false;
-    memcpy(slot, value, length + 1);
-    column->count++;
-    return true;
+    return cx_column_put(column, CX_COLUMN_STR, value, strlen(value) + 1);
 }
 
 bool cx_column_put_unit(struct cx_column *column)
 {
     switch (column->type) {
+        case CX_COLUMN_BIT:
+            return cx_column_put_bit(column, false);
         case CX_COLUMN_I32:
             return cx_column_put_i32(column, 0);
         case CX_COLUMN_I64:
             return cx_column_put_i64(column, 0);
-        case CX_COLUMN_BIT:
-            return cx_column_put_bit(column, false);
         case CX_COLUMN_STR:
             return cx_column_put_str(column, "");
     }
@@ -297,15 +271,17 @@ bool cx_column_cursor_valid(const struct cx_column_cursor *cursor)
 }
 
 static void cx_column_cursor_advance(struct cx_column_cursor *cursor,
-                                     size_t amount)
+                                     size_t size)
 {
-    cursor->position = (void *)((uintptr_t)cursor->position + amount);
+    cursor->position = (void *)((uintptr_t)cursor->position + size);
     assert(cursor->position <= cursor->end);
 }
 
 static size_t cx_column_cursor_skip(struct cx_column_cursor *cursor,
-                                    size_t size, size_t count)
+                                    enum cx_column_type type, size_t size,
+                                    size_t count)
 {
+    assert(cursor->column->type == type);
     size_t remaining =
         ((uintptr_t)cursor->end - (uintptr_t)cursor->position) / size;
     if (remaining < count)
@@ -316,10 +292,10 @@ static size_t cx_column_cursor_skip(struct cx_column_cursor *cursor,
 
 size_t cx_column_cursor_skip_bit(struct cx_column_cursor *cursor, size_t count)
 {
-    assert(cursor->column->type == CX_COLUMN_BIT);
     assert(count % 64 == 0);
     size_t skipped =
-        cx_column_cursor_skip(cursor, sizeof(uint64_t), count / 64);
+        cx_column_cursor_skip(cursor, CX_COLUMN_BIT, sizeof(uint64_t),
+                              count / 64);
     skipped *= 64;
     if (!cx_column_cursor_valid(cursor)) {
         size_t trailing_bits = cursor->column->count % 64;
@@ -331,14 +307,12 @@ size_t cx_column_cursor_skip_bit(struct cx_column_cursor *cursor, size_t count)
 
 size_t cx_column_cursor_skip_i32(struct cx_column_cursor *cursor, size_t count)
 {
-    assert(cursor->column->type == CX_COLUMN_I32);
-    return cx_column_cursor_skip(cursor, sizeof(int32_t), count);
+    return cx_column_cursor_skip(cursor, CX_COLUMN_I32, sizeof(int32_t), count);
 }
 
 size_t cx_column_cursor_skip_i64(struct cx_column_cursor *cursor, size_t count)
 {
-    assert(cursor->column->type == CX_COLUMN_I64);
-    return cx_column_cursor_skip(cursor, sizeof(int64_t), count);
+    return cx_column_cursor_skip(cursor, CX_COLUMN_I64, sizeof(int64_t), count);
 }
 
 size_t cx_column_cursor_skip_str(struct cx_column_cursor *cursor, size_t count)
@@ -352,19 +326,9 @@ size_t cx_column_cursor_skip_str(struct cx_column_cursor *cursor, size_t count)
     return skipped;
 }
 
-static const void *cx_column_cursor_next_batch(struct cx_column_cursor *cursor,
-                                               size_t size, size_t count,
-                                               size_t *available)
-{
-    const void *values = cursor->position;
-    *available = cx_column_cursor_skip(cursor, size, count);
-    return values;
-}
-
 const uint64_t *cx_column_cursor_next_batch_bit(struct cx_column_cursor *cursor,
                                                 size_t *available)
 {
-    assert(cursor->column->type == CX_COLUMN_BIT);
     const uint64_t *values = cursor->position;
     *available = cx_column_cursor_skip_bit(cursor, CX_BATCH_SIZE);
     return values;
@@ -373,17 +337,17 @@ const uint64_t *cx_column_cursor_next_batch_bit(struct cx_column_cursor *cursor,
 const int32_t *cx_column_cursor_next_batch_i32(struct cx_column_cursor *cursor,
                                                size_t *available)
 {
-    assert(cursor->column->type == CX_COLUMN_I32);
-    return cx_column_cursor_next_batch(cursor, sizeof(int32_t), CX_BATCH_SIZE,
-                                       available);
+    const int32_t *values = cursor->position;
+    *available = cx_column_cursor_skip_i32(cursor, CX_BATCH_SIZE);
+    return values;
 }
 
 const int64_t *cx_column_cursor_next_batch_i64(struct cx_column_cursor *cursor,
                                                size_t *available)
 {
-    assert(cursor->column->type == CX_COLUMN_I64);
-    return cx_column_cursor_next_batch(cursor, sizeof(int64_t), CX_BATCH_SIZE,
-                                       available);
+    const int64_t *values = cursor->position;
+    *available = cx_column_cursor_skip_i64(cursor, CX_BATCH_SIZE);
+    return values;
 }
 
 const struct cx_string *cx_column_cursor_next_batch_str(
@@ -398,5 +362,5 @@ const struct cx_string *cx_column_cursor_next_batch_str(
         cx_column_cursor_advance(cursor, strings[i].len + 1);
     }
     *available = i;
-    return (const struct cx_string *)cursor->buffer;
+    return strings;
 }
