@@ -79,51 +79,46 @@ static void teardown(void *ptr)
 
 static void test_cursor_position(struct cx_row_cursor *cursor, size_t expected)
 {
-    int32_t i32;
-    assert_true(cx_row_cursor_get_i32(cursor, 0, &i32));
-    assert_int32(i32, ==, expected);
+    cx_value_t value;
 
-    int64_t i64;
-    assert_true(cx_row_cursor_get_i64(cursor, 1, &i64));
-    assert_int64(i64, ==, expected * 10);
+    assert_true(cx_row_cursor_get_i32(cursor, 0, &value.i32));
+    assert_int32(value.i32, ==, expected);
 
-    bool bit;
-    assert_true(cx_row_cursor_get_bit(cursor, 2, &bit));
+    assert_true(cx_row_cursor_get_i64(cursor, 1, &value.i64));
+    assert_int64(value.i64, ==, expected * 10);
+
+    assert_true(cx_row_cursor_get_bit(cursor, 2, &value.bit));
     if (expected % 3 == 0)
-        assert_true(bit);
+        assert_true(value.bit);
     else
-        assert_false(bit);
+        assert_false(value.bit);
 
-    bool null;
-    assert_true(cx_row_cursor_get_null(cursor, 0, &null));
+    assert_true(cx_row_cursor_get_null(cursor, 0, &value.bit));
     if (expected % 2 == 0)
-        assert_true(null);
+        assert_true(value.bit);
     else
-        assert_false(null);
-    assert_true(cx_row_cursor_get_null(cursor, 1, &null));
+        assert_false(value.bit);
+    assert_true(cx_row_cursor_get_null(cursor, 1, &value.bit));
     if (expected % 3 == 0)
-        assert_true(null);
+        assert_true(value.bit);
     else
-        assert_false(null);
-    assert_true(cx_row_cursor_get_null(cursor, 2, &null));
-    assert_true(null);
-    assert_true(cx_row_cursor_get_null(cursor, 3, &null));
-    assert_false(null);
+        assert_false(value.bit);
+    assert_true(cx_row_cursor_get_null(cursor, 2, &value.bit));
+    assert_true(value.bit);
+    assert_true(cx_row_cursor_get_null(cursor, 3, &value.bit));
+    assert_false(value.bit);
 
-    const struct cx_string *string;
-    assert_true(cx_row_cursor_get_str(cursor, 3, &string));
+    assert_true(cx_row_cursor_get_str(cursor, 3, &value.str));
     char buffer[64];
     sprintf(buffer, "cx %zu", expected);
-    assert_int(string->len, ==, strlen(buffer));
-    assert_string_equal(buffer, string->ptr);
+    assert_int(value.str.len, ==, strlen(buffer));
+    assert_string_equal(buffer, value.str.ptr);
 
-    float flt;
-    assert_true(cx_row_cursor_get_flt(cursor, 4, &flt));
-    assert_float(flt, ==, (float)expected / 10);
+    assert_true(cx_row_cursor_get_flt(cursor, 4, &value.flt));
+    assert_float(value.flt, ==, (float)expected / 10);
 
-    double dbl;
-    assert_true(cx_row_cursor_get_dbl(cursor, 5, &dbl));
-    assert_double(dbl, ==, (double)expected / 100);
+    assert_true(cx_row_cursor_get_dbl(cursor, 5, &value.dbl));
+    assert_double(value.dbl, ==, (double)expected / 100);
 }
 
 static MunitResult test_count(const MunitParameter params[], void *ptr)

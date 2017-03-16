@@ -357,7 +357,7 @@ bool cx_reader_get_dbl(const struct cx_reader *reader, size_t column_index,
 }
 
 bool cx_reader_get_str(const struct cx_reader *reader, size_t column_index,
-                       const struct cx_string **value)
+                       struct cx_string *value)
 {
     if (!reader->row_cursor)
         return false;

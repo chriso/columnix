@@ -180,28 +180,28 @@ jdouble Java_com_columnix_jni_Reader_getDouble(JNIEnv *env, jobject this,
 jstring Java_com_columnix_jni_Reader_getString(JNIEnv *env, jobject this,
                                                jlong ptr, jint index)
 {
-    const struct cx_string *value;
+    struct cx_string value;
     if (!cx_reader_get_str((struct cx_reader *)ptr, index, &value)) {
         cx_java_throw(env, "java/lang/Exception", "cx_reader_get_str()");
         return NULL;
     }
-    return (*env)->NewStringUTF(env, value->ptr);
+    return (*env)->NewStringUTF(env, value.ptr);
 }
 
 jbyteArray Java_com_columnix_jni_Reader_getStringBytes(JNIEnv *env,
                                                        jobject this, jlong ptr,
                                                        jint index)
 {
-    const struct cx_string *value;
+    struct cx_string value;
     if (!cx_reader_get_str((struct cx_reader *)ptr, index, &value)) {
         cx_java_throw(env, "java/lang/Exception", "cx_reader_get_str()");
         return NULL;
     }
-    jbyteArray bytes = (*env)->NewByteArray(env, value->len);
+    jbyteArray bytes = (*env)->NewByteArray(env, value.len);
     if (!bytes)
         return NULL;
-    (*env)->SetByteArrayRegion(env, bytes, 0, value->len,
-                               (const jbyte *)value->ptr);
+    (*env)->SetByteArrayRegion(env, bytes, 0, value.len,
+                               (const jbyte *)value.ptr);
     return bytes;
 }
 

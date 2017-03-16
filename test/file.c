@@ -116,39 +116,31 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
         }
         size_t position = 0;
         for (; cx_reader_next(reader); position++) {
-            int32_t i32;
-            assert_true(cx_reader_get_i32(reader, 0, &i32));
-            assert_int32(i32, ==, position);
-            int64_t i64;
-            assert_true(cx_reader_get_i64(reader, 1, &i64));
-            assert_int64(i64, ==, position * 10);
-            bool bit;
-            assert_true(cx_reader_get_bit(reader, 2, &bit));
+            cx_value_t value;
+            assert_true(cx_reader_get_i32(reader, 0, &value.i32));
+            assert_int32(value.i32, ==, position);
+            assert_true(cx_reader_get_i64(reader, 1, &value.i64));
+            assert_int64(value.i64, ==, position * 10);
+            assert_true(cx_reader_get_bit(reader, 2, &value.bit));
             if (position % 3 == 0)
-                assert_true(bit);
+                assert_true(value.bit);
             else
-                assert_false(bit);
+                assert_false(value.bit);
 
-            const struct cx_string *string;
-            bool null;
-            assert_true(cx_reader_get_null(reader, 3, &null));
+            assert_true(cx_reader_get_null(reader, 3, &value.bit));
             if (position % 12 == 0) {
-                assert_true(null);
+                assert_true(value.bit);
             } else {
-                assert_false(null);
-                assert_true(cx_reader_get_str(reader, 3, &string));
+                assert_false(value.bit);
+                assert_true(cx_reader_get_str(reader, 3, &value.str));
                 sprintf(buffer, "cx %zu", position);
-                assert_int(string->len, ==, strlen(buffer));
-                assert_string_equal(buffer, string->ptr);
+                assert_int(value.str.len, ==, strlen(buffer));
+                assert_string_equal(buffer, value.str.ptr);
             }
-
-            float flt;
-            assert_true(cx_reader_get_flt(reader, 4, &flt));
-            assert_float(flt, ==, (float)position / 10);
-
-            double dbl;
-            assert_true(cx_reader_get_dbl(reader, 5, &dbl));
-            assert_float(dbl, ==, (double)position / 100);
+            assert_true(cx_reader_get_flt(reader, 4, &value.flt));
+            assert_float(value.flt, ==, (float)position / 10);
+            assert_true(cx_reader_get_dbl(reader, 5, &value.dbl));
+            assert_float(value.dbl, ==, (double)position / 100);
         }
         assert_false(cx_reader_error(reader));
         assert_size(position, ==, ROW_COUNT);
@@ -206,38 +198,30 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
                 cx_row_cursor_new(row_group, fixture->true_predicate);
             assert_not_null(cursor);
             for (; cx_row_cursor_next(cursor); position++) {
-                int32_t i32;
-                assert_true(cx_row_cursor_get_i32(cursor, 0, &i32));
-                assert_int32(i32, ==, position);
-                int64_t i64;
-                assert_true(cx_row_cursor_get_i64(cursor, 1, &i64));
-                assert_int64(i64, ==, position * 10);
-                bool bit;
-                assert_true(cx_row_cursor_get_bit(cursor, 2, &bit));
+                cx_value_t value;
+                assert_true(cx_row_cursor_get_i32(cursor, 0, &value.i32));
+                assert_int32(value.i32, ==, position);
+                assert_true(cx_row_cursor_get_i64(cursor, 1, &value.i64));
+                assert_int64(value.i64, ==, position * 10);
+                assert_true(cx_row_cursor_get_bit(cursor, 2, &value.bit));
                 if (position % 3 == 0)
-                    assert_true(bit);
+                    assert_true(value.bit);
                 else
-                    assert_false(bit);
-                bool null;
-                assert_true(cx_row_cursor_get_null(cursor, 3, &null));
+                    assert_false(value.bit);
+                assert_true(cx_row_cursor_get_null(cursor, 3, &value.bit));
                 if (position % 12 == 0) {
-                    assert_true(null);
+                    assert_true(value.bit);
                 } else {
-                    assert_false(null);
-                    const struct cx_string *string;
-                    assert_true(cx_row_cursor_get_str(cursor, 3, &string));
-                    char buffer[64];
+                    assert_false(value.bit);
+                    assert_true(cx_row_cursor_get_str(cursor, 3, &value.str));
                     sprintf(buffer, "cx %zu", position);
-                    assert_int(string->len, ==, strlen(buffer));
-                    assert_string_equal(buffer, string->ptr);
+                    assert_int(value.str.len, ==, strlen(buffer));
+                    assert_string_equal(buffer, value.str.ptr);
                 }
-                float flt;
-                assert_true(cx_row_cursor_get_flt(cursor, 4, &flt));
-                assert_float(flt, ==, (float)position / 10);
-
-                double dbl;
-                assert_true(cx_row_cursor_get_dbl(cursor, 5, &dbl));
-                assert_float(dbl, ==, (double)position / 100);
+                assert_true(cx_row_cursor_get_flt(cursor, 4, &value.flt));
+                assert_float(value.flt, ==, (float)position / 10);
+                assert_true(cx_row_cursor_get_dbl(cursor, 5, &value.dbl));
+                assert_float(value.dbl, ==, (double)position / 100);
             }
             cx_row_cursor_free(cursor);
             cx_row_group_free(row_group);

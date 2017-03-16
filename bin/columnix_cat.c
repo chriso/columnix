@@ -146,7 +146,6 @@ int main(int argc, char *argv[])
         while (cx_reader_next(reader)) {
             for (size_t j = 0; j < column_count; j++) {
                 cx_value_t value;
-                const struct cx_string *string;
 
                 if (!cx_reader_get_null(reader, j, &value.bit))
                     goto read_error;
@@ -187,9 +186,9 @@ int main(int argc, char *argv[])
                                 goto read_error;
                             break;
                         case CX_COLUMN_STR:
-                            if (!cx_reader_get_str(reader, j, &string))
+                            if (!cx_reader_get_str(reader, j, &value.str))
                                 goto read_error;
-                            if (!cx_writer_put_str(writer, j, string->ptr))
+                            if (!cx_writer_put_str(writer, j, value.str.ptr))
                                 goto read_error;
                             break;
                     }

@@ -29,7 +29,6 @@ int main(int argc, char *argv[])
     }
 
     cx_value_t value = {0};
-    const struct cx_string *string = NULL;
     bool is_null = false;
 
     enum cx_column_type type = cx_reader_column_type(reader, column);
@@ -70,9 +69,9 @@ int main(int argc, char *argv[])
                 printf("%f\n", value.dbl);
                 break;
             case CX_COLUMN_STR:
-                if (!cx_reader_get_str(reader, column, &string))
+                if (!cx_reader_get_str(reader, column, &value.str))
                     goto read_error;
-                printf("%s\n", string->ptr);
+                printf("%s\n", value.str.ptr);
                 break;
         }
     }

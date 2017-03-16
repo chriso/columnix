@@ -52,7 +52,7 @@ bool cx_reader_get_flt(const struct cx_reader *, size_t column_index,
 bool cx_reader_get_dbl(const struct cx_reader *, size_t column_index,
                        double *value);
 bool cx_reader_get_str(const struct cx_reader *, size_t column_index,
-                       const struct cx_string **value);
+                       struct cx_string *value);
 
 struct cx_row_group_reader;
 

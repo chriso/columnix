@@ -188,7 +188,7 @@ bool cx_row_cursor_get_dbl(const struct cx_row_cursor *cursor,
 }
 
 bool cx_row_cursor_get_str(const struct cx_row_cursor *cursor,
-                           size_t column_index, const struct cx_string **value)
+                           size_t column_index, struct cx_string *value)
 {
     assert(cursor->row_mask);
     size_t count;
@@ -196,6 +196,8 @@ bool cx_row_cursor_get_str(const struct cx_row_cursor *cursor,
         cx_row_group_cursor_batch_str(cursor->cursor, column_index, &count);
     if (!batch || !count)
         return false;
-    *value = &batch[cursor->position];
+    const struct cx_string *string = &batch[cursor->position];
+    value->ptr = string->ptr;
+    value->len = string->len;
     return true;
 }
