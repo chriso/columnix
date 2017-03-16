@@ -12,6 +12,9 @@ static void show_usage(const char *name)
     exit(0);
 }
 
+static bool cx_reader_cat(struct cx_writer *writer, struct cx_reader *reader,
+                          enum cx_column_type types[]);
+
 int main(int argc, char *argv[])
 {
     static struct option options[] = {
@@ -143,61 +146,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        while (cx_reader_next(reader)) {
-            for (size_t j = 0; j < column_count; j++) {
-                cx_value_t value;
-
-                if (!cx_reader_get_null(reader, j, &value.bit))
-                    goto read_error;
-
-                if (value.bit) {
-                    if (!cx_writer_put_null(writer, j))
-                        goto read_error;
-                } else {
-                    switch (types[j]) {
-                        case CX_COLUMN_BIT:
-                            if (!cx_reader_get_bit(reader, j, &value.bit))
-                                goto read_error;
-                            if (!cx_writer_put_bit(writer, j, value.bit))
-                                goto read_error;
-                            break;
-                        case CX_COLUMN_I32:
-                            if (!cx_reader_get_i32(reader, j, &value.i32))
-                                goto read_error;
-                            if (!cx_writer_put_i32(writer, j, value.i32))
-                                goto read_error;
-                            break;
-                        case CX_COLUMN_I64:
-                            if (!cx_reader_get_i64(reader, j, &value.i64))
-                                goto read_error;
-                            if (!cx_writer_put_i64(writer, j, value.i64))
-                                goto read_error;
-                            break;
-                        case CX_COLUMN_FLT:
-                            if (!cx_reader_get_flt(reader, j, &value.flt))
-                                goto read_error;
-                            if (!cx_writer_put_flt(writer, j, value.flt))
-                                goto read_error;
-                            break;
-                        case CX_COLUMN_DBL:
-                            if (!cx_reader_get_dbl(reader, j, &value.dbl))
-                                goto read_error;
-                            if (!cx_writer_put_dbl(writer, j, value.dbl))
-                                goto read_error;
-                            break;
-                        case CX_COLUMN_STR:
-                            if (!cx_reader_get_str(reader, j, &value.str))
-                                goto read_error;
-                            if (!cx_writer_put_str(writer, j, value.str.ptr))
-                                goto read_error;
-                            break;
-                    }
-                }
-            }
-        }
-
-        if (cx_reader_error(reader)) {
-            fprintf(stderr, "error: failed to read data from %s\n", input_path);
+        if (!cx_reader_cat(writer, reader, types)) {
+            fprintf(stderr, "error: failed to cat %s\n", input_path);
             goto error;
         }
 
@@ -216,8 +166,6 @@ int main(int argc, char *argv[])
 
     return 0;
 
-read_error:
-    fprintf(stderr, "error: failed to read or write value\n");
 error:
     if (types)
         free(types);
@@ -226,4 +174,63 @@ error:
     if (reader)
         cx_reader_free(reader);
     return 1;
+}
+
+static bool cx_reader_cat(struct cx_writer *writer, struct cx_reader *reader,
+                          enum cx_column_type types[])
+{
+    size_t column_count = cx_reader_column_count(reader);
+    while (cx_reader_next(reader)) {
+        for (size_t j = 0; j < column_count; j++) {
+            cx_value_t value;
+            if (!cx_reader_get_null(reader, j, &value.bit))
+                goto error;
+            if (value.bit) {
+                if (!cx_writer_put_null(writer, j))
+                    goto error;
+            } else {
+                switch (types[j]) {
+                    case CX_COLUMN_BIT:
+                        if (!cx_reader_get_bit(reader, j, &value.bit))
+                            goto error;
+                        if (!cx_writer_put_bit(writer, j, value.bit))
+                            goto error;
+                        break;
+                    case CX_COLUMN_I32:
+                        if (!cx_reader_get_i32(reader, j, &value.i32))
+                            goto error;
+                        if (!cx_writer_put_i32(writer, j, value.i32))
+                            goto error;
+                        break;
+                    case CX_COLUMN_I64:
+                        if (!cx_reader_get_i64(reader, j, &value.i64))
+                            goto error;
+                        if (!cx_writer_put_i64(writer, j, value.i64))
+                            goto error;
+                        break;
+                    case CX_COLUMN_FLT:
+                        if (!cx_reader_get_flt(reader, j, &value.flt))
+                            goto error;
+                        if (!cx_writer_put_flt(writer, j, value.flt))
+                            goto error;
+                        break;
+                    case CX_COLUMN_DBL:
+                        if (!cx_reader_get_dbl(reader, j, &value.dbl))
+                            goto error;
+                        if (!cx_writer_put_dbl(writer, j, value.dbl))
+                            goto error;
+                        break;
+                    case CX_COLUMN_STR:
+                        if (!cx_reader_get_str(reader, j, &value.str))
+                            goto error;
+                        if (!cx_writer_put_str(writer, j, value.str.ptr))
+                            goto error;
+                        break;
+                }
+            }
+        }
+    }
+    return !cx_reader_error(reader);
+error:
+    return false;
 }

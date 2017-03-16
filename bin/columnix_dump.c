@@ -7,6 +7,9 @@
 
 const char *null_string = "";
 
+static bool cx_print_value(struct cx_reader *reader, size_t column,
+                           enum cx_column_type type);
+
 int main(int argc, char *argv[])
 {
     struct cx_reader *reader = NULL;
@@ -28,51 +31,12 @@ int main(int argc, char *argv[])
         goto error;
     }
 
-    cx_value_t value = {0};
-    bool is_null = false;
-
     enum cx_column_type type = cx_reader_column_type(reader, column);
 
     while (cx_reader_next(reader)) {
-        if (!cx_reader_get_null(reader, column, &is_null))
-            goto read_error;
-
-        if (is_null) {
-            puts(null_string);
-            continue;
-        }
-
-        switch (type) {
-            case CX_COLUMN_BIT:
-                if (!cx_reader_get_bit(reader, column, &value.bit))
-                    goto read_error;
-                puts(value.bit ? "1" : "0");
-                break;
-            case CX_COLUMN_I32:
-                if (!cx_reader_get_i32(reader, column, &value.i32))
-                    goto read_error;
-                printf("%d\n", value.i32);
-                break;
-            case CX_COLUMN_I64:
-                if (!cx_reader_get_i64(reader, column, &value.i64))
-                    goto read_error;
-                printf("%" PRIi64 "\n", value.i64);
-                break;
-            case CX_COLUMN_FLT:
-                if (!cx_reader_get_flt(reader, column, &value.flt))
-                    goto read_error;
-                printf("%f\n", value.flt);
-                break;
-            case CX_COLUMN_DBL:
-                if (!cx_reader_get_dbl(reader, column, &value.dbl))
-                    goto read_error;
-                printf("%f\n", value.dbl);
-                break;
-            case CX_COLUMN_STR:
-                if (!cx_reader_get_str(reader, column, &value.str))
-                    goto read_error;
-                printf("%s\n", value.str.ptr);
-                break;
+        if (!cx_print_value(reader, column, type)) {
+            fprintf(stderr, "error: failed to read column value\n");
+            goto error;
         }
     }
 
@@ -85,10 +49,55 @@ int main(int argc, char *argv[])
 
     return 0;
 
-read_error:
-    fprintf(stderr, "error: failed to read column value\n");
 error:
     if (reader)
         cx_reader_free(reader);
     return 1;
+}
+
+static bool cx_print_value(struct cx_reader *reader, size_t column,
+                           enum cx_column_type type)
+{
+    cx_value_t value;
+    if (!cx_reader_get_null(reader, column, &value.bit))
+        goto error;
+    if (value.bit) {
+        puts(null_string);
+    } else {
+        switch (type) {
+            case CX_COLUMN_BIT:
+                if (!cx_reader_get_bit(reader, column, &value.bit))
+                    goto error;
+                puts(value.bit ? "1" : "0");
+                break;
+            case CX_COLUMN_I32:
+                if (!cx_reader_get_i32(reader, column, &value.i32))
+                    goto error;
+                printf("%d\n", value.i32);
+                break;
+            case CX_COLUMN_I64:
+                if (!cx_reader_get_i64(reader, column, &value.i64))
+                    goto error;
+                printf("%" PRIi64 "\n", value.i64);
+                break;
+            case CX_COLUMN_FLT:
+                if (!cx_reader_get_flt(reader, column, &value.flt))
+                    goto error;
+                printf("%f\n", value.flt);
+                break;
+            case CX_COLUMN_DBL:
+                if (!cx_reader_get_dbl(reader, column, &value.dbl))
+                    goto error;
+                printf("%f\n", value.dbl);
+                break;
+            case CX_COLUMN_STR:
+                if (!cx_reader_get_str(reader, column, &value.str))
+                    goto error;
+                printf("%s\n", value.str.ptr);
+                break;
+        }
+    }
+    return true;
+error:
+    return false;
 }
