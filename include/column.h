@@ -16,9 +16,8 @@ struct cx_column *cx_column_new_mmapped(enum cx_column_type,
                                         size_t size, size_t count);
 
 struct cx_column *cx_column_new_compressed(enum cx_column_type,
-                                           enum cx_encoding_type,
-                                           void **buffer, size_t size,
-                                           size_t count);
+                                           enum cx_encoding_type, void **buffer,
+                                           size_t size, size_t count);
 
 void cx_column_free(struct cx_column *);
 

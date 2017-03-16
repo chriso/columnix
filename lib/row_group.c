@@ -140,8 +140,7 @@ bool cx_row_group_add_lazy_column(struct cx_row_group *row_group,
                                   const struct cx_lazy_column *nulls)
 {
     size_t row_count = column->index->count;
-    if (row_count != nulls->index->count ||
-        nulls->type != CX_COLUMN_BIT)
+    if (row_count != nulls->index->count || nulls->type != CX_COLUMN_BIT)
         return false;
     if (row_group->count && row_group->row_count != row_count)
         return false;
@@ -219,9 +218,9 @@ static bool cx_row_group_lazy_column_init(
                            lazy->decompressed_size))
             goto error;
     } else {
-        column = cx_column_new_mmapped(lazy->type, lazy->encoding, lazy->ptr,
-                                       lazy->size,
-                                       row_group_column->index->count);
+        column =
+            cx_column_new_mmapped(lazy->type, lazy->encoding, lazy->ptr,
+                                  lazy->size, row_group_column->index->count);
         if (!column)
             goto error;
     }

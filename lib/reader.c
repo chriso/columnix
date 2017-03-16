@@ -407,8 +407,8 @@ struct cx_row_group_reader *cx_row_group_reader_new(const char *path)
         goto error;
     const void *strings =
         cx_row_group_reader_at(reader, footer->strings_offset);
-    reader->strings = cx_column_new_mmapped(
-        CX_COLUMN_STR, CX_ENCODING_NONE, strings, footer->strings_size, 0);
+    reader->strings = cx_column_new_mmapped(CX_COLUMN_STR, CX_ENCODING_NONE,
+                                            strings, footer->strings_size, 0);
     if (!reader->strings)
         goto error;
 

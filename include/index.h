@@ -20,4 +20,25 @@ struct cx_index *cx_index_new(const struct cx_column *);
 
 void cx_index_free(struct cx_index *);
 
+enum cx_index_match {
+    CX_INDEX_MATCH_NONE = -1,
+    CX_INDEX_MATCH_UNKNOWN = 0,
+    CX_INDEX_MATCH_ALL = 1
+};
+
+enum cx_index_match cx_index_match_bit_eq(const struct cx_index *, bool);
+
+enum cx_index_match cx_index_match_i32_eq(const struct cx_index *, int32_t);
+enum cx_index_match cx_index_match_i32_lt(const struct cx_index *, int32_t);
+enum cx_index_match cx_index_match_i32_gt(const struct cx_index *, int32_t);
+
+enum cx_index_match cx_index_match_i64_eq(const struct cx_index *, int64_t);
+enum cx_index_match cx_index_match_i64_lt(const struct cx_index *, int64_t);
+enum cx_index_match cx_index_match_i64_gt(const struct cx_index *, int64_t);
+
+enum cx_index_match cx_index_match_str_eq(const struct cx_index *,
+                                          const struct cx_string *);
+enum cx_index_match cx_index_match_str_contains(const struct cx_index *,
+                                                const struct cx_string *);
+
 #endif

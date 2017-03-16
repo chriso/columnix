@@ -10,7 +10,7 @@ struct cx_row_cursor {
     size_t column_count;
     uint64_t row_mask;
     size_t position;
-    enum cx_predicate_match index_match;
+    enum cx_index_match index_match;
     bool implicit_predicate;
     bool error;
 };
@@ -27,7 +27,7 @@ struct cx_row_cursor *cx_row_cursor_new(struct cx_row_group *row_group,
         goto error;
     cursor->predicate = predicate;
     cursor->index_match =
-        cx_predicate_match_indexes(cursor->predicate, cursor->row_group);
+        cx_index_match_indexes(cursor->predicate, cursor->row_group);
     cx_row_cursor_rewind(cursor);
     return cursor;
 error:
@@ -54,14 +54,13 @@ static uint64_t cx_row_cursor_load_row_mask(struct cx_row_cursor *cursor)
     uint64_t row_mask = 0;
     while (!row_mask && cx_row_group_cursor_next(cursor->cursor)) {
         size_t count;
-        if (cursor->index_match == CX_PREDICATE_MATCH_ALL_ROWS) {
+        if (cursor->index_match == CX_INDEX_MATCH_ALL) {
             count = cx_row_group_cursor_batch_count(cursor->cursor);
             row_mask = (uint64_t)-1;
             if (count < 64)
                 row_mask &= ((uint64_t)1 << count) - 1;
-        } else if (!cx_predicate_match_rows(cursor->predicate,
-                                            cursor->row_group, cursor->cursor,
-                                            &row_mask, &count))
+        } else if (!cx_index_match_rows(cursor->predicate, cursor->row_group,
+                                        cursor->cursor, &row_mask, &count))
             goto error;
     }
     return row_mask;
@@ -93,9 +92,9 @@ bool cx_row_cursor_error(const struct cx_row_cursor *cursor)
 
 size_t cx_row_cursor_count(struct cx_row_cursor *cursor)
 {
-    if (cursor->index_match == CX_PREDICATE_MATCH_NO_ROWS)
+    if (cursor->index_match == CX_INDEX_MATCH_NONE)
         return 0;
-    else if (cursor->index_match == CX_PREDICATE_MATCH_ALL_ROWS)
+    else if (cursor->index_match == CX_INDEX_MATCH_ALL)
         return cx_row_group_row_count(cursor->row_group);
     cx_row_cursor_rewind(cursor);
     size_t count = 0;

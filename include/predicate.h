@@ -41,30 +41,25 @@ void cx_predicate_optimize(struct cx_predicate *, const struct cx_row_group *);
 const struct cx_predicate **cx_predicate_operands(const struct cx_predicate *,
                                                   size_t *);
 
-enum cx_predicate_match {
-    CX_PREDICATE_MATCH_NO_ROWS = -1,
-    CX_PREDICATE_MATCH_UNKNOWN = 0,
-    CX_PREDICATE_MATCH_ALL_ROWS = 1
-};
+enum cx_index_match cx_index_match_indexes(const struct cx_predicate *,
+                                           const struct cx_row_group *);
 
-enum cx_predicate_match cx_predicate_match_indexes(const struct cx_predicate *,
-                                                   const struct cx_row_group *);
+bool cx_index_match_rows(const struct cx_predicate *predicate,
+                         const struct cx_row_group *row_group,
+                         struct cx_row_group_cursor *cursor, uint64_t *matches,
+                         size_t *count);
 
-bool cx_predicate_match_rows(const struct cx_predicate *predicate,
-                             const struct cx_row_group *row_group,
-                             struct cx_row_group_cursor *cursor,
-                             uint64_t *matches, size_t *count);
+typedef enum cx_index_match (*cx_index_match_index_t)(enum cx_column_type,
+                                                      const struct cx_index *,
+                                                      void *data);
 
-typedef enum cx_predicate_match (*cx_predicate_match_index_t)(
-    enum cx_column_type, const struct cx_index *, void *data);
-
-typedef bool (*cx_predicate_match_rows_t)(enum cx_column_type, size_t count,
-                                          const void *values, uint64_t *matches,
-                                          void *data);
+typedef bool (*cx_index_match_rows_t)(enum cx_column_type, size_t count,
+                                      const void *values, uint64_t *matches,
+                                      void *data);
 
 struct cx_predicate *cx_predicate_new_custom(size_t column, enum cx_column_type,
-                                             cx_predicate_match_rows_t,
-                                             cx_predicate_match_index_t,
-                                             int cost, void *data);
+                                             cx_index_match_rows_t,
+                                             cx_index_match_index_t, int cost,
+                                             void *data);
 
 #endif

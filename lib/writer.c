@@ -466,15 +466,13 @@ bool cx_row_group_writer_put(struct cx_row_group_writer *writer,
         const struct cx_index *index = cx_row_group_column_index(row_group, i);
         const struct cx_index *nulls_index =
             cx_row_group_column_index(row_group, i);
-        if (!cx_row_group_writer_put_column(writer, column, index,
-                                            &headers[i * 2],
-                                            descriptor->compression,
-                                            descriptor->level))
+        if (!cx_row_group_writer_put_column(
+                writer, column, index, &headers[i * 2], descriptor->compression,
+                descriptor->level))
             goto error;
-        if (!cx_row_group_writer_put_column(writer, nulls, nulls_index,
-                                            &headers[i * 2 + 1],
-                                            CX_NULL_COMPRESSION_TYPE,
-                                            CX_NULL_COMPRESSION_LEVEL))
+        if (!cx_row_group_writer_put_column(
+                writer, nulls, nulls_index, &headers[i * 2 + 1],
+                CX_NULL_COMPRESSION_TYPE, CX_NULL_COMPRESSION_LEVEL))
             goto error;
     }
 

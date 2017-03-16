@@ -70,8 +70,7 @@ static void cx_index_update_i32(struct cx_index *index,
 {
     while (cx_column_cursor_valid(cursor)) {
         size_t count;
-        const int32_t *values =
-            cx_column_cursor_next_batch_i32(cursor, &count);
+        const int32_t *values = cx_column_cursor_next_batch_i32(cursor, &count);
         assert(count);
         index->count += count;
         for (size_t i = 0; i < count; i++) {
@@ -89,8 +88,7 @@ static void cx_index_update_i64(struct cx_index *index,
 {
     while (cx_column_cursor_valid(cursor)) {
         size_t count;
-        const int64_t *values =
-            cx_column_cursor_next_batch_i64(cursor, &count);
+        const int64_t *values = cx_column_cursor_next_batch_i64(cursor, &count);
         assert(count);
         index->count += count;
         for (size_t i = 0; i < count; i++) {
@@ -120,4 +118,90 @@ static void cx_index_update_str(struct cx_index *index,
                 index->min.len = value;
         }
     }
+}
+
+enum cx_index_match cx_index_match_bit_eq(const struct cx_index *index,
+                                          bool value)
+{
+    if (index->min.bit && index->max.bit)
+        return value ? CX_INDEX_MATCH_ALL : CX_INDEX_MATCH_NONE;
+    if (!index->min.bit && !index->max.bit)
+        return value ? CX_INDEX_MATCH_NONE : CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_i32_eq(const struct cx_index *index,
+                                          int32_t value)
+{
+    if (index->min.i32 > value || index->max.i32 < value)
+        return CX_INDEX_MATCH_NONE;
+    if (index->min.i32 == value && index->max.i32 == value)
+        return CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_i32_lt(const struct cx_index *index,
+                                          int32_t value)
+{
+    if (index->min.i32 >= value)
+        return CX_INDEX_MATCH_NONE;
+    if (index->max.i32 < value)
+        return CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_i32_gt(const struct cx_index *index,
+                                          int32_t value)
+{
+    if (index->min.i32 > value)
+        return CX_INDEX_MATCH_ALL;
+    if (index->max.i32 <= value)
+        return CX_INDEX_MATCH_NONE;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_i64_eq(const struct cx_index *index,
+                                          int64_t value)
+{
+    if (index->min.i64 > value || index->max.i64 < value)
+        return CX_INDEX_MATCH_NONE;
+    if (index->min.i64 == value && index->max.i64 == value)
+        return CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_i64_lt(const struct cx_index *index,
+                                          int64_t value)
+{
+    if (index->min.i64 >= value)
+        return CX_INDEX_MATCH_NONE;
+    if (index->max.i64 < value)
+        return CX_INDEX_MATCH_ALL;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_i64_gt(const struct cx_index *index,
+                                          int64_t value)
+{
+    if (index->min.i64 > value)
+        return CX_INDEX_MATCH_ALL;
+    if (index->max.i64 <= value)
+        return CX_INDEX_MATCH_NONE;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_str_eq(const struct cx_index *index,
+                                          const struct cx_string *string)
+{
+    if (index->min.len > string->len || index->max.len < string->len)
+        return CX_INDEX_MATCH_NONE;
+    return CX_INDEX_MATCH_UNKNOWN;
+}
+
+enum cx_index_match cx_index_match_str_contains(const struct cx_index *index,
+                                                const struct cx_string *string)
+{
+    if (index->max.len < string->len)
+        return CX_INDEX_MATCH_NONE;
+    return CX_INDEX_MATCH_UNKNOWN;
 }
