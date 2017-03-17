@@ -212,7 +212,7 @@ static struct cx_predicate *cx_predicate_new_str(size_t column,
     predicate->type = type;
     predicate->column_type = CX_COLUMN_STR;
     size_t length = strlen(value);
-#if CX_PCMPISTRM
+#if CX_SSE42
     predicate->string = calloc(1, length + 1 + 16);
 #else
     predicate->string = malloc(length + 1);

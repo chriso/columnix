@@ -15,7 +15,7 @@
 #define CX_SIMD_WIDTH 16
 #endif
 
-#ifdef CX_PCMPISTRM
+#ifdef CX_SSE42
 #include <smmintrin.h>
 #endif
 
@@ -99,7 +99,7 @@ static inline bool cx_str_eq(const struct cx_string *a,
 {
     if (a->len != b->len)
         return false;
-#if CX_PCMPISTRM
+#if CX_SSE42
     if (a->len < 16) {
         __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
         __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
@@ -122,7 +122,7 @@ static inline bool cx_str_contains_any(const struct cx_string *a,
 {
     if (a->len < b->len)
         return false;
-#if CX_PCMPISTRM
+#if CX_SSE42
     if (a->len < 16 && b->len < 16) {
         __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
         __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
@@ -145,7 +145,7 @@ static inline bool cx_str_contains_start(const struct cx_string *a,
 {
     if (a->len < b->len)
         return false;
-#if CX_PCMPISTRM
+#if CX_SSE42
     if (b->len < 16) {
         __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
         __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
@@ -168,7 +168,7 @@ static inline bool cx_str_contains_end(const struct cx_string *a,
 {
     if (a->len < b->len)
         return false;
-#if CX_PCMPISTRM
+#if CX_SSE42
     if (b->len < 16) {
         __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
         __m128i b_vec = _mm_loadu_si128((__m128i *)(a->ptr + a->len - b->len));

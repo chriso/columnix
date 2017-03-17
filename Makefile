@@ -31,7 +31,7 @@ else
     CFLAGS += -DCX_AVX
   endif
   ifneq (,$(findstring SSE4_2,$(CPU_FEATURES)))
-    CFLAGS += -DCX_PCMPISTRM
+    CFLAGS += -DCX_SSE42
   endif
 endif
 

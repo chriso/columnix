@@ -7,6 +7,13 @@
 
 #include "column.h"
 
+// when SSE4.2 optimizations are enabled, we make sure there are
+// at least 16 initialized bytes after each column value
+#if CX_SSE42
+#include <smmintrin.h>
+#define CX_COLUMN_OVER_ALLOC 16
+#endif
+
 static const size_t cx_column_initial_size = 64;
 
 struct cx_column {
@@ -38,15 +45,15 @@ static struct cx_column *cx_column_new_size(enum cx_column_type type,
     if (!column)
         return NULL;
     if (size) {
-#if CX_PCMPISTRM
-        // ensure there are at least 16 initialized bytes after each item
-        size += 16;
-        column->buffer.mutable = calloc(1, size);
-#else
-        column->buffer.mutable = malloc(size);
+#ifdef CX_COLUMN_OVER_ALLOC
+        size += CX_COLUMN_OVER_ALLOC;
 #endif
+        column->buffer.mutable = malloc(size);
         if (!column->buffer.mutable)
             goto error;
+#ifdef CX_COLUMN_OVER_ALLOC
+        memset(column->buffer.mutable, 0, size);
+#endif
         column->size = size;
     }
     column->type = type;
@@ -147,9 +154,8 @@ __attribute__((noinline)) static bool cx_column_resize(struct cx_column *column,
 {
     size_t size = column->size;
     size_t required_size = column->offset + alloc_size;
-#if CX_PCMPISTRM
-    // ensure there are at least 16 initialized bytes after each item
-    required_size += 16;
+#ifdef CX_COLUMN_OVER_ALLOC
+    required_size += CX_COLUMN_OVER_ALLOC;
 #endif
     while (size < required_size) {
         assert(size * 2 > size);
@@ -158,7 +164,7 @@ __attribute__((noinline)) static bool cx_column_resize(struct cx_column *column,
     void *buffer = realloc(column->buffer.mutable, size);
     if (!buffer)
         return false;
-#if CX_PCMPISTRM
+#ifdef CX_COLUMN_OVER_ALLOC
     memset((void *)((uintptr_t)buffer + column->offset), 0,
            size - column->offset);
 #endif
@@ -338,14 +344,31 @@ size_t cx_column_cursor_skip_dbl(struct cx_column_cursor *cursor, size_t count)
     return cx_column_cursor_skip(cursor, CX_COLUMN_DBL, sizeof(double), count);
 }
 
+static inline size_t cx_strlen(const char *string)
+{
+#if CX_SSE42
+        __m128i v_null = _mm_set1_epi8(0);
+        size_t length = 0;
+        for (;;) {
+            __m128i v_string = _mm_loadu_si128((__m128i *)(string + length));
+            int result = _mm_cmpistri(v_string, v_null,
+                _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_EACH | _SIDD_BIT_MASK);
+            length += result;
+            if (result < 16)
+                break;
+        }
+        return length;
+#else
+        return strlen(string);
+#endif
+}
+
 size_t cx_column_cursor_skip_str(struct cx_column_cursor *cursor, size_t count)
 {
     assert(cursor->column->type == CX_COLUMN_STR);
     size_t skipped = 0;
-    for (; skipped < count && cx_column_cursor_valid(cursor); skipped++) {
-        const char *str = cursor->position;
-        cx_column_cursor_advance(cursor, strlen(str) + 1);
-    }
+    for (; skipped < count && cx_column_cursor_valid(cursor); skipped++)
+        cx_column_cursor_advance(cursor, cx_strlen(cursor->position) + 1);
     return skipped;
 }
 
@@ -397,7 +420,7 @@ const struct cx_string *cx_column_cursor_next_batch_str(
     struct cx_string *strings = (struct cx_string *)cursor->buffer;
     for (; i < CX_BATCH_SIZE && cx_column_cursor_valid(cursor); i++) {
         strings[i].ptr = cursor->position;
-        strings[i].len = strlen(cursor->position);
+        strings[i].len = cx_strlen(cursor->position);
         cx_column_cursor_advance(cursor, strings[i].len + 1);
     }
     *available = i;
