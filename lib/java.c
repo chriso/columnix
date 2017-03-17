@@ -5,9 +5,9 @@
 #include "reader.h"
 #include "writer.h"
 
-static void cx_java_throw(JNIEnv *env, const char *class, const char *msg)
+static void cx_java_throw(JNIEnv *env, const char *msg)
 {
-    jclass exception = (*env)->FindClass(env, class);
+    jclass exception = (*env)->FindClass(env, "java/lang/RuntimeException");
     (*env)->ThrowNew(env, exception, msg);
 }
 
@@ -20,7 +20,7 @@ jlong Java_com_columnix_jni_Reader_create(JNIEnv *env, jobject this,
     struct cx_reader *reader = cx_reader_new(path);
     (*env)->ReleaseStringUTFChars(env, java_path, path);
     if (!reader)
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_new()");
+        cx_java_throw(env, "cx_reader_new()");
     return (jlong)reader;
 }
 
@@ -34,7 +34,7 @@ jlong Java_com_columnix_jni_Reader_createMatching(JNIEnv *env, jobject this,
     struct cx_reader *reader = cx_reader_new_matching(path, predicate);
     (*env)->ReleaseStringUTFChars(env, java_path, path);
     if (!reader)
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_new_matching()");
+        cx_java_throw(env, "cx_reader_new_matching()");
     return (jlong)reader;
 }
 
@@ -65,7 +65,7 @@ jboolean Java_com_columnix_jni_Reader_next(JNIEnv *env, jobject this, jlong ptr)
     struct cx_reader *reader = (struct cx_reader *)ptr;
     if (!cx_reader_next(reader)) {
         if (cx_reader_error(reader))
-            cx_java_throw(env, "java/lang/Exception", "cx_reader_error()");
+            cx_java_throw(env, "cx_reader_error()");
         return JNI_FALSE;
     }
     return JNI_TRUE;
@@ -76,7 +76,7 @@ jstring Java_com_columnix_jni_Reader_getMetadata(JNIEnv *env, jobject this,
 {
     const char *metadata = NULL;
     if (!cx_reader_metadata((struct cx_reader *)ptr, &metadata)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_metadata()");
+        cx_java_throw(env, "cx_reader_metadata()");
         return NULL;
     }
     return metadata ? (*env)->NewStringUTF(env, metadata) : NULL;
@@ -87,7 +87,7 @@ jstring Java_com_columnix_jni_Reader_columnName(JNIEnv *env, jobject this,
 {
     const char *name = cx_reader_column_name((struct cx_reader *)ptr, index);
     if (!name) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_column_name()");
+        cx_java_throw(env, "cx_reader_column_name()");
         return NULL;
     }
     return (*env)->NewStringUTF(env, name);
@@ -116,7 +116,7 @@ jboolean Java_com_columnix_jni_Reader_isNull(JNIEnv *env, jobject this,
 {
     bool value;
     if (!cx_reader_get_null((struct cx_reader *)ptr, index, &value)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_null()");
+        cx_java_throw(env, "cx_reader_get_null()");
         return JNI_FALSE;
     }
     return (jboolean)value;
@@ -127,7 +127,7 @@ jboolean Java_com_columnix_jni_Reader_getBoolean(JNIEnv *env, jobject this,
 {
     bool value;
     if (!cx_reader_get_bit((struct cx_reader *)ptr, index, &value)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_bit()");
+        cx_java_throw(env, "cx_reader_get_bit()");
         return JNI_FALSE;
     }
     return (jboolean)value;
@@ -138,7 +138,7 @@ jint Java_com_columnix_jni_Reader_getInt(JNIEnv *env, jobject this, jlong ptr,
 {
     int32_t value;
     if (!cx_reader_get_i32((struct cx_reader *)ptr, index, &value)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_i32()");
+        cx_java_throw(env, "cx_reader_get_i32()");
         return 0;
     }
     return (jint)value;
@@ -149,7 +149,7 @@ jlong Java_com_columnix_jni_Reader_getLong(JNIEnv *env, jobject this, jlong ptr,
 {
     int64_t value;
     if (!cx_reader_get_i64((struct cx_reader *)ptr, index, &value)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_i64()");
+        cx_java_throw(env, "cx_reader_get_i64()");
         return 0;
     }
     return (jlong)value;
@@ -160,7 +160,7 @@ jfloat Java_com_columnix_jni_Reader_getFloat(JNIEnv *env, jobject this,
 {
     float value;
     if (!cx_reader_get_flt((struct cx_reader *)ptr, index, &value)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_flt()");
+        cx_java_throw(env, "cx_reader_get_flt()");
         return 0;
     }
     return (jfloat)value;
@@ -171,7 +171,7 @@ jdouble Java_com_columnix_jni_Reader_getDouble(JNIEnv *env, jobject this,
 {
     double value;
     if (!cx_reader_get_dbl((struct cx_reader *)ptr, index, &value)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_dbl()");
+        cx_java_throw(env, "cx_reader_get_dbl()");
         return 0;
     }
     return (jdouble)value;
@@ -182,7 +182,7 @@ jstring Java_com_columnix_jni_Reader_getString(JNIEnv *env, jobject this,
 {
     struct cx_string value;
     if (!cx_reader_get_str((struct cx_reader *)ptr, index, &value)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_str()");
+        cx_java_throw(env, "cx_reader_get_str()");
         return NULL;
     }
     return (*env)->NewStringUTF(env, value.ptr);
@@ -194,7 +194,7 @@ jbyteArray Java_com_columnix_jni_Reader_getStringBytes(JNIEnv *env,
 {
     struct cx_string value;
     if (!cx_reader_get_str((struct cx_reader *)ptr, index, &value)) {
-        cx_java_throw(env, "java/lang/Exception", "cx_reader_get_str()");
+        cx_java_throw(env, "cx_reader_get_str()");
         return NULL;
     }
     jbyteArray bytes = (*env)->NewByteArray(env, value.len);
@@ -215,7 +215,7 @@ jlong Java_com_columnix_jni_Writer_create(JNIEnv *env, jobject this,
     struct cx_writer *writer = cx_writer_new(path, row_group_size);
     (*env)->ReleaseStringUTFChars(env, java_path, path);
     if (!writer)
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_new()");
+        cx_java_throw(env, "cx_writer_new()");
     return (jlong)writer;
 }
 
@@ -231,7 +231,7 @@ void Java_com_columnix_jni_Writer_setMetadata(JNIEnv *env, jobject this,
     if (!metadata)
         return;
     if (!cx_writer_metadata((struct cx_writer *)ptr, metadata))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_metadata()");
+        cx_java_throw(env, "cx_writer_metadata()");
     (*env)->ReleaseStringUTFChars(env, java_metadata, metadata);
 }
 
@@ -239,7 +239,7 @@ void Java_com_columnix_jni_Writer_finish(JNIEnv *env, jobject this, jlong ptr,
                                          jboolean sync)
 {
     if (!cx_writer_finish((struct cx_writer *)ptr, sync))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_finish()");
+        cx_java_throw(env, "cx_writer_finish()");
 }
 
 void Java_com_columnix_jni_Writer_addColumn(JNIEnv *env, jobject this,
@@ -252,7 +252,7 @@ void Java_com_columnix_jni_Writer_addColumn(JNIEnv *env, jobject this,
     if (!name)
         return;
     if (!cx_writer_add_column(writer, name, type, encoding, compression, level))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_add_column()");
+        cx_java_throw(env, "cx_writer_add_column()");
     (*env)->ReleaseStringUTFChars(env, java_name, name);
 }
 
@@ -260,7 +260,7 @@ void Java_com_columnix_jni_Writer_putNull(JNIEnv *env, jobject this, jlong ptr,
                                           jint index)
 {
     if (!cx_writer_put_null((struct cx_writer *)ptr, index))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_null()");
+        cx_java_throw(env, "cx_writer_put_null()");
 }
 
 void Java_com_columnix_jni_Writer_putBoolean(JNIEnv *env, jobject this,
@@ -268,28 +268,28 @@ void Java_com_columnix_jni_Writer_putBoolean(JNIEnv *env, jobject this,
                                              jboolean value)
 {
     if (!cx_writer_put_bit((struct cx_writer *)ptr, index, value))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_bit()");
+        cx_java_throw(env, "cx_writer_put_bit()");
 }
 
 void Java_com_columnix_jni_Writer_putInt(JNIEnv *env, jobject this, jlong ptr,
                                          jint index, jint value)
 {
     if (!cx_writer_put_i32((struct cx_writer *)ptr, index, value))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_i32()");
+        cx_java_throw(env, "cx_writer_put_i32()");
 }
 
 void Java_com_columnix_jni_Writer_putLong(JNIEnv *env, jobject this, jlong ptr,
                                           jint index, jlong value)
 {
     if (!cx_writer_put_i64((struct cx_writer *)ptr, index, value))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_i64()");
+        cx_java_throw(env, "cx_writer_put_i64()");
 }
 
 void Java_com_columnix_jni_Writer_putFloat(JNIEnv *env, jobject this, jlong ptr,
                                            jint index, jfloat value)
 {
     if (!cx_writer_put_flt((struct cx_writer *)ptr, index, value))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_flt()");
+        cx_java_throw(env, "cx_writer_put_flt()");
 }
 
 void Java_com_columnix_jni_Writer_putDouble(JNIEnv *env, jobject this,
@@ -297,7 +297,7 @@ void Java_com_columnix_jni_Writer_putDouble(JNIEnv *env, jobject this,
                                             jdouble value)
 {
     if (!cx_writer_put_dbl((struct cx_writer *)ptr, index, value))
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_dbl()");
+        cx_java_throw(env, "cx_writer_put_dbl()");
 }
 
 void Java_com_columnix_jni_Writer_putString(JNIEnv *env, jobject this,
@@ -316,7 +316,7 @@ void Java_com_columnix_jni_Writer_putString(JNIEnv *env, jobject this,
         (*env)->ReleaseStringUTFChars(env, java_value, value);
     }
     if (!ok)
-        cx_java_throw(env, "java/lang/Exception", "cx_writer_put_str()");
+        cx_java_throw(env, "cx_writer_put_str()");
 }
 
 jlong Java_com_columnix_jni_Predicate_negate(JNIEnv *env, jobject this,
