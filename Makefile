@@ -2,7 +2,7 @@ PROJECT = columnix
 
 LDLIBS = -llz4 -lzstd
 
-BASE_CFLAGS += -std=c99 -Wall -pedantic -Iinclude -g
+BASE_CFLAGS += -std=c99 -Wall -pedantic -Ilib -g
 CFLAGS += $(BASE_CFLAGS) -pthread
 
 PREFIX ?= /usr/local
@@ -101,7 +101,7 @@ format:
 install: $(LIB) $(BIN)
 	install -m 755 $(LIB) $(PREFIX)/$(LIB)
 	install -d $(INCLUDEDIR)/$(PROJECT)
-	install -m 644 $(wildcard include/*.h) $(INCLUDEDIR)/$(PROJECT)
+	install -m 644 $(wildcard lib/*.h) $(INCLUDEDIR)/$(PROJECT)
 	install -m 755 $(BIN) $(BINDIR)
 
 uninstall:

@@ -368,6 +368,7 @@ size_t cx_column_cursor_skip_str(struct cx_column_cursor *cursor, size_t count)
 {
     assert(cursor->column->type == CX_COLUMN_STR);
     size_t skipped = 0;
+    // TODO: vectorise this
     for (; skipped < count && cx_column_cursor_valid(cursor); skipped++)
         cx_column_cursor_advance(cursor, cx_strlen(cursor->position) + 1);
     return skipped;
