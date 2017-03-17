@@ -37,15 +37,15 @@
     static inline uint64_t cx_match_##name##_##match##_simd(                 \
         size_t size, const type batch[], type cmp)                           \
     {                                                                        \
-        cx_##name##_vec_t cmp_vec = cx_simd_##name##_set(cmp);               \
-        int partial_mask[64 / width * sizeof(type)];                         \
-        for (size_t i = 0; i < 64 / width * sizeof(type); i++) {             \
+        cx_##name##_vec_t v_cmp = cx_simd_##name##_set(cmp);                 \
+        int partial_mask[64 * sizeof(type) / width];                         \
+        for (size_t i = 0; i < 64 * sizeof(type) / width; i++) {             \
             cx_##name##_vec_t chunk =                                        \
                 cx_simd_##name##_load(&batch[i * (width / sizeof(type))]);   \
-            partial_mask[i] = cx_simd_##name##_##match(cmp_vec, chunk);      \
+            partial_mask[i] = cx_simd_##name##_##match(v_cmp, chunk);        \
         }                                                                    \
         uint64_t mask = 0;                                                   \
-        for (size_t i = 0; i < 64 / width * sizeof(type); i++)               \
+        for (size_t i = 0; i < 64 * sizeof(type) / width; i++)               \
             mask |=                                                          \
                 ((uint64_t)partial_mask[i] << (i * (width / sizeof(type)))); \
         return mask;                                                         \
@@ -94,121 +94,122 @@ CX_MATCH_TYPE(i64, int64_t)
 CX_MATCH_TYPE(flt, float)
 CX_MATCH_TYPE(dbl, double)
 
-static inline bool cx_str_eq(const struct cx_string *a,
-                             const struct cx_string *b)
+static inline bool cx_str_eq(const struct cx_string *str,
+                             const struct cx_string *cmp)
 {
-    if (a->len != b->len)
+    if (str->len != cmp->len)
         return false;
 #if CX_SSE42
-    if (a->len < 16) {
-        __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
-        __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
+    if (str->len < 16) {
+        __m128i v_str = _mm_loadu_si128((__m128i *)str->ptr);
+        __m128i v_cmp = _mm_loadu_si128((__m128i *)cmp->ptr);
         return _mm_cmpistro(
-            a_vec, b_vec,
+            v_cmp, v_str,
             _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_EACH | _SIDD_BIT_MASK);
     }
 #endif
-    return !memcmp(a->ptr, b->ptr, a->len);
+    return !memcmp(str->ptr, cmp->ptr, str->len);
 }
 
-static inline bool cx_str_eq_ci(const struct cx_string *a,
-                                const struct cx_string *b)
+static inline bool cx_str_eq_ci(const struct cx_string *str,
+                                const struct cx_string *cmp)
 {
-    return a->len == b->len && !strcasecmp(a->ptr, b->ptr);
+    return str->len == cmp->len && !strcasecmp(str->ptr, cmp->ptr);
 }
 
-static inline bool cx_str_contains_any(const struct cx_string *a,
-                                       const struct cx_string *b)
+static inline bool cx_str_contains_any(const struct cx_string *str,
+                                       const struct cx_string *cmp)
 {
-    if (a->len < b->len)
+    if (str->len < cmp->len)
         return false;
 #if CX_SSE42
-    if (a->len < 16 && b->len < 16) {
-        __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
-        __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
+    if (str->len < 16 && cmp->len < 16) {
+        __m128i v_str = _mm_loadu_si128((__m128i *)str->ptr);
+        __m128i v_cmp = _mm_loadu_si128((__m128i *)cmp->ptr);
         return _mm_cmpistrc(
-            a_vec, b_vec,
+            v_cmp, v_str,
             _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ORDERED | _SIDD_BIT_MASK);
     }
 #endif
-    return !!strstr(a->ptr, b->ptr);
+    return !!strstr(str->ptr, cmp->ptr);
 }
 
-static inline bool cx_str_contains_any_ci(const struct cx_string *a,
-                                          const struct cx_string *b)
+static inline bool cx_str_contains_any_ci(const struct cx_string *str,
+                                          const struct cx_string *cmp)
 {
-    return a->len >= b->len && !!strcasestr(a->ptr, b->ptr);
+    return str->len >= cmp->len && !!strcasestr(str->ptr, cmp->ptr);
 }
 
-static inline bool cx_str_contains_start(const struct cx_string *a,
-                                         const struct cx_string *b)
+static inline bool cx_str_contains_start(const struct cx_string *str,
+                                         const struct cx_string *cmp)
 {
-    if (a->len < b->len)
+    if (str->len < cmp->len)
         return false;
 #if CX_SSE42
-    if (b->len < 16) {
-        __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
-        __m128i b_vec = _mm_loadu_si128((__m128i *)a->ptr);
+    if (cmp->len < 16) {
+        __m128i v_str = _mm_loadu_si128((__m128i *)str->ptr);
+        __m128i v_cmp = _mm_loadu_si128((__m128i *)cmp->ptr);
         return _mm_cmpistro(
-            a_vec, b_vec,
+            v_cmp, v_str,
             _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ORDERED | _SIDD_BIT_MASK);
     }
 #endif
-    return !memcmp(a->ptr, b->ptr, b->len);
+    return !memcmp(str->ptr, cmp->ptr, cmp->len);
 }
 
-static inline bool cx_str_contains_start_ci(const struct cx_string *a,
-                                            const struct cx_string *b)
+static inline bool cx_str_contains_start_ci(const struct cx_string *str,
+                                            const struct cx_string *cmp)
 {
-    return a->len >= b->len && !strncasecmp(a->ptr, b->ptr, b->len);
+    return str->len >= cmp->len && !strncasecmp(str->ptr, cmp->ptr, cmp->len);
 }
 
-static inline bool cx_str_contains_end(const struct cx_string *a,
-                                       const struct cx_string *b)
+static inline bool cx_str_contains_end(const struct cx_string *str,
+                                       const struct cx_string *cmp)
 {
-    if (a->len < b->len)
+    if (str->len < cmp->len)
         return false;
 #if CX_SSE42
-    if (b->len < 16) {
-        __m128i a_vec = _mm_loadu_si128((__m128i *)b->ptr);
-        __m128i b_vec = _mm_loadu_si128((__m128i *)(a->ptr + a->len - b->len));
+    if (cmp->len < 16) {
+        __m128i v_str =
+            _mm_loadu_si128((__m128i *)(str->ptr + str->len - cmp->len));
+        __m128i v_cmp = _mm_loadu_si128((__m128i *)cmp->ptr);
         return _mm_cmpistro(
-            a_vec, b_vec,
+            v_cmp, v_str,
             _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ORDERED | _SIDD_BIT_MASK);
     }
 #endif
-    return !memcmp(a->ptr + a->len - b->len, b->ptr, b->len);
+    return !memcmp(str->ptr + str->len - cmp->len, cmp->ptr, cmp->len);
 }
 
-static inline bool cx_str_contains_end_ci(const struct cx_string *a,
-                                          const struct cx_string *b)
+static inline bool cx_str_contains_end_ci(const struct cx_string *str,
+                                          const struct cx_string *cmp)
 {
-    return a->len >= b->len &&
-           !strncasecmp(a->ptr + a->len - b->len, b->ptr, b->len);
+    return str->len >= cmp->len &&
+           !strncasecmp(str->ptr + str->len - cmp->len, cmp->ptr, cmp->len);
 }
 
-static inline bool cx_str_lt(const struct cx_string *a,
-                             const struct cx_string *b)
+static inline bool cx_str_lt(const struct cx_string *str,
+                             const struct cx_string *cmp)
 {
-    return strcmp(a->ptr, b->ptr) < 0;
+    return strcmp(str->ptr, cmp->ptr) < 0;
 }
 
-static inline bool cx_str_gt(const struct cx_string *a,
-                             const struct cx_string *b)
+static inline bool cx_str_gt(const struct cx_string *str,
+                             const struct cx_string *cmp)
 {
-    return strcmp(a->ptr, b->ptr) > 0;
+    return strcmp(str->ptr, cmp->ptr) > 0;
 }
 
-static inline bool cx_str_lt_ci(const struct cx_string *a,
-                                const struct cx_string *b)
+static inline bool cx_str_lt_ci(const struct cx_string *str,
+                                const struct cx_string *cmp)
 {
-    return strcasecmp(a->ptr, b->ptr) < 0;
+    return strcasecmp(str->ptr, cmp->ptr) < 0;
 }
 
-static inline bool cx_str_gt_ci(const struct cx_string *a,
-                                const struct cx_string *b)
+static inline bool cx_str_gt_ci(const struct cx_string *str,
+                                const struct cx_string *cmp)
 {
-    return strcasecmp(a->ptr, b->ptr) > 0;
+    return strcasecmp(str->ptr, cmp->ptr) > 0;
 }
 
 #define CX_STR_MATCH(name, prefix)                        \

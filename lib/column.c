@@ -347,19 +347,20 @@ size_t cx_column_cursor_skip_dbl(struct cx_column_cursor *cursor, size_t count)
 static inline size_t cx_strlen(const char *string)
 {
 #if CX_SSE42
-        __m128i v_null = _mm_set1_epi8(0);
-        size_t length = 0;
-        for (;;) {
-            __m128i v_string = _mm_loadu_si128((__m128i *)(string + length));
-            int result = _mm_cmpistri(v_string, v_null,
-                _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_EACH | _SIDD_BIT_MASK);
-            length += result;
-            if (result < 16)
-                break;
-        }
-        return length;
+    __m128i v_null = _mm_set1_epi8(0);
+    size_t length = 0;
+    for (;;) {
+        __m128i v_str = _mm_loadu_si128((__m128i *)(string + length));
+        int result = _mm_cmpistri(
+            v_str, v_null,
+            _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_EACH | _SIDD_BIT_MASK);
+        length += result;
+        if (result < 16)
+            break;
+    }
+    return length;
 #else
-        return strlen(string);
+    return strlen(string);
 #endif
 }
 
