@@ -31,7 +31,8 @@ else
 endif
 
 LIBNAME = lib$(PROJECT)
-LIB = $(LIBNAME).$(LIBEXT)
+STATIC_LIB = $(LIBNAME).a
+SHARED_LIB = $(LIBNAME).$(LIBEXT)
 
 OBJ := $(SRC:.c=.o)
 
@@ -50,9 +51,12 @@ ifneq ($(debug), 1)
   endif
 endif
 
-lib: $(LIB)
+lib: $(SHARED_LIB) $(STATIC_LIB)
 
-$(LIB): $(OBJ)
+$(STATIC_LIB): $(OBJ)
+	$(AR) rcs $@ $^
+
+$(SHARED_LIB): $(OBJ)
 	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LDLIBS)
 
 .c.o:
@@ -61,15 +65,16 @@ $(LIB): $(OBJ)
 compile: $(OBJ)
 
 clean:
-	rm -f $(OBJ) $(LIBNAME).so $(LIBNAME).dylib
+	$(RM) $(OBJ) $(LIBNAME).*
 
-install: $(LIB)
-	install -m 755 $(LIB) $(DESTDIR)$(LIBDIR)
+install: lib
+	install -m 755 $(SHARED_LIB) $(STATIC_LIB) $(DESTDIR)$(LIBDIR)
 	install -d $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
 	install -m 644 $(HEADERS) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
 
 uninstall:
-	rm -f $(DESTDIR)$(LIBDIR)/$(LIB) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)/*.h
+	$(RM) $(DESTDIR)$(LIBDIR)/$(SHARED_LIB) $(DESTDIR)$(LIBDIR)/$(STATIC_LIB)
+	$(RM) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)/*.h
 	rmdir $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
 
 .PHONY: compile clean install uninstall

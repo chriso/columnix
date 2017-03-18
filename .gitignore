@@ -1,11 +1,13 @@
 *.o
 *.so
 *.dylib
+*.a
+
+test/runner
+
 *.gcno
 *.gcda
 *.gcov
-
-test/runner
 coverage*.html
 
 bin/columnix_dump

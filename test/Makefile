@@ -23,7 +23,7 @@ $(RUNNER): $(OBJ)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(RUNNER) $(OBJ)
+	$(RM) $(RUNNER) $(OBJ)
 
 valgrind: $(RUNNER)
 	$(WITH_LIB) valgrind --leak-check=full ./$(RUNNER) --no-fork

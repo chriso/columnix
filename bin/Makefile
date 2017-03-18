@@ -16,12 +16,12 @@ $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(BIN) $(OBJ)
+	$(RM) $(BIN) $(OBJ)
 
 install: $(BIN)
 	install -m 755 $(BIN) $(DESTDIR)$(BINDIR)
 
 uninstall:
-	rm -f $(addprefix $(DESTDIR)$(BINDIR)/,$(BIN))
+	$(RM) $(addprefix $(DESTDIR)$(BINDIR)/,$(BIN))
 
 .PHONY: clean install uninstall
