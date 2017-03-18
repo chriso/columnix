@@ -33,10 +33,8 @@ int main(int argc, char *argv[])
     printf(" - columns: %zu\n", column_count);
 
     for (size_t i = 0; i < column_count; i++) {
-        enum cx_column_type type =
-            cx_reader_column_type(reader, i);
-        enum cx_encoding_type encoding =
-            cx_reader_column_encoding(reader, i);
+        enum cx_column_type type = cx_reader_column_type(reader, i);
+        enum cx_encoding_type encoding = cx_reader_column_encoding(reader, i);
         int level = 0;
         enum cx_compression_type compression =
             cx_reader_column_compression(reader, i, &level);
