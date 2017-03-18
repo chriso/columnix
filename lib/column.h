@@ -1,6 +1,10 @@
 #ifndef CX_COLUMN_H_
 #define CX_COLUMN_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "common.h"
 
 #define CX_BATCH_SIZE 64
@@ -65,5 +69,9 @@ size_t cx_column_cursor_skip_i64(struct cx_column_cursor *, size_t);
 size_t cx_column_cursor_skip_flt(struct cx_column_cursor *, size_t);
 size_t cx_column_cursor_skip_dbl(struct cx_column_cursor *, size_t);
 size_t cx_column_cursor_skip_str(struct cx_column_cursor *, size_t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

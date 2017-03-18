@@ -1,6 +1,10 @@
 #ifndef CX_ROW_GROUP_H_
 #define CX_ROW_GROUP_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "column.h"
 #include "index.h"
 
@@ -78,5 +82,9 @@ const double *cx_row_group_cursor_batch_dbl(struct cx_row_group_cursor *,
                                             size_t column_index, size_t *count);
 const struct cx_string *cx_row_group_cursor_batch_str(
     struct cx_row_group_cursor *, size_t column_index, size_t *count);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

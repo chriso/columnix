@@ -1,6 +1,10 @@
 #ifndef CX_READER_H_
 #define CX_READER_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pthread.h>
 
 #include "row.h"
@@ -85,5 +89,9 @@ struct cx_row_group *cx_row_group_reader_get(const struct cx_row_group_reader *,
                                              size_t);
 
 void cx_row_group_reader_free(struct cx_row_group_reader *reader);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

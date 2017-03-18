@@ -1,6 +1,10 @@
 #ifndef CX_ROW_H_
 #define CX_ROW_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "predicate.h"
 
 struct cx_row_cursor;
@@ -33,5 +37,9 @@ CX_EXPORT bool cx_row_cursor_get_dbl(const struct cx_row_cursor *,
 CX_EXPORT bool cx_row_cursor_get_str(const struct cx_row_cursor *,
                                      size_t column_index,
                                      struct cx_string *value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,6 +1,10 @@
 #ifndef CX_MATCH_H_
 #define CX_MATCH_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "column.h"
 
 uint64_t cx_match_i32_eq(size_t, const int32_t[], int32_t);
@@ -28,5 +32,9 @@ uint64_t cx_match_str_gt(size_t, const struct cx_string[],
 uint64_t cx_match_str_contains(size_t, const struct cx_string[],
                                const struct cx_string *, bool,
                                enum cx_str_location);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

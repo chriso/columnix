@@ -1,6 +1,10 @@
 #ifndef CX_FILE_H_
 #define CX_FILE_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "index.h"
 
 #define CX_FILE_MAGIC 0x7863040378630201LLU
@@ -50,5 +54,9 @@ struct cx_column_header {
     uint32_t encoding;
     struct cx_index index;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

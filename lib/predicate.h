@@ -1,6 +1,10 @@
 #ifndef CX_PREDICATE_H_
 #define CX_PREDICATE_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdarg.h>
 
 #include "row_group.h"
@@ -79,5 +83,9 @@ struct cx_predicate *cx_predicate_new_custom(size_t column, enum cx_column_type,
                                              cx_index_match_rows_t,
                                              cx_index_match_index_t, int cost,
                                              void *data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

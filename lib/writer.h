@@ -1,6 +1,10 @@
 #ifndef CX_WRITER_H_
 #define CX_WRITER_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "row_group.h"
 
 struct cx_writer;
@@ -43,5 +47,9 @@ CX_EXPORT bool cx_row_group_writer_put(struct cx_row_group_writer *,
 
 CX_EXPORT bool cx_row_group_writer_finish(struct cx_row_group_writer *,
                                           bool sync);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

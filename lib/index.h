@@ -1,6 +1,10 @@
 #ifndef CX_INDEX_H_
 #define CX_INDEX_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "column.h"
 
 typedef union {
@@ -50,5 +54,9 @@ enum cx_index_match cx_index_match_str_eq(const struct cx_index *,
                                           const struct cx_string *);
 enum cx_index_match cx_index_match_str_contains(const struct cx_index *,
                                                 const struct cx_string *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

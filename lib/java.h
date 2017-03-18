@@ -1,6 +1,10 @@
 #ifndef CX_JAVA_H_
 #define CX_JAVA_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <jni.h>
 
 CX_EXPORT jlong Java_com_columnix_jni_Reader_create(JNIEnv *, jobject, jstring);
@@ -128,5 +132,9 @@ CX_EXPORT jlong Java_com_columnix_jni_Predicate_stringContains(JNIEnv *,
                                                                jobject, jint,
                                                                jstring, jint,
                                                                jboolean);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

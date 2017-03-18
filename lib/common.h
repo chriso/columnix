@@ -1,6 +1,10 @@
 #ifndef CX_TYPES_H_
 #define CX_TYPES_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -44,5 +48,9 @@ enum cx_str_location {
     CX_STR_LOCATION_END,
     CX_STR_LOCATION_ANY
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
