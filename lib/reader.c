@@ -303,9 +303,10 @@ enum cx_encoding_type cx_reader_column_encoding(const struct cx_reader *reader,
 }
 
 enum cx_compression_type cx_reader_column_compression(
-    const struct cx_reader *reader, size_t column)
+    const struct cx_reader *reader, size_t column, int *level)
 {
-    return cx_row_group_reader_column_compression(reader->reader, column);
+    return cx_row_group_reader_column_compression(reader->reader, column,
+                                                  level);
 }
 
 bool cx_reader_get_null(const struct cx_reader *reader, size_t column_index,
@@ -519,10 +520,14 @@ enum cx_encoding_type cx_row_group_reader_column_encoding(
 }
 
 enum cx_compression_type cx_row_group_reader_column_compression(
-    const struct cx_row_group_reader *reader, size_t column)
+    const struct cx_row_group_reader *reader, size_t column, int *level)
 {
     assert(column < reader->columns.count);
-    return reader->columns.descriptors[column].compression;
+    const struct cx_column_descriptor *descriptor =
+        &reader->columns.descriptors[column];
+    if (level)
+        *level = descriptor->compression_level;
+    return descriptor->compression;
 }
 
 struct cx_row_group *cx_row_group_reader_get(

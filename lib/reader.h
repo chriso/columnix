@@ -37,7 +37,7 @@ enum cx_encoding_type cx_reader_column_encoding(const struct cx_reader *,
                                                 size_t);
 
 enum cx_compression_type cx_reader_column_compression(const struct cx_reader *,
-                                                      size_t);
+                                                      size_t, int *level);
 
 bool cx_reader_get_null(const struct cx_reader *, size_t column_index,
                         bool *value);
@@ -77,7 +77,7 @@ enum cx_encoding_type cx_row_group_reader_column_encoding(
     const struct cx_row_group_reader *, size_t);
 
 enum cx_compression_type cx_row_group_reader_column_compression(
-    const struct cx_row_group_reader *, size_t);
+    const struct cx_row_group_reader *, size_t, int *level);
 
 struct cx_row_group *cx_row_group_reader_get(const struct cx_row_group_reader *,
                                              size_t);

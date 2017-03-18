@@ -128,13 +128,13 @@ int main(int argc, char *argv[])
             enum cx_column_type type = cx_reader_column_type(reader, j);
             if (first_input) {
                 types[j] = type;
-                // FIXME: use compression level from the reader
-                int compression_level = 0;
+                int level;
+                enum cx_compression_type compression =
+                    cx_reader_column_compression(reader, j, &level);
                 if (!cx_writer_add_column(
                         writer, cx_reader_column_name(reader, j), type,
                         cx_reader_column_encoding(reader, j),
-                        cx_reader_column_compression(reader, j),
-                        compression_level)) {
+                        compression, level)) {
                     fprintf(stderr, "Failed to add column %zu from %s\n", j,
                             input_path);
                     goto error;

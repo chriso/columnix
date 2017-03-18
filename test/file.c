@@ -109,10 +109,13 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
             assert_not_null(name);
             assert_string_equal(name, buffer);
 
+            int compression_level = 0;
             assert_int(cx_reader_column_type(reader, i), ==, types[i]);
             assert_int(cx_reader_column_encoding(reader, i), ==, 0);
-            assert_int(cx_reader_column_compression(reader, i), ==,
+            assert_int(cx_reader_column_compression(reader, i,
+                                                    &compression_level), ==,
                        compression);
+            assert_int(compression_level, ==, level);
         }
         size_t position = 0;
         for (; cx_reader_next(reader); position++) {
@@ -185,9 +188,13 @@ static MunitResult test_read_write(const MunitParameter params[], void *ptr)
                        types[i]);
             assert_int(cx_row_group_reader_column_encoding(row_group_reader, i),
                        ==, 0);
+
+            int compression_level = 0;
             assert_int(
-                cx_row_group_reader_column_compression(row_group_reader, i), ==,
+                cx_row_group_reader_column_compression(row_group_reader, i,
+                                                       &compression_level), ==,
                 compression);
+            assert_int(compression_level, ==, level);
         }
         position = 0;
         for (size_t i = 0; i < ROW_GROUP_COUNT; i++) {

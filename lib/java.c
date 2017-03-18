@@ -108,7 +108,7 @@ jint Java_com_columnix_jni_Reader_columnEncoding(JNIEnv *env, jobject this,
 jint Java_com_columnix_jni_Reader_columnCompression(JNIEnv *env, jobject this,
                                                     jlong ptr, jint index)
 {
-    return cx_reader_column_compression((struct cx_reader *)ptr, index);
+    return cx_reader_column_compression((struct cx_reader *)ptr, index, NULL);
 }
 
 jboolean Java_com_columnix_jni_Reader_isNull(JNIEnv *env, jobject this,

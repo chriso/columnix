@@ -33,7 +33,7 @@ struct cx_column_descriptor {
     uint32_t type;
     uint32_t encoding;
     uint32_t compression;
-    int32_t level;
+    int32_t compression_level;
     uint32_t __padding;
 };
 

@@ -341,7 +341,7 @@ bool cx_row_group_writer_add_column(struct cx_row_group_writer *writer,
     descriptor->type = type;
     descriptor->encoding = encoding;
     descriptor->compression = compression;
-    descriptor->level = level;
+    descriptor->compression_level = level;
 
     return cx_row_group_writer_add_string(writer, name, &descriptor->name);
 }
@@ -494,7 +494,7 @@ bool cx_row_group_writer_put(struct cx_row_group_writer *writer,
             cx_row_group_column_index(row_group, i);
         if (!cx_row_group_writer_put_column(
                 writer, column, index, &headers[i * 2], descriptor->compression,
-                descriptor->level))
+                descriptor->compression_level))
             goto error;
         if (!cx_row_group_writer_put_column(
                 writer, nulls, nulls_index, &headers[i * 2 + 1],
