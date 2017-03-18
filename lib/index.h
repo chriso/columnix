@@ -1,5 +1,5 @@
-#ifndef CX_INDEX_
-#define CX_INDEX_
+#ifndef CX_INDEX_H_
+#define CX_INDEX_H_
 
 #include "column.h"
 

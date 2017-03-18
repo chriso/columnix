@@ -1,5 +1,5 @@
-#ifndef CX_COLUMN_
-#define CX_COLUMN_
+#ifndef CX_COLUMN_H_
+#define CX_COLUMN_H_
 
 #include "types.h"
 

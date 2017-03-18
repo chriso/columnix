@@ -1,5 +1,5 @@
-#ifndef CX_ROW_GROUP_
-#define CX_ROW_GROUP_
+#ifndef CX_ROW_GROUP_H_
+#define CX_ROW_GROUP_H_
 
 #include "column.h"
 #include "index.h"

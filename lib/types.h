@@ -1,5 +1,5 @@
-#ifndef CX_TYPES_
-#define CX_TYPES_
+#ifndef CX_TYPES_H_
+#define CX_TYPES_H_
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -36,5 +36,11 @@ typedef union {
     double dbl;
     struct cx_string str;
 } cx_value_t;
+
+enum cx_str_location {
+    CX_STR_LOCATION_START,
+    CX_STR_LOCATION_END,
+    CX_STR_LOCATION_ANY
+};
 
 #endif

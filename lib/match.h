@@ -19,12 +19,6 @@ uint64_t cx_match_dbl_eq(size_t, const double[], double);
 uint64_t cx_match_dbl_lt(size_t, const double[], double);
 uint64_t cx_match_dbl_gt(size_t, const double[], double);
 
-enum cx_str_location {
-    CX_STR_LOCATION_START,
-    CX_STR_LOCATION_END,
-    CX_STR_LOCATION_ANY
-};
-
 uint64_t cx_match_str_eq(size_t, const struct cx_string[],
                          const struct cx_string *, bool);
 uint64_t cx_match_str_lt(size_t, const struct cx_string[],

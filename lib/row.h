@@ -1,5 +1,5 @@
-#ifndef CX_ROW_
-#define CX_ROW_
+#ifndef CX_ROW_H_
+#define CX_ROW_H_
 
 #include "predicate.h"
 

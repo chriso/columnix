@@ -1,5 +1,5 @@
-#ifndef CX_JAVA_
-#define CX_JAVA_
+#ifndef CX_JAVA_H_
+#define CX_JAVA_H_
 
 #include <jni.h>
 

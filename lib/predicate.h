@@ -3,7 +3,6 @@
 
 #include <stdarg.h>
 
-#include "match.h"
 #include "row_group.h"
 
 struct cx_predicate;

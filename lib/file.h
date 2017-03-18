@@ -1,5 +1,5 @@
-#ifndef CX_FILE_
-#define CX_FILE_
+#ifndef CX_FILE_H_
+#define CX_FILE_H_
 
 #include "index.h"
 

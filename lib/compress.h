@@ -1,5 +1,5 @@
-#ifndef CX_COMPRESSION_
-#define CX_COMPRESSION_
+#ifndef CX_COMPRESS_H_
+#define CX_COMPRESS_H_
 
 #include "types.h"
 

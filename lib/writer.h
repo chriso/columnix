@@ -1,5 +1,5 @@
-#ifndef CX_WRITER_
-#define CX_WRITER_
+#ifndef CX_WRITER_H_
+#define CX_WRITER_H_
 
 #include "row_group.h"
 

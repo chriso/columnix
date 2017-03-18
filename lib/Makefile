@@ -13,6 +13,8 @@ OPTFLAGS ?= -O3 -march=native
 
 SRC = column.c compress.c index.c match.c predicate.c reader.c row.c row_group.c writer.c
 
+HEADERS = column.h compress.h file.h index.h predicate.h reader.h row.h row_group.h types.h writer.h
+
 ifeq ($(java), 1)
   JAVA_HOME := $(shell /usr/libexec/java_home)
   JAVA_OS := $(shell uname -s | tr A-Z a-z)
@@ -64,7 +66,7 @@ clean:
 install: $(LIB)
 	install -m 755 $(LIB) $(DESTDIR)$(LIBDIR)
 	install -d $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
-	install -m 644 $(wildcard *.h) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
+	install -m 644 $(HEADERS) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
 
 uninstall:
 	rm -f $(DESTDIR)$(LIBDIR)/$(LIB) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)/*.h

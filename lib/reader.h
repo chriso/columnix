@@ -1,5 +1,5 @@
-#ifndef CX_READER_
-#define CX_READER_
+#ifndef CX_READER_H_
+#define CX_READER_H_
 
 #include <pthread.h>
 
