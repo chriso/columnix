@@ -3,6 +3,8 @@
 *.dylib
 *.a
 
+lib/libcolumnix.pc
+
 test/runner
 
 *.gcno

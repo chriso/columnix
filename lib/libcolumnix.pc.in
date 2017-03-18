@@ -1,0 +1,10 @@
+prefix=@PREFIX@
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: columnix
+Description: columnar storage
+URL: http://www.columnix.com/
+Version: @VERSION@
+Libs: -L${libdir} -lcolumnix
+Cflags: -I${includedir}

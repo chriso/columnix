@@ -1,9 +1,12 @@
 PROJECT = columnix
 
+VERSION = 1.0.0
+
 DESTDIR ?=
-PREFIX  ?= /usr/local
+PREFIX ?= /usr/local
 LIBDIR ?= $(PREFIX)/lib
-INCLUDEDIR = $(PREFIX)/include
+INCLUDEDIR ?= $(PREFIX)/include
+PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 
 LDLIBS = -llz4 -lzstd
 
@@ -35,6 +38,8 @@ LIBNAME = lib$(PROJECT)
 STATIC_LIB = $(LIBNAME).a
 SHARED_LIB = $(LIBNAME).$(LIBEXT)
 
+PKGCONFIG_FILE = $(LIBNAME).pc
+
 OBJ := $(SRC:.c=.o)
 
 ifneq ($(debug), 1)
@@ -63,18 +68,27 @@ $(SHARED_LIB): $(OBJ)
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+$(PKGCONFIG_FILE): $(PKGCONFIG_FILE).in
+	sed -e 's|@PREFIX@|$(PREFIX)|' \
+            -e 's|@LIBDIR@|$(LIBDIR)|' \
+            -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|' \
+            -e 's|@VERSION@|$(VERSION)|' \
+            $< >$@
+
 compile: $(OBJ)
 
 clean:
 	$(RM) $(OBJ) $(LIBNAME).*
 
-install: lib
-	install -m 755 $(SHARED_LIB) $(STATIC_LIB) $(DESTDIR)$(LIBDIR)
-	install -d $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
-	install -m 644 $(HEADERS) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
+install: lib $(PKGCONFIG_FILE)
+	install -m 755 $(SHARED_LIB) $(STATIC_LIB) $(DESTDIR)$(LIBDIR)/
+	install -d $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)/
+	install -m 644 $(HEADERS) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)/
+	install -m 644 $(PKGCONFIG_FILE) $(DESTDIR)$(PKGCONFIGDIR)/
 
 uninstall:
 	$(RM) $(DESTDIR)$(LIBDIR)/$(SHARED_LIB) $(DESTDIR)$(LIBDIR)/$(STATIC_LIB)
+	$(RM) $(DESTDIR)$(PKGCONFIGDIR)/$(PKGCONFIG_FILE)
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)/*.h
 	rmdir $(DESTDIR)$(INCLUDEDIR)/$(PROJECT)
 
