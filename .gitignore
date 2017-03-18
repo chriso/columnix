@@ -10,8 +10,9 @@ test/runner
 *.gcov
 coverage*.html
 
-bin/columnix_dump
-bin/columnix_cat
 bin/columnix_analyze
+bin/columnix_cat
+bin/columnix_dump
+bin/columnix_head
 
 *.pyc
