@@ -7,8 +7,14 @@ OBJ := $(SRC:.c=.o)
 
 RUNNER = runner
 
+ifeq ($(shell uname -s), Darwin)
+  WITH_LIB = DYLD_LIBRARY_PATH=../lib
+else
+  WITH_LIB = LD_LIBRARY_PATH=../lib
+endif
+
 test: $(RUNNER)
-	@./$(RUNNER) $(grep)
+	@$(WITH_LIB) ./$(RUNNER) $(grep)
 
 $(RUNNER): $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -20,6 +26,6 @@ clean:
 	rm -f $(RUNNER) $(OBJ)
 
 valgrind: $(RUNNER)
-	LD_LIBRARY_PATH=../lib valgrind --leak-check=full ./$(RUNNER) --no-fork
+	$(WITH_LIB) valgrind --leak-check=full ./$(RUNNER) --no-fork
 
 .PHONY: test clean valgrind
