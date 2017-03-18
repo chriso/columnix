@@ -403,6 +403,7 @@ static bool cx_row_group_writer_put_column(struct cx_row_group_writer *writer,
     const void *buffer = cx_column_export(column, &column_size);
     header->decompressed_size = column_size;
     header->offset = cx_write_align(cx_row_group_writer_offset(writer));
+    header->encoding =  cx_column_encoding(column);
     memcpy(&header->index, index, sizeof(*index));
     size_t compressed_size = 0;
     void *compressed = NULL;
@@ -447,8 +448,7 @@ bool cx_row_group_writer_put(struct cx_row_group_writer *writer,
     for (size_t i = 0; i < column_count; i++) {
         struct cx_column_descriptor *descriptor =
             &writer->columns.descriptors[i];
-        if (descriptor->type != cx_row_group_column_type(row_group, i) ||
-            descriptor->encoding != cx_row_group_column_encoding(row_group, i))
+        if (descriptor->type != cx_row_group_column_type(row_group, i))
             return false;
     }
 

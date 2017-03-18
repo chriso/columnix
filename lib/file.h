@@ -47,7 +47,7 @@ struct cx_column_header {
     uint64_t size;
     uint64_t decompressed_size;
     uint32_t compression;
-    uint32_t __padding;
+    uint32_t encoding;
     struct cx_index index;
 };
 

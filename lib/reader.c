@@ -553,7 +553,7 @@ struct cx_row_group *cx_row_group_reader_get(
 
         struct cx_lazy_column column = {
             .type = descriptor->type,
-            .encoding = descriptor->encoding,
+            .encoding = header->encoding,
             .compression = header->compression,
             .index = &header->index,
             .ptr = cx_row_group_reader_at(reader, header->offset),
@@ -562,7 +562,7 @@ struct cx_row_group *cx_row_group_reader_get(
 
         struct cx_lazy_column nulls = {
             .type = CX_COLUMN_BIT,
-            .encoding = CX_ENCODING_NONE,
+            .encoding = null_header->encoding,
             .compression = null_header->compression,
             .index = &null_header->index,
             .ptr = cx_row_group_reader_at(reader, null_header->offset),
