@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "reader.h"
+#include <columnix/reader.h>
 
 const char *null_string = "";
 
