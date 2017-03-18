@@ -36,14 +36,14 @@ ifneq ($(debug), 1)
   CFLAGS += $(OPTFLAGS)
   CPU_FEATURES := $(shell ../contrib/cpu-features.sh)
   ifneq (,$(findstring AVX512F,$(CPU_FEATURES)))
-    CFLAGS += -DCX_AVX512
+    CFLAGS += -DCX_AVX512 -mavx512f
   else ifneq (,$(findstring AVX2,$(CPU_FEATURES)))
-    CFLAGS += -DCX_AVX2
+    CFLAGS += -DCX_AVX2 -mavx2
   else ifneq (,$(findstring AVX,$(CPU_FEATURES)))
-    CFLAGS += -DCX_AVX
+    CFLAGS += -DCX_AVX -mavx
   endif
   ifneq (,$(findstring SSE4_2,$(CPU_FEATURES)))
-    CFLAGS += -DCX_SSE42
+    CFLAGS += -DCX_SSE42 -msse4.2
   endif
 endif
 
