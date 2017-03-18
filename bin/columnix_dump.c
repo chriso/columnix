@@ -5,7 +5,7 @@
 
 #include <columnix/reader.h>
 
-const char *null_string = "";
+const char *null_string = "(null)";
 
 static bool cx_print_value(struct cx_reader *reader, size_t column,
                            enum cx_column_type type);

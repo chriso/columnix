@@ -12,5 +12,6 @@ coverage*.html
 
 bin/columnix_dump
 bin/columnix_cat
+bin/columnix_analyze
 
 *.pyc
