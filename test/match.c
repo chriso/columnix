@@ -107,8 +107,8 @@ static MunitResult test_str(const MunitParameter params[], void *fixture)
 {
 #define CX_SSE42_PADDING "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 
-#define CX_STR(str)          \
-    {                        \
+#define CX_STR(str)                           \
+    {                                         \
         str CX_SSE42_PADDING, sizeof(str) - 1 \
     }
 #define CX_CMP(str) &(struct cx_string)CX_STR(str)

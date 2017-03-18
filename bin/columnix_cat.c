@@ -133,8 +133,8 @@ int main(int argc, char *argv[])
                     cx_reader_column_compression(reader, j, &level);
                 if (!cx_writer_add_column(
                         writer, cx_reader_column_name(reader, j), type,
-                        cx_reader_column_encoding(reader, j),
-                        compression, level)) {
+                        cx_reader_column_encoding(reader, j), compression,
+                        level)) {
                     fprintf(stderr, "Failed to add column %zu from %s\n", j,
                             input_path);
                     goto error;
