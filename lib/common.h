@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define CX_EXPORT __attribute__((visibility("default")))
+
 enum cx_column_type {
     CX_COLUMN_BIT,
     CX_COLUMN_I32,

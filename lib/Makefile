@@ -7,13 +7,14 @@ INCLUDEDIR = $(PREFIX)/include
 
 LDLIBS = -llz4 -lzstd
 
-CFLAGS += -std=c99 -g -pedantic -Wall -pthread
+CFLAGS += -std=c99 -g -pedantic -Wall -pthread -fvisibility=hidden
+LDFLAGS += -fvisibility=hidden
 
 OPTFLAGS ?= -O3 -march=native
 
 SRC = column.c compress.c index.c match.c predicate.c reader.c row.c row_group.c writer.c
 
-HEADERS = column.h compress.h file.h index.h predicate.h reader.h row.h row_group.h types.h writer.h
+HEADERS = column.h common.h compress.h file.h index.h predicate.h reader.h row.h row_group.h writer.h
 
 ifeq ($(java), 1)
   JAVA_HOME := $(shell /usr/libexec/java_home)

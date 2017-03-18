@@ -1,7 +1,7 @@
 #ifndef CX_COLUMN_H_
 #define CX_COLUMN_H_
 
-#include "types.h"
+#include "common.h"
 
 #define CX_BATCH_SIZE 64
 
