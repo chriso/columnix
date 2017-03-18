@@ -1,20 +1,20 @@
 CFLAGS += -std=c99 -I../lib -g -pedantic -Wall
-LDFLAGS += -L../lib
-LDLIBS = -lcolumnix
+
+ifneq ($(shell uname -s), Darwin)
+  LDFLAGS += -pthread
+endif
+
+# link with the static lib. This allows us to test parts of
+# the library that are hidden via -fvisibility=hidden
+LDLIBS = ../lib/libcolumnix.a -llz4 -lzstd
 
 SRC := $(wildcard *.c)
 OBJ := $(SRC:.c=.o)
 
 RUNNER = runner
 
-ifeq ($(shell uname -s), Darwin)
-  WITH_LIB = DYLD_LIBRARY_PATH=../lib
-else
-  WITH_LIB = LD_LIBRARY_PATH=../lib
-endif
-
 test: $(RUNNER)
-	@$(WITH_LIB) ./$(RUNNER) $(grep)
+	./$(RUNNER) $(grep)
 
 $(RUNNER): $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -26,6 +26,6 @@ clean:
 	$(RM) $(RUNNER) $(OBJ)
 
 valgrind: $(RUNNER)
-	$(WITH_LIB) valgrind --leak-check=full ./$(RUNNER) --no-fork
+	valgrind --leak-check=full ./$(RUNNER) --no-fork
 
 .PHONY: test clean valgrind
