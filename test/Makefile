@@ -11,15 +11,15 @@ test: $(RUNNER)
 	@./$(RUNNER) $(grep)
 
 $(RUNNER): $(OBJ)
-	$(CC) $(LDFLAGS) $(EXTFLAGS) -o $@ $^ $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(EXTFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(RUNNER) *.o *.gcno *.gcda *.gcov
+	rm -f $(RUNNER) $(OBJ)
 
 valgrind: $(RUNNER)
-	valgrind --leak-check=full ./$(RUNNER) --no-fork
+	LD_LIBRARY_PATH=../lib valgrind --leak-check=full ./$(RUNNER) --no-fork
 
 .PHONY: test clean valgrind

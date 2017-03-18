@@ -24,10 +24,11 @@ analyze:
 	$(MAKE) -C lib clean
 	CFLAGS="--analyze $(CFLAGS)" $(MAKE) -C lib compile
 
+sanitize: FLAGS = -fsanitize=undefined -fsanitize=address
 sanitize:
 	$(MAKE) -C lib clean
 	$(MAKE) -C test clean
-	EXTFLAGS="-fsanitize=undefined -fsanitize=address" $(MAKE) test
+	CFLAGS="$(CFLAGS) $(FLAGS)" LDFLAGS="$(LDFLAGS) $(FLAGS)" $(MAKE) test
 
 format:
 	clang-format -i */*.{c,h}

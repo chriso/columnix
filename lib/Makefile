@@ -28,7 +28,8 @@ else
   LIBEXT = so
 endif
 
-LIB = lib$(PROJECT).$(LIBEXT)
+LIBNAME = lib$(PROJECT)
+LIB = $(LIBNAME).$(LIBEXT)
 
 OBJ := $(SRC:.c=.o)
 
@@ -50,15 +51,15 @@ endif
 lib: $(LIB)
 
 $(LIB): $(OBJ)
-	$(CC) $(LDFLAGS) $(EXTFLAGS) -shared -o $@ $^ $(LDLIBS)
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LDLIBS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(EXTFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 compile: $(OBJ)
 
 clean:
-	rm -f *.o *.so *.dylib *.gcno *.gcda *.gcov
+	rm -f $(OBJ) $(LIBNAME).so $(LIBNAME).dylib
 
 install: $(LIB)
 	install -m 755 $(LIB) $(DESTDIR)$(LIBDIR)
