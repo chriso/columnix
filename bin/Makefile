@@ -1,4 +1,3 @@
-DESTDIR ?=
 PREFIX  ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 
@@ -19,9 +18,9 @@ clean:
 	$(RM) $(BIN) $(OBJ)
 
 install: $(BIN)
-	install -m 755 $(BIN) $(DESTDIR)$(BINDIR)
+	install -m 755 $(BIN) $(BINDIR)
 
 uninstall:
-	$(RM) $(addprefix $(DESTDIR)$(BINDIR)/,$(BIN))
+	$(RM) $(addprefix $(BINDIR)/,$(BIN))
 
 .PHONY: clean install uninstall
