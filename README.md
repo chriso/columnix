@@ -2,29 +2,31 @@
 
 Columnix is a columnar storage format, similar to [Parquet][parquet] and [ORC][orc].
 
-The goal was to beat Parquet on read performance in [Spark][spark] for flat schemas,
+The experiment was to beat Parquet's read performance in [Spark][spark] for flat schemas,
 while simultaneously reducing the disk footprint by utilizing newer compression
 algorithms such as [lz4][lz4] and [zstd][zstd].
 
 Columnix supports:
-1. vectorized reads
-2. predicate pushdown
-3. lazy reads
-4. AVX2 and AVX512 predicate matching implementations
-5. memory-mapped IO
+1. row groups
+2. indexes (at the row group level, and file level)
+3. vectorized reads
+4. predicate pushdown
+5. lazy reads
+6. AVX2 and AVX512 predicate matching
+7. memory-mapped IO
 
-Spark's Parquet reader supports 1 and 2, but has no support for lazy reads, only
-limited SIMD support, and IO is through a HDFS layer.
+Spark's Parquet reader supports 1-4, but has no support for lazy reads, only
+limited SIMD support (whatever the JVM provides) and IO is through HDFS.
 
 Support for complex schemas was not a goal of the project. The format has no support for
-Parquet's [Dremel-style][dremel-style] definition & repetition levels, or ORC's
+Parquet's [Dremel-style][dremel-style] definition & repetition levels or ORC's
 [compound types][orc-types] (struct, list, map, union).
 
-The library does not currently support encoding of data prior to compression (for example
-run-length or dict encoding), despite placeholders in the code alluding to it. I do not
-intend to complete this part of the library.
+The library does not currently support encoding of data prior to (or instead of) compression,
+for example run-length or dict encoding, despite placeholders in the code alluding to it. It was
+next on the TODO list, but now I don't intend to complete the library.
 
-Number 5 is the primary reason I won't be putting in any further development work. The library
+Number 7 is the primary reason I won't be putting in any further development work. The library
 uses memory-mapped IO only; local reads are fast, but there is no HDFS compatibility and so the
 format has limited real-world use outside of benchmarks and trivial workloads.
 
