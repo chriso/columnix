@@ -24,15 +24,15 @@ Parquet's [Dremel-style][dremel-style] definition & repetition levels or ORC's
 
 The library does not currently support encoding of data prior to (or instead of) compression,
 for example run-length or dict encoding, despite placeholders in the code alluding to it. It was
-next on the TODO list, but now I don't intend to complete the library.
-
-Number 7 is the primary reason I won't be putting in any further development work. The library
-uses memory-mapped IO only; local reads are fast, but there is no HDFS compatibility and so the
-format has limited real-world use outside of benchmarks and trivial workloads.
+next on the TODO list, but I'd like to explore alternative approaches such as
+[github.com/chriso/treecomp](https://github.com/chriso/treecomp).
 
 The following bindings are provided:
 - Python (ctypes): [./contrib/columnix.py][py-bindings]
 - Spark (JNI): [chriso/columnix-spark][spark-bindings]
+
+One major caveat: the library uses `mmap` for reads. There is no HDFS compatibility and
+so there is limited real world use for the time being.
 
 
 [parquet]: https://parquet.apache.org
